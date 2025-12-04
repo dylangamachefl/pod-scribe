@@ -16,6 +16,7 @@ dependencies:
     - git+https://github.com/m-bain/whisperx.git
     - feedparser
     - requests
+    - yt-dlp
     - pyannote.audio
     - python-dotenv
 
