@@ -1,0 +1,153 @@
+version: '3.8'
+
+services:
+  # Qdrant Vector Database
+  # Used by RAG service for storing transcript embeddings
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: podcast-qdrant
+    ports:
+      - "6333:6333"  # REST API
+      - "6334:6334"  # gRPC API
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    environment:
+      - QDRANT_ALLOW_RECOVERY_MODE=true
+    networks:
+      - podcast-network
+    restart: unless-stopped
+
+  # RAG Service (FastAPI Backend)
+  # Provides semantic search and Q&A over transcripts
+  rag-service:
+    build:
+      context: ./rag-service
+      dockerfile: Dockerfile
+    container_name: podcast-rag-service
+    ports:
+      - "${RAG_API_PORT:-8000}:8000"
+    volumes:
+      # Mount shared directories for reading transcripts
+      - ./shared/output:/app/shared/output:ro  # Read-only access to transcripts
+      - ./shared/summaries:/app/shared/summaries  # Read-write for summaries
+      - ./shared/logs:/app/shared/logs  # Logs
+    environment:
+      # Pass environment variables from .env
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - QDRANT_URL=http://qdrant:6333  # Use Docker network DNS
+      - QDRANT_COLLECTION_NAME=${QDRANT_COLLECTION_NAME:-podcast_transcripts}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION:-384}
+      - CHUNK_SIZE=${CHUNK_SIZE:-500}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-100}
+      - TOP_K_RESULTS=${TOP_K_RESULTS:-5}
+      - SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD:-0.7}
+      - RAG_FRONTEND_URL=${RAG_FRONTEND_URL:-http://localhost:3000}
+    depends_on:
+      - qdrant
+    networks:
+      - podcast-network
+    restart: unless-stopped
+
+  # Transcription API (FastAPI Backend)
+  # Provides REST API for managing podcast feeds and transcription queue
+  transcription-api:
+    build:
+      context: ./transcription-service
+      dockerfile: Dockerfile.api
+    container_name: podcast-transcription-api
+    ports:
+      - "${TRANSCRIPTION_API_PORT:-8001}:8001"
+    volumes:
+      # Mount shared directories for reading/writing configs and transcripts
+      - ./shared/config:/app/shared/config  # Read-write for configs
+      - ./shared/output:/app/shared/output:ro  # Read-only access to transcripts
+      - ./shared/logs:/app/shared/logs  # Logs
+    networks:
+      - podcast-network
+    restart: unless-stopped
+
+  # Frontend (React)
+  # User interface for searching and browsing transcripts
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: podcast-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - REACT_APP_RAG_API_URL=http://localhost:${RAG_API_PORT:-8000}
+      - REACT_APP_TRANSCRIPTION_API_URL=http://localhost:${TRANSCRIPTION_API_PORT:-8001}
+    depends_on:
+      - rag-service
+      - transcription-api
+    networks:
+      - podcast-network
+    restart: unless-stopped
+
+volumes:
+  # Persistent storage for Qdrant vector database
+  qdrant_storage:
+    driver: local
+
+networks:
+  # Internal network for service communication
+  podcast-network:
+    driver: bridge
+
+# =================================================================
+# USAGE INSTRUCTIONS
+# =================================================================
+#
+# 1. Build and start all services:
+#    docker-compose up -d
+#
+# 2. Start only specific services:
+#    docker-compose up -d qdrant rag-service
+#
+# 3. View logs:
+#    docker-compose logs -f
+#    docker-compose logs -f rag-service
+#
+# 4. Stop all services:
+#    docker-compose down
+#
+# 5. Stop and remove volumes (deletes database):
+#    docker-compose down -v
+#
+# 6. Rebuild services after code changes:
+#    docker-compose up -d --build
+#
+# =================================================================
+# NOTES
+# =================================================================
+#
+# - The transcription service is NOT included as it requires:
+#   - NVIDIA GPU with CUDA support
+#   - Large model files (~10GB)
+#   - Native conda environment for optimal performance
+#   
+#   Run transcription service directly on host machine:
+#   conda activate podcast_bot
+#   python transcription-service/src/cli.py
+#
+# - Shared directories are mounted into containers:
+#   - shared/output: Transcription service writes, RAG service reads
+#   - shared/summaries: RAG service writes summaries
+#   - shared/logs: All services can write logs
+#
+# - Health checks:
+#   - Qdrant: http://localhost:6333/dashboard
+#   - RAG API: http://localhost:8000/health
+#   - RAG Docs: http://localhost:8000/docs
+#   - Frontend: http://localhost:3000
+#
+# - Environment variables:
+#   - Copy .env.example to .env and configure
+#   - Most settings have sensible defaults
+#   - GEMINI_API_KEY is required for RAG service
+#
+# - Volumes:
+#   - qdrant_storage: Persists vector database between restarts
+#   - To reset database: docker-compose down -v

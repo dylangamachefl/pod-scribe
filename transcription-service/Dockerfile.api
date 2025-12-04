@@ -1,0 +1,26 @@
+# Lightweight Dockerfile for Transcription API
+# This service does NOT need GPU or heavy ML dependencies
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY src/api/requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY src/ ./src/
+
+# Expose API port
+EXPOSE 8001
+
+# Run the API server
+CMD ["python", "-m", "uvicorn", "src.api.transcription_api:app", "--host", "0.0.0.0", "--port", "8001"]

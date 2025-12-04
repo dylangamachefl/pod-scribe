@@ -1,0 +1,7 @@
+# Minimal requirements for Transcription API
+# Does not include heavy ML dependencies (those are only needed for the CLI)
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+feedparser==6.0.11
+python-multipart==0.0.6
