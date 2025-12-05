@@ -137,6 +137,12 @@ def fetch_episodes_from_feed(feed_url: str, feed_title: str = None) -> tuple[Lis
                     audio_url = enclosure.get('href')
                     break
             
+            # If no audio enclosure, check if it's a YouTube video
+            if not audio_url:
+                link = entry.get('link', '')
+                if 'youtube.com' in link or 'youtu.be' in link:
+                    audio_url = link
+
             if not audio_url:
                 continue
             

@@ -9,8 +9,68 @@ from typing import Optional, Dict
 import requests
 import torch
 import whisperx
+import yt_dlp
 
 from managers.status_monitor import update_progress
+
+
+def download_youtube_audio(url: str, output_path: Path) -> bool:
+    """Download audio from YouTube video.
+
+    Args:
+        url: YouTube video URL
+        output_path: Path where audio should be saved
+
+    Returns:
+        True if download successful, False otherwise
+    """
+    try:
+        print(f"⬇️  Downloading from YouTube: {url}")
+        update_progress("downloading", 0.0)
+
+        # Configure yt-dlp to download best audio and convert to mp3
+        # Note: output_path usually has an extension (e.g. .mp3)
+        # We need to strip it because yt-dlp adds it
+        out_base = str(output_path.with_suffix(''))
+
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': out_base,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'quiet': True,
+            'no_warnings': True
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+
+        # Ensure the file exists with the expected extension (mp3)
+        # If output_path was .mp3, it should be there.
+        # If output_path was something else, we might need to rename or check.
+        # But we forced preferredcodec mp3, so yt-dlp produced .mp3.
+
+        expected_file = Path(out_base + '.mp3')
+        if expected_file.exists():
+            if expected_file != output_path:
+                if output_path.exists():
+                    output_path.unlink()
+                expected_file.rename(output_path)
+
+            file_size_mb = output_path.stat().st_size / (1024 * 1024)
+            print(f"✅ Downloaded {file_size_mb:.1f} MB")
+            update_progress("downloading", 1.0)
+            return True
+        else:
+            print(f"❌ Download failed: File not found at {expected_file}")
+            return False
+
+    except Exception as e:
+        print(f"❌ YouTube download failed: {e}")
+        return False
 
 
 def download_audio(url: str, output_path: Path) -> bool:
@@ -23,6 +83,9 @@ def download_audio(url: str, output_path: Path) -> bool:
     Returns:
         True if download successful, False otherwise
     """
+    if "youtube.com" in url or "youtu.be" in url:
+        return download_youtube_audio(url, output_path)
+
     try:
         print(f"⬇️  Downloading: {url}")
         update_progress("downloading", 0.0)
