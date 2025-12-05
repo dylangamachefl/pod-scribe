@@ -1,108 +1,102 @@
 """
 Chat Router
-Handles Q&A queries with episode-scoped context stuffing or vector search.
+Handles episode-scoped Q&A using hybrid search (BM25 + FAISS).
 """
 from fastapi import APIRouter, HTTPException
 import time
-import os
-from pathlib import Path
 
 from models import ChatRequest, ChatResponse, SourceCitation
-from services.gemini_client import get_chat_client
-from utils.chunking import extract_metadata_from_transcript
+from services.ollama_client import get_ollama_chat_client
+from services.embeddings import get_embedding_service
+from services.qdrant_client import get_qdrant_service
+from services.hybrid_retriever import get_hybrid_retriever_service
 
 router = APIRouter(prefix="/chat", tags=["chat"])
-
-
-def load_transcript_file(podcast_name: str, episode_title: str) -> str:
-    """
-    Load full transcript from filesystem.
-    
-    Args:
-        podcast_name: Podcast name
-        episode_title: Episode title
-        
-    Returns:
-        Full transcript text
-    """
-    # Look in shared/output directory
-    base_path = Path("../shared/output") / podcast_name
-    
-    if not base_path.exists():
-        raise FileNotFoundError(f"Podcast directory not found: {podcast_name}")
-    
-    # Find transcript file matching episode title
-    for file in base_path.glob("*.txt"):
-        content = file.read_text(encoding='utf-8')
-        metadata = extract_metadata_from_transcript(content)
-        
-        if metadata["episode_title"] == episode_title:
-            return content
-    
-    raise FileNotFoundError(f"Transcript not found for episode: {episode_title}")
 
 
 @router.post("", response_model=ChatResponse)
 async def ask_question(request: ChatRequest):
     """
-    Answer a question using episode-scoped full transcript context or legacy vector search.
+    Answer a question about a specific episode using hybrid search (BM25 + FAISS).
     
-    If episode_title is provided, uses context stuffing with full transcript.
-    Otherwise, falls back to vector search (deprecated).
+    The hybrid retriever combines:
+    - BM25: Keyword-based matching
+    - FAISS: Semantic vector search
+    
+    Results are filtered to the specified episode only.
     """
     try:
         start_time = time.time()
         
-        # Episode-scoped mode with full context stuffing
-        if hasattr(request, 'episode_title') and request.episode_title:
-            try:
-                # Load full transcript
-                # Extract podcast name from existing summaries/metadata
-                # For now, we'll need to search for it
-                from services.summaries_service import get_summary_by_episode_title
-                summary = get_summary_by_episode_title(request.episode_title)
-                
-                if not summary:
-                    raise ValueError(f"Episode not found: {request.episode_title}")
-                
-                transcript_text = load_transcript_file(
-                    summary["podcast_name"],
-                    request.episode_title
-                )
-                
-                # Use chat client with full transcript
-                chat_client = get_chat_client()
-                response = chat_client.answer_with_full_transcript(
-                    question=request.question,
-                    transcript_text=transcript_text,
-                    episode_title=request.episode_title,
-                    podcast_name=summary["podcast_name"],
-                    conversation_history=request.conversation_history
-                )
-                
-                processing_time = (time.time() - start_time) * 1000
-                
-                return ChatResponse(
-                    answer=response["answer"],
-                    sources=[],  # No source citations needed for full context
-                    processing_time_ms=processing_time
-                )
-                
-            except Exception as e:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Error loading transcript: {str(e)}"
-                )
+        # Get services
+        embeddings_service = get_embedding_service()
+        qdrant_service = get_qdrant_service()
         
-        # Legacy mode: vector search (deprecated for new usage)
-        else:
-            # This path is kept for backwards compatibility
-            # but should be phased out
-            return ChatResponse(
-                answer="Please specify an episode_title for episode-scoped chat. Cross-episode search has been deprecated.",
-                sources=[],
-                processing_time_ms=(time.time() - start_time) * 1000
+        # Get or create hybrid retriever
+        try:
+            hybrid_service = get_hybrid_retriever_service()
+        except ValueError:
+            # First time initialization
+            hybrid_service = get_hybrid_retriever_service(
+                embeddings_service=embeddings_service,
+                qdrant_service=qdrant_service
             )
+            # Try to load existing indexes
+            if not hybrid_service.load_indexes():
+                # Build new indexes if loading fails
+                print("Building new hybrid search indexes...")
+                hybrid_service.build_indexes()
+                hybrid_service.save_indexes()
+        
+        # Perform hybrid search scoped to the episode
+        retrieved_chunks = hybrid_service.search(
+            query=request.question,
+            k=5,
+            bm25_weight=request.bm25_weight,
+            faiss_weight=request.faiss_weight,
+            episode_filter=request.episode_title  # Always filter by episode
+        )
+        
+        if not retrieved_chunks:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No content found for episode: {request.episode_title}"
+            )
+        
+        # Use Ollama chat client with retrieved chunks
+        chat_client = get_ollama_chat_client()
+        response = chat_client.answer_with_retrieved_chunks(
+            question=request.question,
+            retrieved_chunks=retrieved_chunks,
+            conversation_history=request.conversation_history
+        )
+        
+        # Format sources
+        sources = [
+            SourceCitation(
+                podcast_name=chunk["podcast_name"],
+                episode_title=chunk["episode_title"],
+                speaker=chunk["speaker"],
+                timestamp=chunk["timestamp"],
+                text_snippet=chunk["text"][:200] + "...",  # Truncate for display
+                relevance_score=1.0  # Ensemble doesn't return individual scores
+            )
+            for chunk in retrieved_chunks
+        ]
+        
+        processing_time = (time.time() - start_time) * 1000
+        
+        return ChatResponse(
+            answer=response["answer"],
+            sources=sources,
+            processing_time_ms=processing_time
+        )
     
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing question: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error processing question: {str(e)}"
+        )
+

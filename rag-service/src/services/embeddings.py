@@ -1,32 +1,28 @@
 """
-Embedding Service using Sentence Transformers
-Handles text-to-vector conversion for semantic search.
+Embedding Service using Ollama
+Handles text-to-vector conversion using Ollama's nomic-embed-text model.
 """
 from typing import List
-import numpy as np
-from sentence_transformers import SentenceTransformer
-import torch
+import requests
 
-from config import EMBEDDING_MODEL, EMBEDDING_DIMENSION
+from config import OLLAMA_API_URL, OLLAMA_EMBED_MODEL, EMBEDDING_DIMENSION
 
 
 class EmbeddingService:
-    """Service for generating embeddings from text."""
+    """Service for generating embeddings from text using Ollama."""
     
     def __init__(self):
-        """Initialize the embedding model."""
-        print(f"Loading embedding model: {EMBEDDING_MODEL}")
-        self.model = SentenceTransformer(EMBEDDING_MODEL)
-        
-        # Force CPU if no GPU (embeddings are lightweight)
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.model.to(self.device)
-        
-        print(f"✅ Embedding model loaded on {self.device}")
+        """Initialize the Ollama embedding service."""
+        self.api_url = OLLAMA_API_URL
+        self.model_name = OLLAMA_EMBED_MODEL
+        print(f"✅ Embedding service configured with Ollama")
+        print(f"   Model: {self.model_name}")
+        print(f"   API URL: {self.api_url}")
+        print(f"   Dimension: {EMBEDDING_DIMENSION}")
     
     def embed_text(self, text: str) -> List[float]:
         """
-        Generate embedding vector for a single text.
+        Generate embedding vector for a single text using Ollama.
         
         Args:
             text: Input text to embed
@@ -34,12 +30,21 @@ class EmbeddingService:
         Returns:
             List of floats representing the embedding vector
         """
-        embedding = self.model.encode(
-            text,
-            convert_to_numpy=True,
-            normalize_embeddings=True  # L2 normalization for cosine similarity
-        )
-        return embedding.tolist()
+        try:
+            response = requests.post(
+                f"{self.api_url}/api/embeddings",
+                json={
+                    "model": self.model_name,
+                    "prompt": text
+                },
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result.get("embedding", [])
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Ollama API error during embedding: {e}")
+            raise RuntimeError(f"Failed to generate embedding: {e}")
     
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
         """
@@ -51,14 +56,17 @@ class EmbeddingService:
         Returns:
             List of embedding vectors
         """
-        embeddings = self.model.encode(
-            texts,
-            convert_to_numpy=True,
-            normalize_embeddings=True,
-            batch_size=32,
-            show_progress_bar=len(texts) > 100
-        )
-        return embeddings.tolist()
+        embeddings = []
+        total = len(texts)
+        
+        for idx, text in enumerate(texts):
+            if idx % 10 == 0 and total > 10:
+                print(f"   Embedding progress: {idx}/{total}")
+            
+            embedding = self.embed_text(text)
+            embeddings.append(embedding)
+        
+        return embeddings
     
     @property
     def dimension(self) -> int:

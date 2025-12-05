@@ -58,6 +58,27 @@ async def ingest_file(request: IngestRequest):
         qdrant_service = get_qdrant_service()
         num_inserted = qdrant_service.insert_chunks(chunks, embeddings, metadata)
         
+        # Rebuild hybrid search indexes
+        try:
+            from services.hybrid_retriever import get_hybrid_retriever_service
+            
+            try:
+                hybrid_service = get_hybrid_retriever_service()
+            except ValueError:
+                # First time initialization
+                hybrid_service = get_hybrid_retriever_service(
+                    embeddings_service=embedding_service,
+                    qdrant_service=qdrant_service
+                )
+            
+            print(f"Rebuilding hybrid search indexes after ingestion...")
+            hybrid_service.build_indexes()
+            hybrid_service.save_indexes()
+            print(f"✅ Hybrid indexes rebuilt successfully")
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to rebuild hybrid indexes: {str(e)}")
+            # Don't fail the ingestion if hybrid index rebuild fails
+        
         return IngestResponse(
             status="success",
             message=f"Successfully ingested {num_inserted} chunks",

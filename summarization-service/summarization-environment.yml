@@ -1,4 +1,4 @@
-name: rag-service
+name: summarization-service
 channels:
   - conda-forge
   - defaults
@@ -10,9 +10,5 @@ dependencies:
     - uvicorn[standard]>=0.24.0
     - pydantic>=2.0.0
     - python-dotenv>=1.0.0
-    - qdrant-client>=1.7.0
-    - requests>=2.31.0
-    - langchain>=0.1.0
-    - langchain-community>=0.0.10
-    - rank-bm25>=0.2.2
-    - faiss-cpu>=1.7.4
+    - google-generativeai>=0.3.0
+    - watchdog>=3.0.0

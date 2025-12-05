@@ -1,0 +1,17 @@
+# Summarization Service
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy requirements and install
+COPY pyproject.toml ./
+COPY src/ ./src/
+
+RUN pip install --no-cache-dir -e .
+
+# Expose summarization API port
+EXPOSE 8002
+
+# Run the service
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8002"]

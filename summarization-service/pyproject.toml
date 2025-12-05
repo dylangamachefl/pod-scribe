@@ -3,16 +3,16 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "podcast-rag-service"
+name = "podcast-summarization-service"
 version = "1.0.0"
-description = "RAG-powered semantic search and Q&A for podcast transcripts"
+description = "AI-powered summarization service for podcast transcripts using Gemini API"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
     {name = "Dylan", email = "your.email@example.com"}
 ]
-keywords = ["rag", "semantic-search", "qa", "podcast", "gemini", "qdrant"]
+keywords = ["summarization", "podcast", "gemini", "ai"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -30,12 +30,8 @@ dependencies = [
     "uvicorn[standard]>=0.24.0",
     "pydantic>=2.0.0",
     "python-dotenv>=1.0.0",
-    "qdrant-client>=1.7.0",
-    "requests>=2.31.0",  # For Ollama API calls
-    "langchain>=0.1.0",
-    "langchain-community>=0.0.10",
-    "rank-bm25>=0.2.2",
-    "faiss-cpu>=1.7.4",  # For hybrid search with FAISS
+    "google-generativeai>=0.3.0",
+    "watchdog>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -50,7 +46,7 @@ dev = [
 ]
 
 [project.scripts]
-rag-server = "src.main:main"
+summarization-server = "src.main:main"
 
 [project.urls]
 Homepage = "https://github.com/yourusername/podcast-transcriber"
@@ -58,18 +54,18 @@ Repository = "https://github.com/yourusername/podcast-transcriber"
 "Bug Reports" = "https://github.com/yourusername/podcast-transcriber/issues"
 
 [tool.setuptools]
-packages = ["src", "src.routers", "src.services", "src.utils"]
+packages = ["src", "src.services", "src.routers", "src.utils"]
 
 [tool.black]
 line-length = 100
 target-version = ['py38', 'py39', 'py310', 'py311']
-include = '\.pyi?$'
+include = '\\.pyi?$'
 exclude = '''
 /(
-    \.git
-  | \.mypy_cache
-  | \.pytest_cache
-  | \.venv
+    \\.git
+  | \\.mypy_cache
+  | \\.pytest_cache
+  | \\.venv
   | build
   | dist
   | __pycache__
@@ -108,7 +104,7 @@ warn_unreachable = true
 strict_equality = true
 
 [[tool.mypy.overrides]]
-module = ["qdrant_client.*"]
+module = ["watchdog.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

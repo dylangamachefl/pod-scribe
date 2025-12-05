@@ -5,19 +5,13 @@ Main entry point for the RAG service API.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import threading
 
 from config import RAG_FRONTEND_URL
 from models import HealthResponse
-from routers import chat, summaries, ingest, downloads
+from routers import chat, ingest, downloads
 from services.embeddings import get_embedding_service
 from services.qdrant_client import get_qdrant_service
-from services.gemini_client import get_summary_client, get_chat_client
-from services.file_watcher import start_file_watcher
-
-
-# File watcher thread
-file_watcher_thread = None
+from services.ollama_client import get_ollama_chat_client
 
 
 @asynccontextmanager
@@ -26,11 +20,9 @@ async def lifespan(app: FastAPI):
     Application lifespan manager.
     Initializes services on startup and cleans up on shutdown.
     """
-    global file_watcher_thread
-    
     # Startup: Initialize services
     print("\n" + "="*60)
-    print("🚀 Starting RAG Backend Service")
+    print("🚀 Starting RAG Service")
     print("="*60)
     
     # Pre-load services (singletons)
@@ -38,27 +30,20 @@ async def lifespan(app: FastAPI):
     try:
         get_embedding_service()
         get_qdrant_service()
-        get_summary_client()
-        get_chat_client()
+        get_ollama_chat_client()
         print("✅ All services initialized")
     except Exception as e:
         print(f"❌ Service initialization failed: {e}")
         raise
     
-    # Start file watcher in background thread
-    print("\n👁️  Starting file watcher...")
-    file_watcher_thread = threading.Thread(target=start_file_watcher, daemon=True)
-    file_watcher_thread.start()
-    print("✅ File watcher started")
-    
     print("\n" + "="*60)
-    print("✅ RAG Backend Service is ready!")
+    print("✅ RAG Service is ready!")
     print("="*60 + "\n")
     
     yield
     
     # Shutdown
-    print("\n🛑 Shutting down RAG Backend Service...")
+    print("\n🛑 Shutting down RAG Service...")
 
 
 # Create FastAPI app
@@ -80,7 +65,6 @@ app.add_middleware(
 
 # Include routers
 app.include_router(chat.router)
-app.include_router(summaries.router)
 app.include_router(ingest.router)
 app.include_router(downloads.router)
 
@@ -107,8 +91,7 @@ async def health_check():
         # Check if services are accessible
         embedding_service = get_embedding_service()
         qdrant_service = get_qdrant_service()
-        summary_client = get_summary_client()
-        chat_client = get_chat_client()
+        chat_client = get_ollama_chat_client()
         
         # Test Qdrant connection
         try:
@@ -117,11 +100,19 @@ async def health_check():
         except:
             qdrant_connected = False
         
+        # Test Ollama connection
+        try:
+            import requests
+            response = requests.get(f"{chat_client.api_url}/api/tags", timeout=5)
+            ollama_connected = response.status_code == 200
+        except:
+            ollama_connected = False
+        
         return HealthResponse(
-            status="healthy" if qdrant_connected else "degraded",
+            status="healthy" if (qdrant_connected and ollama_connected) else "degraded",
             qdrant_connected=qdrant_connected,
             embedding_model_loaded=embedding_service is not None,
-            gemini_api_configured=(summary_client is not None and chat_client is not None)
+            gemini_api_configured=ollama_connected  # Reuse field name for Ollama status
         )
     
     except Exception as e:

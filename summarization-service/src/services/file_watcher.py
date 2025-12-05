@@ -1,6 +1,6 @@
 """
-File Watcher Service
-Monitors transcription folder for new files and triggers automatic ingestion.
+File Watcher Service for Summarization
+Monitors transcription folder for new files and triggers automatic summarization.
 """
 import time
 from pathlib import Path
@@ -10,14 +10,8 @@ from watchdog.events import FileSystemEventHandler, FileCreatedEvent
 import json
 
 from config import TRANSCRIPTION_WATCH_PATH, SUMMARY_OUTPUT_PATH
-from utils.chunking import (
-    extract_metadata_from_transcript,
-    get_transcript_body,
-    chunk_by_speaker_turns
-)
-from services.embeddings import get_embedding_service
-from services.qdrant_client import get_qdrant_service
-from services.gemini_client import get_gemini_service
+from utils.transcript_parser import extract_metadata_from_transcript
+from services.gemini_service import get_gemini_service
 
 
 class TranscriptFileHandler(FileSystemEventHandler):
@@ -50,14 +44,14 @@ class TranscriptFileHandler(FileSystemEventHandler):
         
         for file_path in files_to_process:
             if file_path not in self.processed_files:
-                self._ingest_transcript(Path(file_path))
+                self._summarize_transcript(Path(file_path))
                 self.processed_files.add(file_path)
     
-    def _ingest_transcript(self, file_path: Path):
-        """Ingest a transcript file into the RAG system."""
+    def _summarize_transcript(self, file_path: Path):
+        """Summarize a transcript file."""
         try:
             print(f"\n{'='*60}")
-            print(f"📥 Ingesting: {file_path.name}")
+            print(f"📝 Summarizing: {file_path.name}")
             print(f"{'='*60}")
             
             # Read transcript
@@ -66,33 +60,12 @@ class TranscriptFileHandler(FileSystemEventHandler):
             
             # Extract metadata
             metadata = extract_metadata_from_transcript(content)
-            metadata["source_file"] = str(file_path)
             
             print(f"📄 Episode: {metadata['episode_title']}")
             print(f"🎙️  Podcast: {metadata['podcast_name']}")
             
-            # Extract transcript body
-            transcript_lines = get_transcript_body(content)
-            
-            # Chunk by speaker turns
-            print("✂️  Chunking transcript...")
-            chunks = chunk_by_speaker_turns(transcript_lines)
-            print(f"   Created {len(chunks)} chunks")
-            
-            # Generate embeddings
-            print("🧠 Generating embeddings...")
-            embedding_service = get_embedding_service()
-            chunk_texts = [chunk["text"] for chunk in chunks]
-            embeddings = embedding_service.embed_batch(chunk_texts)
-            
-            # Store in Qdrant
-            print("💾 Storing in vector database...")
-            qdrant_service = get_qdrant_service()
-            num_inserted = qdrant_service.insert_chunks(chunks, embeddings, metadata)
-            print(f"✅ Inserted {num_inserted} vectors")
-            
             # Generate summary with Gemini
-            print("📝 Generating summary with Gemini...")
+            print(f"🤖 Generating summary with Gemini...")
             gemini_service = get_gemini_service()
             summary_result = gemini_service.summarize_transcript(
                 content,
@@ -111,16 +84,15 @@ class TranscriptFileHandler(FileSystemEventHandler):
                     "key_topics": summary_result.get("key_topics", []),
                     "insights": summary_result.get("insights", []),
                     "quotes": summary_result.get("quotes", []),
-                    "num_chunks": len(chunks),
-                    "source_file": str(file_path)
+                    "source_file": str(file_path),
+                    "processing_time_ms": summary_result.get("processing_time_ms", 0)
                 }, f, indent=2)
             
-            print(f"📄 Summary saved: {summary_file.name}")
+            print(f"✅ Summary saved: {summary_file.name}")
             print(f"{'='*60}\n")
-            print(f"✅ Ingestion complete for: {metadata['episode_title']}\n")
             
         except Exception as e:
-            print(f"❌ Error ingesting {file_path.name}: {e}")
+            print(f"❌ Error summarizing {file_path.name}: {e}")
             import traceback
             traceback.print_exc()
 

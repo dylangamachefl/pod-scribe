@@ -6,15 +6,20 @@ from pydantic import BaseModel, Field
 
 
 class ChatRequest(BaseModel):
-    """Request schema for chat endpoint."""
-    question: str = Field(..., description="User's question about the podcasts")
-    episode_title: Optional[str] = Field(
-        default=None,
-        description="Optional episode title for episode-scoped chat"
-    )
+    """Request schema for episode-scoped chat with hybrid search."""
+    question: str = Field(..., description="User's question about the episode")
+    episode_title: str = Field(..., description="Episode title (required for scoped chat)")
     conversation_history: Optional[List[dict]] = Field(
         default=None, 
         description="Optional conversation history for context"
+    )
+    bm25_weight: Optional[float] = Field(
+        default=None,
+        description="Override BM25 weight (0.0 to 1.0)"
+    )
+    faiss_weight: Optional[float] = Field(
+        default=None,
+        description="Override FAISS weight (0.0 to 1.0)"
     )
 
 
@@ -30,10 +35,10 @@ class SourceCitation(BaseModel):
 
 class ChatResponse(BaseModel):
     """Response schema for chat endpoint."""
-    answer: str = Field(..., description="Generated answer from Gemini")
+    answer: str = Field(..., description="Generated answer from Ollama")
     sources: List[SourceCitation] = Field(
         default=[], 
-        description="Source citations from transcripts"
+        description="Source citations from hybrid retrieval"
     )
     processing_time_ms: float
 
