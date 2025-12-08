@@ -45,6 +45,21 @@
     }
 }
 
+/* Side-by-side layout when chat is open */
+.modal-content.modal-shrunk {
+    max-width: 55%;
+    margin-right: auto;
+    margin-left: 2%;
+    transition: all 0.3s ease;
+}
+
+@media (max-width: 1024px) {
+    .modal-content.modal-shrunk {
+        max-width: 100%;
+        margin: 0;
+    }
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -83,6 +98,46 @@
     background: rgba(255, 255, 255, 0.2);
     transform: scale(1.1);
 }
+
+/* Audio Section */
+.audio-section {
+    padding: 0 24px;
+    margin-top: 16px;
+    margin-bottom: 16px;
+}
+
+.youtube-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, rgba(255, 0, 0, 0.1), rgba(255, 0, 0, 0.05));
+    border: 1px solid rgba(255, 0, 0, 0.3);
+    border-radius: 12px;
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.youtube-link:hover {
+    background: linear-gradient(135deg, rgba(255, 0, 0, 0.2), rgba(255, 0, 0, 0.1));
+    border-color: rgba(255, 0, 0, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 0, 0, 0.3);
+}
+
+.youtube-icon {
+    font-size: 1.25rem;
+}
+
+.external-icon {
+    font-size: 0.875rem;
+    opacity: 0.7;
+}
+
 
 .modal-body {
     padding: 24px;

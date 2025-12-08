@@ -44,6 +44,11 @@ class BulkSelectRequest(BaseModel):
     selected: bool
 
 
+class EpisodeFetchRequest(BaseModel):
+    """Request model for fetching episodes from feeds."""
+    days: Optional[int] = None  # Number of days to look back, None = use default from env
+
+
 # Transcription Models
 class TranscriptionStatus(BaseModel):
     is_running: bool

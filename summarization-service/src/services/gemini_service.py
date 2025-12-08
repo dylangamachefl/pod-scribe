@@ -37,21 +37,48 @@ class GeminiSummarizationService:
         Returns:
             Dict with summary, key topics, insights, and quotes
         """
-        prompt = f"""You are analyzing a podcast transcript. Please provide a comprehensive summary.
+        prompt = f"""Role: You are an expert synthesizer and content strategist. Your goal is to distill the provided podcast transcript into a clear, high-value summary that captures the essence, actionable advice, and nuance of the conversation.
 
 Podcast: {podcast_name}
 Episode: {episode_title}
 
 TRANSCRIPT:
-{transcript_text[:50000]}  # Use more of the transcript for better summaries
+{transcript_text[:50000]}
 
-Please provide:
-1. A concise summary (2-3 paragraphs)
-2. Key topics discussed (bullet points)
-3. Main insights or takeaways (bullet points)
-4. Notable quotes (if any)
+Please analyze the transcript and generate a structured summary using the following format:
 
-Format your response as JSON with keys: "summary", "key_topics" (array), "insights" (array), "quotes" (array)
+1. The One-Sentence Hook
+   A single, compelling sentence that summarizes the core theme or "big idea" of the episode.
+
+2. Top 3 Key Takeaways
+   The three most critical insights or arguments presented.
+   Format: Bold the concept, then explain it in 1-2 sentences.
+
+3. Actionable Advice / "How-To"
+   Extract specific steps, tools, tactics, or frameworks mentioned.
+   Use bullet points. If no specific advice was given, summarize the practical implications of the discussion.
+
+4. Notable Quotes
+   Pull 2-3 verbatim quotes that are particularly insightful, controversial, or memorable.
+
+5. Key Concepts & Definitions
+   Briefly define any specific terms, books, mental models, or jargon introduced in the episode.
+
+6. Summary of Perspectives
+   Briefly outline the host's stance vs. the guest's stance (if applicable). Did they agree, disagree, or build upon each other?
+
+Tone: Professional, concise, and objective. Avoid fluff.
+Formatting: Use Markdown (Headers, bolding, bullet points) to make it scannable.
+
+Format your response as JSON with keys:
+- "hook" (string): The one-sentence hook
+- "key_takeaways" (array of objects): Each with "concept" and "explanation"
+- "actionable_advice" (array of strings): Bullet points of actionable advice
+- "quotes" (array of strings): Notable verbatim quotes
+- "concepts" (array of objects): Each with "term" and "definition"
+- "perspectives" (string): Summary of different perspectives
+- "summary" (string): A brief 2-3 paragraph overview for backward compatibility
+- "key_topics" (array of strings): Main topics discussed for backward compatibility
 """
         
         try:

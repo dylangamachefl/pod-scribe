@@ -60,14 +60,16 @@ class OllamaChatClient:
             context_text += f"Speaker: {chunk['speaker']} | Timestamp: {chunk['timestamp']}\n"
             context_text += f"{chunk['text']}\n"
         
+# Build prompt with optional conversation history
+        if history_text:
+            history_section = f"CONVERSATION HISTORY:\\n{history_text}\\n\\n"
+        else:
+            history_section = ""
+        
         prompt = f"""You are a helpful AI assistant answering questions about podcast content.
-
-{f"CONVERSATION HISTORY:\n{history_text}\n" if history_text else ""}
-RETRIEVED RELEVANT EXCERPTS:
+{history_section}RETRIEVED RELEVANT EXCERPTS:
 {context_text}
-
 USER QUESTION: {question}
-
 Please provide a comprehensive answer based on the excerpts above. Reference specific sources, speakers, and episodes when relevant. If the excerpts don't fully answer the question, acknowledge this clearly.
 """
         

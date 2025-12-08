@@ -36,6 +36,7 @@ export interface Summary {
     key_topics: string[];
     speakers: string[];
     duration?: string;
+    audio_url?: string;
     created_at: string;
 }
 

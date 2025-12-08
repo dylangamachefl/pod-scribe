@@ -10,6 +10,7 @@ function LibraryPage() {
     const [error, setError] = useState<string | null>(null);
     const [selectedEpisode, setSelectedEpisode] = useState<Summary | null>(null);
     const [chatEpisode, setChatEpisode] = useState<Summary | null>(null);
+    const [selectedForDownload, setSelectedForDownload] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         loadSummaries();
@@ -34,7 +35,60 @@ function LibraryPage() {
 
     const handleOpenChat = (episode: Summary) => {
         setChatEpisode(episode);
-        setSelectedEpisode(null); // Close modal when opening chat
+        // Keep modal open - don't close it when opening chat
+    };
+
+    const handleToggleSelect = (episodeTitle: string) => {
+        setSelectedForDownload(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(episodeTitle)) {
+                newSet.delete(episodeTitle);
+            } else {
+                newSet.add(episodeTitle);
+            }
+            return newSet;
+        });
+    };
+
+    const handleDownloadSelected = () => {
+        const selectedSummaries = summaries.filter(s => selectedForDownload.has(s.episode_title));
+
+        if (selectedSummaries.length === 0) {
+            alert('No episodes selected');
+            return;
+        }
+
+        // Format summaries with structured markdown
+        const content = selectedSummaries.map(summary => `
+# ${summary.episode_title}
+**Podcast:** ${summary.podcast_name}  
+**Duration:** ${summary.duration || 'N/A'}  
+**Created:** ${summary.created_at}
+
+## Summary
+${summary.summary}
+
+## Key Topics
+${summary.key_topics.map(topic => `- ${topic}`).join('\n')}
+
+## Speakers
+${summary.speakers.join(', ')}
+
+---
+
+`).join('\n');
+
+        // Download as markdown file
+        const blob = new Blob([content], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `podcast-summaries-${new Date().toISOString().split('T')[0]}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        // Clear selection after download
+        setSelectedForDownload(new Set());
     };
 
     if (isLoading) {
@@ -66,45 +120,65 @@ function LibraryPage() {
     return (
         <div className="library-page">
             <div className="library-header">
-                <h1>📚 Podcast Library</h1>
-                <p className="subtitle">{summaries.length} episodes indexed</p>
+                <div>
+                    <h1>📚 Podcast Library</h1>
+                    <p className="subtitle">{summaries.length} episodes indexed</p>
+                </div>
+                {selectedForDownload.size > 0 && (
+                    <button className="btn-primary" onClick={handleDownloadSelected}>
+                        ⬇️ Download {selectedForDownload.size} {selectedForDownload.size === 1 ? 'Summary' : 'Summaries'}
+                    </button>
+                )}
             </div>
 
             <div className="summaries-grid">
                 {summaries.map((summary, idx) => (
                     <div
                         key={idx}
-                        className="summary-card glass clickable"
-                        onClick={() => handleEpisodeClick(summary)}
+                        className={`summary-card glass clickable ${selectedForDownload.has(summary.episode_title) ? 'selected' : ''}`}
                     >
-                        <div className="card-header">
-                            <div className="podcast-badge">{summary.podcast_name}</div>
-                            <div className="duration">{summary.duration || 'N/A'}</div>
+                        <div className="card-select">
+                            <input
+                                type="checkbox"
+                                checked={selectedForDownload.has(summary.episode_title)}
+                                onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleSelect(summary.episode_title);
+                                }}
+                                className="episode-checkbox"
+                                aria-label={`Select ${summary.episode_title}`}
+                            />
                         </div>
+                        <div onClick={() => handleEpisodeClick(summary)}>
+                            <div className="card-header">
+                                <div className="podcast-badge">{summary.podcast_name}</div>
+                                <div className="duration">{summary.duration || 'N/A'}</div>
+                            </div>
 
-                        <h3 className="episode-title">{summary.episode_title}</h3>
+                            <h3 className="episode-title">{summary.episode_title}</h3>
 
-                        <div className="summary-text">{summary.summary}</div>
+                            <div className="summary-text">{summary.summary}</div>
 
-                        {summary.key_topics.length > 0 && (
-                            <div className="topics">
-                                <div className="topics-label">Key Topics:</div>
-                                <div className="topic-tags">
-                                    {summary.key_topics.slice(0, 3).map((topic, i) => (
-                                        <span key={i} className="topic-tag">{topic}</span>
-                                    ))}
-                                    {summary.key_topics.length > 3 && (
-                                        <span className="topic-tag more">+{summary.key_topics.length - 3} more</span>
-                                    )}
+                            {summary.key_topics.length > 0 && (
+                                <div className="topics">
+                                    <div className="topics-label">Key Topics:</div>
+                                    <div className="topic-tags">
+                                        {summary.key_topics.slice(0, 3).map((topic, i) => (
+                                            <span key={i} className="topic-tag">{topic}</span>
+                                        ))}
+                                        {summary.key_topics.length > 3 && (
+                                            <span className="topic-tag more">+{summary.key_topics.length - 3} more</span>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        <div className="card-footer">
-                            <div className="speakers">
-                                👥 {summary.speakers.join(', ')}
+                            <div className="card-footer">
+                                <div className="speakers">
+                                    👥 {summary.speakers.join(', ')}
+                                </div>
+                                <div className="created-date">{summary.created_at}</div>
                             </div>
-                            <div className="created-date">{summary.created_at}</div>
                         </div>
                     </div>
                 ))}
@@ -123,6 +197,7 @@ function LibraryPage() {
                     episode={selectedEpisode}
                     onClose={() => setSelectedEpisode(null)}
                     onOpenChat={() => handleOpenChat(selectedEpisode)}
+                    isChatOpen={!!chatEpisode}
                 />
             )}
 

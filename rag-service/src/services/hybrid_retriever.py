@@ -7,10 +7,10 @@ from pathlib import Path
 import pickle
 import json
 
-from langchain.schema import Document
+from langchain_core.documents import Document
 from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores import FAISS
-from langchain.retrievers import EnsembleRetriever
+from langchain_classic.retrievers.ensemble import EnsembleRetriever
 
 from config import (
     BM25_WEIGHT,

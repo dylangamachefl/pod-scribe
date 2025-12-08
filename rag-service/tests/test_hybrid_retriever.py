@@ -9,7 +9,7 @@ import tempfile
 import shutil
 
 from services.hybrid_retriever import HybridRetrieverService, FAISSEmbeddingsWrapper
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 
 class TestFAISSEmbeddingsWrapper(unittest.TestCase):

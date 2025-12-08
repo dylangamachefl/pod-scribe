@@ -1,19 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './EpisodeDetailModal.css';
 import { Summary } from '../api/types';
 import { transcriptionApi } from '../api';
+import AudioPlayer from './AudioPlayer';
 
 interface EpisodeDetailModalProps {
     episode: Summary;
     onClose: () => void;
     onOpenChat: () => void;
+    isChatOpen?: boolean;
 }
 
-function EpisodeDetailModal({ episode, onClose, onOpenChat }: EpisodeDetailModalProps) {
+function EpisodeDetailModal({ episode, onClose, onOpenChat, isChatOpen }: EpisodeDetailModalProps) {
     const [showTranscript, setShowTranscript] = useState(false);
     const [transcript, setTranscript] = useState<string | null>(null);
     const [loadingTranscript, setLoadingTranscript] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Handle Escape key to close modal
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [onClose]);
 
     const loadTranscript = async () => {
         if (transcript) {
@@ -67,6 +81,12 @@ function EpisodeDetailModal({ episode, onClose, onOpenChat }: EpisodeDetailModal
         URL.revokeObjectURL(url);
     };
 
+    // Helper function to detect YouTube URLs
+    const isYouTubeUrl = (url?: string): boolean => {
+        if (!url) return false;
+        return url.includes('youtube.com') || url.includes('youtu.be');
+    };
+
     const highlightText = (text: string) => {
         if (!searchTerm || !transcript) return text;
         const parts = text.split(new RegExp(`(${searchTerm})`, 'gi'));
@@ -80,19 +100,42 @@ function EpisodeDetailModal({ episode, onClose, onOpenChat }: EpisodeDetailModal
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content glass" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <div
+                className={`modal-content glass ${isChatOpen ? 'modal-shrunk' : ''}`}
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="modal-header">
                     <div>
                         <div className="podcast-badge">{episode.podcast_name}</div>
-                        <h2>{episode.episode_title}</h2>
+                        <h2 id="modal-title">{episode.episode_title}</h2>
                         <div className="episode-meta">
                             {episode.duration && <span>⏱️ {episode.duration}</span>}
                             <span>📅 {episode.created_at}</span>
                         </div>
                     </div>
-                    <button className="close-button" onClick={onClose}>✕</button>
+                    <button className="close-button" onClick={onClose} aria-label="Close episode details">✕</button>
                 </div>
+
+                {/* Audio Player or YouTube Link */}
+                {episode.audio_url && (
+                    <div className="audio-section">
+                        {isYouTubeUrl(episode.audio_url) ? (
+                            <a
+                                href={episode.audio_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="youtube-link glass"
+                            >
+                                <span className="youtube-icon">▶️</span>
+                                <span>Watch on YouTube</span>
+                                <span className="external-icon">↗</span>
+                            </a>
+                        ) : (
+                            <AudioPlayer audioUrl={episode.audio_url} />
+                        )}
+                    </div>
+                )}
 
                 <div className="modal-body">
                     <section className="summary-section">
@@ -123,19 +166,20 @@ function EpisodeDetailModal({ episode, onClose, onOpenChat }: EpisodeDetailModal
                     <section className="actions-section">
                         <h3>Actions</h3>
                         <div className="action-buttons">
-                            <button className="btn-primary" onClick={downloadTranscript}>
+                            <button className="btn-primary" onClick={downloadTranscript} aria-label="Download full transcript">
                                 ⬇️ Download Transcript
                             </button>
-                            <button className="btn-primary" onClick={downloadSummary}>
+                            <button className="btn-primary" onClick={downloadSummary} aria-label="Download episode summary">
                                 ⬇️ Download Summary
                             </button>
-                            <button className="btn-primary" onClick={onOpenChat}>
+                            <button className="btn-primary" onClick={onOpenChat} aria-label="Open chat to ask questions about this episode">
                                 💬 Chat About Episode
                             </button>
                             <button
                                 className="btn-secondary"
                                 onClick={loadTranscript}
                                 disabled={loadingTranscript}
+                                aria-label={showTranscript ? 'Hide transcript' : 'Show full transcript'}
                             >
                                 {loadingTranscript ? '⏳ Loading...' : showTranscript ? '🔼 Hide Transcript' : '🔽 Show Transcript'}
                             </button>
@@ -152,6 +196,7 @@ function EpisodeDetailModal({ episode, onClose, onOpenChat }: EpisodeDetailModal
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="search-input"
+                                    aria-label="Search in transcript"
                                 />
                             </div>
                             <div className="transcript-content">

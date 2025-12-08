@@ -4,9 +4,10 @@ Episode Queue Manager
 Shared utilities for managing the pending episodes queue.
 """
 
+import os
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
 import feedparser
@@ -99,13 +100,24 @@ def clear_processed_episodes(episode_ids: List[str]):
     save_pending_episodes(data)
 
 
-def fetch_episodes_from_feed(feed_url: str, feed_title: str = None) -> tuple[List[Dict], str]:
+def fetch_episodes_from_feed(feed_url: str, feed_title: str = None, days_limit: Optional[int] = None) -> tuple[List[Dict], str]:
     """
     Fetch episodes from an RSS feed.
     Returns (episodes_list, feed_title).
     Episodes that are already processed or in the queue are filtered out.
+    
+    Args:
+        feed_url: The RSS feed URL to fetch from
+        feed_title: Optional feed title override
+        days_limit: Number of days to look back for episodes. 
+                   If None, fetches all episodes.
+                   Defaults to EPISODE_DEFAULT_DAYS env var (7).
     """
     try:
+        # Get default days limit from environment if not specified
+        if days_limit is None:
+            days_limit = int(os.getenv('EPISODE_DEFAULT_DAYS', '7'))
+        
         feed = feedparser.parse(feed_url)
         
         if feed.bozo and not feed.entries:
@@ -116,6 +128,11 @@ def fetch_episodes_from_feed(feed_url: str, feed_title: str = None) -> tuple[Lis
             feed_title = feed.feed.get('title')
         elif not feed_title:
             feed_title = 'Unknown Podcast'
+        
+        # Calculate cutoff date for filtering (if days_limit > 0)
+        cutoff_date = None
+        if days_limit and days_limit > 0:
+            cutoff_date = datetime.now() - timedelta(days=days_limit)
         
         # Load history and pending to avoid duplicates
         history = load_history()
@@ -148,11 +165,21 @@ def fetch_episodes_from_feed(feed_url: str, feed_title: str = None) -> tuple[Lis
             
             # Extract published date
             published_date = entry.get('published', '')
+            episode_datetime = None
             if hasattr(entry, 'published_parsed') and entry.published_parsed:
                 try:
-                    published_date = datetime(*entry.published_parsed[:6]).isoformat()
+                    episode_datetime = datetime(*entry.published_parsed[:6])
+                    published_date = episode_datetime.isoformat()
                 except:
                     pass
+            
+            # Apply time-based filter if cutoff_date is set
+            if cutoff_date and episode_datetime:
+                # Skip episodes older than cutoff date
+                if episode_datetime < cutoff_date:
+                    continue
+            # Note: Episodes without valid published dates are included by default
+            # This prevents accidentally filtering out episodes that don't have proper dates
             
             episode = {
                 'id': episode_id,

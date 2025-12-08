@@ -12,11 +12,7 @@ function ChatPopup({ episode, onClose }: ChatPopupProps) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [position, setPosition] = useState({ x: window.innerWidth - 420, y: 100 });
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const popupRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -26,40 +22,17 @@ function ChatPopup({ episode, onClose }: ChatPopupProps) {
         scrollToBottom();
     }, [messages]);
 
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if ((e.target as HTMLElement).closest('.chat-popup-header')) {
-            setIsDragging(true);
-            setDragOffset({
-                x: e.clientX - position.x,
-                y: e.clientY - position.y,
-            });
-        }
-    };
-
+    // Handle Escape key to close chat
     useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            if (isDragging) {
-                setPosition({
-                    x: e.clientX - dragOffset.x,
-                    y: e.clientY - dragOffset.y,
-                });
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
             }
         };
 
-        const handleMouseUp = () => {
-            setIsDragging(false);
-        };
-
-        if (isDragging) {
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-        }
-
-        return () => {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [isDragging, dragOffset]);
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [onClose]);
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
@@ -114,23 +87,19 @@ function ChatPopup({ episode, onClose }: ChatPopupProps) {
 
     return (
         <div
-            ref={popupRef}
             className="chat-popup glass"
-            style={{
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-            }}
-            onMouseDown={handleMouseDown}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="chat-title"
         >
             <div className="chat-popup-header">
                 <div className="chat-popup-title">
-                    <span className="drag-indicator">⋮⋮</span>
                     <div>
-                        <h3>💬 Chat</h3>
+                        <h3 id="chat-title">💬 Chat</h3>
                         <p className="episode-context">{episode.episode_title}</p>
                     </div>
                 </div>
-                <button className="close-button" onClick={onClose}>✕</button>
+                <button className="close-button" onClick={onClose} aria-label="Close chat">✕</button>
             </div>
 
             <div className="chat-popup-messages">
@@ -186,11 +155,13 @@ function ChatPopup({ episode, onClose }: ChatPopupProps) {
                     onKeyPress={handleKeyPress}
                     rows={1}
                     disabled={isLoading}
+                    aria-label="Ask a question about this episode"
                 />
                 <button
                     className="send-button btn-primary"
                     onClick={handleSend}
                     disabled={!input.trim() || isLoading}
+                    aria-label={isLoading ? 'Sending message' : 'Send message'}
                 >
                     {isLoading ? '⏳' : '🚀'}
                 </button>

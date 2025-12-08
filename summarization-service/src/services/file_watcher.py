@@ -84,6 +84,9 @@ class TranscriptFileHandler(FileSystemEventHandler):
                     "key_topics": summary_result.get("key_topics", []),
                     "insights": summary_result.get("insights", []),
                     "quotes": summary_result.get("quotes", []),
+                    "speakers": metadata.get("speakers", []),
+                    "duration": metadata.get("duration"),
+                    "audio_url": metadata.get("audio_url"),
                     "source_file": str(file_path),
                     "processing_time_ms": summary_result.get("processing_time_ms", 0)
                 }, f, indent=2)

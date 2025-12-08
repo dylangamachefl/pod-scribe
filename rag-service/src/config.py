@@ -23,6 +23,7 @@ QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "podcast_transcript
 
 # File Paths - Use shared directories
 TRANSCRIPTION_WATCH_PATH = PROJECT_ROOT / "shared" / "output"
+SUMMARY_OUTPUT_PATH = PROJECT_ROOT / "shared" / "summaries"
 
 # Embedding Configuration
 # nomic-embed-text has 768 dimensions

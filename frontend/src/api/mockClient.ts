@@ -22,6 +22,7 @@ const MOCK_SUMMARIES: Summary[] = [
         ],
         speakers: ["Dr. Andrew Huberman", "Dr. Jack Feldman"],
         duration: "1:45:30",
+        audio_url: "https://traffic.libsyn.com/secure/hubermanlab/Huberman_Lab_Essentials_Breathing.mp3",
         created_at: "2024-12-03 18:30:00"
     },
     {
@@ -37,6 +38,7 @@ const MOCK_SUMMARIES: Summary[] = [
         ],
         speakers: ["Dr. Andrew Huberman", "Dr. Glen Jeffery"],
         duration: "2:15:45",
+        audio_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         created_at: "2024-12-02 14:20:00"
     }
 ];

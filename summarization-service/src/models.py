@@ -20,6 +20,9 @@ class SummaryResponse(BaseModel):
     key_topics: List[str]
     insights: List[str]
     quotes: List[str]
+    speakers: Optional[List[str]] = None
+    duration: Optional[str] = None
+    audio_url: Optional[str] = None
     processing_time_ms: Optional[float] = None
     created_at: Optional[str] = None
 

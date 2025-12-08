@@ -82,9 +82,10 @@ export const transcriptionClient = {
     /**
      * Fetch new episodes from active feeds
      */
-    async fetchEpisodes(): Promise<{ status: string; new_episodes: number }> {
+    async fetchEpisodes(days?: number): Promise<{ status: string; new_episodes: number }> {
         const response = await axiosInstance.post<{ status: string; new_episodes: number }>(
-            '/episodes/fetch'
+            '/episodes/fetch',
+            days !== undefined ? { days } : undefined
         );
         return response.data;
     },

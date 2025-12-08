@@ -8,6 +8,7 @@ function EpisodeQueuePage() {
     const [loading, setLoading] = useState(true);
     const [fetching, setFetching] = useState(false);
     const [filterPodcast, setFilterPodcast] = useState('All Podcasts');
+    const [filterTime, setFilterTime] = useState<number>(7); // 7 days, 30 days, or 0 for all time
 
     const loadEpisodes = async () => {
         try {
@@ -27,7 +28,7 @@ function EpisodeQueuePage() {
     const handleFetchEpisodes = async () => {
         setFetching(true);
         try {
-            const result = await transcriptionApi.fetchEpisodes();
+            const result = await transcriptionApi.fetchEpisodes(filterTime || undefined);
             alert(`Added ${result.new_episodes} new episode(s) to queue`);
             await loadEpisodes();
         } catch (err: any) {
@@ -67,10 +68,27 @@ function EpisodeQueuePage() {
     };
 
     const podcasts = ['All Podcasts', ...new Set(episodes.map((ep) => ep.feed_title))];
+
+    // Apply time-based filtering
+    const getFilteredByTime = (eps: Episode[]) => {
+        if (filterTime === 0) return eps; // All time
+
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - filterTime);
+
+        return eps.filter((ep) => {
+            if (!ep.published_date) return true; // Include episodes without dates
+            const publishedDate = new Date(ep.published_date);
+            return publishedDate >= cutoffDate;
+        });
+    };
+
+    // Apply both podcast and time filters
+    const timeFilteredEpisodes = getFilteredByTime(episodes);
     const filteredEpisodes =
         filterPodcast === 'All Podcasts'
-            ? episodes
-            : episodes.filter((ep) => ep.feed_title === filterPodcast);
+            ? timeFilteredEpisodes
+            : timeFilteredEpisodes.filter((ep) => ep.feed_title === filterPodcast);
     const selectedCount = episodes.filter((ep) => ep.selected).length;
 
     if (loading) {
@@ -110,9 +128,20 @@ function EpisodeQueuePage() {
                             </div>
                             <div className="actions">
                                 <select
+                                    value={filterTime}
+                                    onChange={(e) => setFilterTime(Number(e.target.value))}
+                                    className="filter-select"
+                                    aria-label="Filter episodes by time"
+                                >
+                                    <option value={7}>Last 7 Days</option>
+                                    <option value={30}>Last 30 Days</option>
+                                    <option value={0}>All Time</option>
+                                </select>
+                                <select
                                     value={filterPodcast}
                                     onChange={(e) => setFilterPodcast(e.target.value)}
                                     className="filter-select"
+                                    aria-label="Filter episodes by podcast"
                                 >
                                     {podcasts.map((p) => (
                                         <option key={p} value={p}>

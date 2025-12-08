@@ -101,6 +101,12 @@ def process_episode(episode_data: Dict, config: TranscriptionConfig,
             if enclosure.get('type', '').startswith('audio/'):
                 audio_url = enclosure.get('href')
                 break
+        
+        # If no audio enclosure, check if it's a YouTube video
+        if not audio_url:
+            link = episode_data.get('link', '')
+            if 'youtube.com' in link or 'youtu.be' in link:
+                audio_url = link
     
     # Check if already processed
     if guid in history['processed_episodes']:

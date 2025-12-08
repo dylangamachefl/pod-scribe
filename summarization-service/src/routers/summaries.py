@@ -54,6 +54,9 @@ async def generate_summary(request: SummarizeRequest):
             key_topics=result.get("key_topics", []),
             insights=result.get("insights", []),
             quotes=result.get("quotes", []),
+            speakers=result.get("speakers", []),
+            duration=result.get("duration"),
+            audio_url=result.get("audio_url"),
             processing_time_ms=result.get("processing_time_ms", 0)
         )
     
@@ -83,6 +86,9 @@ async def list_summaries():
                     key_topics=data.get("key_topics", []),
                     insights=data.get("insights", []),
                     quotes=data.get("quotes", []),
+                    speakers=data.get("speakers", []),
+                    duration=data.get("duration"),
+                    audio_url=data.get("audio_url"),
                     processing_time_ms=data.get("processing_time_ms"),
                     created_at=data.get("processed_date", "Unknown")
                 ))
@@ -115,6 +121,9 @@ async def get_summary(episode_title: str):
                         key_topics=data.get("key_topics", []),
                         insights=data.get("insights", []),
                         quotes=data.get("quotes", []),
+                        speakers=data.get("speakers", []),
+                        duration=data.get("duration"),
+                        audio_url=data.get("audio_url"),
                         processing_time_ms=data.get("processing_time_ms"),
                         created_at=data.get("processed_date", "Unknown")
                     )

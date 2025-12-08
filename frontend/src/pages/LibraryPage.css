@@ -4,8 +4,15 @@
 }
 
 .library-header {
-    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: var(--spacing-xl);
+    gap: var(--spacing-lg);
+}
+
+.library-header>div:first-child {
+    flex: 1;
 }
 
 .library-header h1 {
@@ -15,6 +22,11 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    text-align: left;
+}
+
+.library-header .subtitle {
+    text-align: left;
 }
 
 .summaries-grid {
@@ -32,12 +44,32 @@
     gap: var(--spacing-md);
     transition: all var(--transition-normal);
     animation: fadeIn 0.5s;
+    position: relative;
 }
 
 .summary-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 40px rgba(160, 96, 240, 0.2);
     border-color: var(--color-accent-primary);
+}
+
+.summary-card.selected {
+    border-color: var(--color-accent-primary);
+    box-shadow: 0 0 0 2px rgba(160, 96, 240, 0.3);
+}
+
+.card-select {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 10;
+}
+
+.episode-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--color-accent-primary);
 }
 
 .card-header {

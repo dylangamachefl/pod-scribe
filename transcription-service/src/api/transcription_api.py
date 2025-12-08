@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from api.models import (
     Feed, FeedCreate, FeedUpdate,
-    Episode, EpisodeSelect, BulkSelectRequest,
+    Episode, EpisodeSelect, BulkSelectRequest, EpisodeFetchRequest,
     TranscriptionStatus, TranscriptionStartRequest, TranscriptionStartResponse,
     PodcastInfo, EpisodeInfo, TranscriptResponse,
     StatsResponse, HealthResponse
@@ -309,19 +309,29 @@ async def get_episode_queue():
 
 
 @app.post("/episodes/fetch")
-async def fetch_episodes():
-    """Fetch new episodes from active feeds."""
+async def fetch_episodes(request: EpisodeFetchRequest = None):
+    """
+    Fetch new episodes from active feeds.
+    
+    Args:
+        request: Optional request body with 'days' parameter to specify
+                how many days back to fetch episodes (default: from env EPISODE_DEFAULT_DAYS)
+    """
     subscriptions = load_subscriptions()
     active_subs = [sub for sub in subscriptions if sub.get('active', True)]
     
     if not active_subs:
         raise HTTPException(status_code=400, detail="No active feeds found")
     
+    # Get days limit from request or use None to apply default from env
+    days_limit = request.days if request else None
+    
     total_new = 0
     for sub in active_subs:
         episodes, feed_title = fetch_episodes_from_feed(
             sub.get('url'),
-            sub.get('title')
+            sub.get('title'),
+            days_limit=days_limit
         )
         
         for episode in episodes:
@@ -330,7 +340,8 @@ async def fetch_episodes():
     
     return {
         "status": "completed",
-        "new_episodes": total_new
+        "new_episodes": total_new,
+        "days_filter": days_limit if days_limit is not None else int(os.getenv('EPISODE_DEFAULT_DAYS', '7'))
     }
 
 
