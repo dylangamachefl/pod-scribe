@@ -400,9 +400,7 @@ async def start_transcription(
     background_tasks: BackgroundTasks
 ):
     """Start transcription process for selected episodes."""
-    global transcription_process
-    
-    # Check if already running
+    # Check if already running (via status file)
     status = read_status()
     if status and status.get('is_running'):
         raise HTTPException(status_code=400, detail="Transcription already in progress")
@@ -415,27 +413,41 @@ async def start_transcription(
     if not selected_episodes:
         raise HTTPException(status_code=400, detail="No episodes selected")
     
-    # Start transcription in background
-    def run_transcription():
-        global transcription_process
-        try:
-            transcription_process = subprocess.Popen(
-                [sys.executable, str(CLI_SCRIPT)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            transcription_process.wait()
-        except Exception as e:
-            print(f"Transcription error: {e}")
-        finally:
-            transcription_process = None
+    # Trigger host-side listener
+    import requests
     
-    background_tasks.add_task(run_transcription)
+    def trigger_host_listener():
+        try:
+            # Try host.docker.internal first (Docker Desktop)
+            # If that fails, try localhost (for local dev)
+            endpoints = [
+                "http://host.docker.internal:8080/start",
+                "http://localhost:8080/start"
+            ]
+            
+            success = False
+            for endpoint in endpoints:
+                try:
+                    print(f"Attempting to trigger listener at {endpoint}...")
+                    response = requests.post(endpoint, timeout=2)
+                    if response.status_code == 200:
+                        print(f"Successfully triggered listener at {endpoint}")
+                        success = True
+                        break
+                except requests.RequestException:
+                    continue
+            
+            if not success:
+                print("Failed to contact host listener on any known endpoint")
+                
+        except Exception as e:
+            print(f"Error triggering host listener: {e}")
+
+    background_tasks.add_task(trigger_host_listener)
     
     return TranscriptionStartResponse(
         status="started",
-        message=f"Transcription started for {len(selected_episodes)} episode(s)",
+        message=f"Transcription signal sent for {len(selected_episodes)} episode(s)",
         episodes_count=len(selected_episodes)
     )
 
