@@ -1,0 +1,476 @@
+Title: Essentials: The Biology of Slowing & Reversing Aging | Dr. David Sinclair
+Podcast: Huberman Lab
+Processed: 2025-12-03 16:25:59
+
+============================================================
+
+[UNKNOWN] 00:00:00: Welcome to Huberman Lab Essentials, where we revisit past episodes for the most potent and actionable science-based tools for mental health, physical health, and performance.
+[UNKNOWN] 00:00:11: I'm Andrew Huberman, and I'm a professor of neurobiology and ophthalmology at Stanford School of Medicine.
+[UNKNOWN] 00:00:17: And now my conversation with Dr. David Sinclair.
+[UNKNOWN] 00:00:20: Thanks for being here.
+[UNKNOWN] 00:00:21: I have a ton of questions for you about aging longevity, lifespan, actionable protocols to increase how long we live, et cetera.
+[UNKNOWN] 00:00:30: And I just want to start off with a very simple question.
+[UNKNOWN] 00:00:32: What is
+[UNKNOWN] 00:00:33: the difference between longevity, anti-aging, and aging as a disease, because I associate you with the statement, aging is a disease.
+[UNKNOWN] 00:00:43: Right.
+[UNKNOWN] 00:00:44: Well, so longevity is the more academic way we describe what we research.
+[UNKNOWN] 00:00:48: Anti-aging is kind of the same thing, but it's got a bad rap because it's been used by a whole bunch of people that don't know what they're talking about.
+[UNKNOWN] 00:00:56: So I really don't like that term anti-aging.
+[UNKNOWN] 00:00:58: But aging as a disease and longevity are perfectly valid ways to talk about this subject.
+[UNKNOWN] 00:01:04: So let's talk about aging as a disease.
+[UNKNOWN] 00:01:06: When I started my research, disease here at Harvard Medical School, it was considered, if there's something that's wrong with you,
+[UNKNOWN] 00:01:16: and it's a rare thing, has to be less than 50% of the population, that's definitely a disease.
+[UNKNOWN] 00:01:22: And then people work their whole lives to try and cure that condition.
+[UNKNOWN] 00:01:25: And so I looked up what's the definition of aging, and it says, well, it's a deterioration in health and sickness, and you can die from it, typically you do.
+[UNKNOWN] 00:01:32: Something that sounds pretty much like a disease, but the caveat is that if more than half the population gets this condition, aging,
+[UNKNOWN] 00:01:42: it's put in a different bucket.
+[UNKNOWN] 00:01:44: Which is, first of all, that's outrageous because it's just a totally arbitrary cutoff.
+[UNKNOWN] 00:01:48: But think about this, that we're ignoring the major cause of all these diseases.
+[UNKNOWN] 00:01:53: Aging is 80 to 90% the cause of heart disease, Alzheimer's.
+[UNKNOWN] 00:01:57: If we didn't get old and our bodies stayed youthful, we would not get those diseases.
+[UNKNOWN] 00:02:01: And actually, what we're showing in my labels, if you turn the clock back in tissues, those diseases go away.
+[UNKNOWN] 00:02:06: So aging is the problem.
+[UNKNOWN] 00:02:08: And instead, through most of the last 200 years, we've been sticking Band-Aids on diseases that have already occurred because of aging, and then it's too late.
+[UNKNOWN] 00:02:17: So there are a couple of things.
+[UNKNOWN] 00:02:19: One is we want to slow aging down so we don't get those diseases.
+[UNKNOWN] 00:02:22: And when they do occur, don't just stick a Band-Aid on, reverse the age of the body and then the diseases will go away.
+[UNKNOWN] 00:02:27: That clarifies a lot for me.
+[UNKNOWN] 00:02:28: Thank you.
+[UNKNOWN] 00:02:29: Can we point to one specific general phenomenon in the body that underlies aging?
+[UNKNOWN] 00:02:35: Fortunately, during the 2000s, we settled on eight or nine major causes of aging.
+[UNKNOWN] 00:02:41: These eight or nine causes, at least for the first time, allowed us to come around and talk together.
+[UNKNOWN] 00:02:47: We put them on a pizza, so everyone got equal slices.
+[UNKNOWN] 00:02:51: But I think that there's one slice of the pizza that is way larger than the others.
+[UNKNOWN] 00:02:55: And we can get to that, but that's the information in the cell that we call the epigenome.
+[UNKNOWN] 00:03:00: Well tell us a little bit more about the epigenome, frame it for us if you will, and then we'll get into ways that one can adjust the epigenome in positive ways.
+[UNKNOWN] 00:03:11: Yeah, so in science what I like to do, I'm a reductionist, is to boil it down, and I actually ended up boiling aging down to an equation.
+[UNKNOWN] 00:03:20: which is the loss of information due to entropy.
+[UNKNOWN] 00:03:23: It's a hard thing to overcome the second law of thermodynamics, that's fair.
+[UNKNOWN] 00:03:27: But this equation really represents the fact that I think aging is a loss of information in the same way that when you Xerox something a thousand times, you'll lose that information, or you try to copy a cassette tape, or even if you send information across the internet, some of it will get lost.
+[UNKNOWN] 00:03:45: That's what I think is aging.
+[UNKNOWN] 00:03:46: And there are two types of information in the body.
+[UNKNOWN] 00:03:49: There is the genetic information, which is digital, A-T-C-G, the chemical letters of DNA.
+[UNKNOWN] 00:03:55: But there's this other part of the information in the body that's just as important.
+[UNKNOWN] 00:03:59: It's essential, in fact, and that's the systems that control which genes are switched on and off, in what cell, at what time, in response to what we eat, etc.
+[UNKNOWN] 00:04:09: And it turns out that 80% of our future longevity and health is controlled by this second part, the epigenetic information, the control systems.
+[UNKNOWN] 00:04:17: I liken the DNA to the music that's on a DVD or a compact disc for the younger people.
+[UNKNOWN] 00:04:23: We used to use these things.
+[UNKNOWN] 00:04:24: I recall.
+[UNKNOWN] 00:04:24: Yeah.
+[UNKNOWN] 00:04:25: And then the epigenome is the reader that says, okay, in this cell, we need to play that set of songs.
+[UNKNOWN] 00:04:31: And in this other cell, we have to play a different set of songs.
+[UNKNOWN] 00:04:34: But over time, aging is the equivalent of scratching
+[UNKNOWN] 00:04:36: the CD and the DVD so that you're not playing the right songs.
+[UNKNOWN] 00:04:40: And cells, when they don't hear the right songs, they get messed up and they don't function well.
+[UNKNOWN] 00:04:46: And that is what I'm saying is the main driver of aging.
+[UNKNOWN] 00:04:49: And these other hallmarks are largely manifestations of that process.
+[UNKNOWN] 00:04:53: What are the scratches that you're referring to?
+[UNKNOWN] 00:04:56: So DNA is six foot long.
+[UNKNOWN] 00:04:58: So if you join your chromosomes together, you get a six foot per cell.
+[UNKNOWN] 00:05:01: So there's enough to go to the moon and back eight times in your body.
+[UNKNOWN] 00:05:04: And it has to be wrapped up to exist in inside us.
+[UNKNOWN] 00:05:07: But it's not just wrapped up willy nilly.
+[UNKNOWN] 00:05:09: It's not just a bundle of string.
+[UNKNOWN] 00:05:11: It's wrapped up very carefully in ways that dictates which genes are switched on and off.
+[UNKNOWN] 00:05:16: And when we're developing in the embryo, the cell marks the DNA with chemicals that says, OK, this gene is for a nerve cell.
+[UNKNOWN] 00:05:24: You, you cell will stay a nerve cell for the next hundred years if you're lucky.
+[UNKNOWN] 00:05:29: Don't turn into a skin cell.
+[UNKNOWN] 00:05:30: That would be bad.
+[UNKNOWN] 00:05:32: And those chemicals, there are many different types of chemicals, but one's called methylation.
+[UNKNOWN] 00:05:37: Those little methyls will mark which songs get played for the rest of your life.
+[UNKNOWN] 00:05:41: And there are other marks that change daily.
+[UNKNOWN] 00:05:44: But in toto, what we're saying is that the body controls the genome through the ability to mark the DNA and then compact some parts of it.
+[UNKNOWN] 00:05:54: silence those genes, don't read those genes, and open others, keep others open that should stay open.
+[UNKNOWN] 00:06:01: And that pattern of genes that are silent and open, silent-open, is what dictates the cell's type, the cell's function.
+[UNKNOWN] 00:06:09: And then the scratches are the disruption of that.
+[UNKNOWN] 00:06:12: So genes that were once silent
+[UNKNOWN] 00:06:15: and you could say it's a gene that is involved in skin, it's starting to come on in the brain, shouldn't be there, but we see this happen, and vice versa, the gene might get shut off over time during aging.
+[UNKNOWN] 00:06:27: Cells over time lose these structures, lose their identity, they forget what they're supposed to do, and we get diseases.
+[UNKNOWN] 00:06:34: We call that aging, and we can measure that.
+[UNKNOWN] 00:06:37: In fact, we can measure it in such a way that we can predict when somebody's going to die based on the changes in those chemicals.
+[UNKNOWN] 00:06:44: Are these changes the same sorts of changes that underlie the outward body surface manifestations of aging that most of us are familiar with?
+[UNKNOWN] 00:06:53: Graying of the hair, wrinkling of the skin, drooping of the face, or are we talking about people that potentially are going to look older but simply live longer?
+[UNKNOWN] 00:07:02: Well, it's actually, you are as old as you look, if you want to generalize.
+[UNKNOWN] 00:07:08: So let's start with centenarian families.
+[UNKNOWN] 00:07:10: These are families that tend to live over 100.
+[UNKNOWN] 00:07:13: When they're 70, they still look 50 or less.
+[UNKNOWN] 00:07:16: So it is a good indicator.
+[UNKNOWN] 00:07:18: It's not perfect because you can, like me, grow up in Australia and accelerate the aging of your skin.
+[UNKNOWN] 00:07:24: But in general, how you look.
+[UNKNOWN] 00:07:26: No one's ever died from gray hair, but overall you can get a sense just from the ability of skin to hold itself up, how thin it is, the number of wrinkles.
+[UNKNOWN] 00:07:35: Very interesting.
+[UNKNOWN] 00:07:37: I'd like to take a quick break and acknowledge one of our sponsors, David.
+[UNKNOWN] 00:07:40: David makes a protein bar unlike any other.
+[UNKNOWN] 00:07:43: It has 28 grams of protein, only 150 calories and zero grams of sugar.
+[UNKNOWN] 00:07:48: That's right, 28 grams of protein and 75% of its calories come from protein.
+[UNKNOWN] 00:07:54: That's 50% higher than the next closest protein bar.
+[UNKNOWN] 00:07:57: These bars from David also taste amazing.
+[UNKNOWN] 00:07:59: Right now, my favorite flavor is the new cinnamon roll flavor, but I also like the chocolate chip cookie dough flavor, and I also like the salted peanut butter flavor.
+[UNKNOWN] 00:08:07: Basically, I like all the flavors.
+[UNKNOWN] 00:08:08: They're all delicious.
+[UNKNOWN] 00:08:10: Also, big news, David bars are now back in stock.
+[UNKNOWN] 00:08:13: They were sold out for several months because they are that popular, but they are now back in stock.
+[UNKNOWN] 00:08:17: By eating a David Bar, I'm able to get 28 grams of protein in the calories of a snack, which makes it very easy for me to meet my protein goals of one gram of protein per pound of body weight per day, and to do so without eating excess calories.
+[UNKNOWN] 00:08:30: I generally eat a David Bar most afternoons, and I always keep them with me when I'm away from home or traveling, because they're incredibly convenient to get enough protein.
+[UNKNOWN] 00:08:38: As I mentioned, they're incredibly delicious, and given that 28 grams of protein, they're pretty filling for just 150 calories, so they're great between meals as well.
+[UNKNOWN] 00:08:46: If you'd like to try David, you can go to davidprotein.com slash Huberman.
+[UNKNOWN] 00:08:50: Again, that's davidprotein.com slash Huberman.
+[UNKNOWN] 00:08:54: I started off in developmental neurobiology.
+[UNKNOWN] 00:08:56: So one of the things that I learned early on that I still believe wholeheartedly is that development doesn't stop at age 12 or 15, or even 25, that your entire life is one long developmental arc.
+[UNKNOWN] 00:09:14: So in thinking about different portions of that developmental arc, the early portion of infancy and especially puberty seem like especially rapid stages of aging.
+[UNKNOWN] 00:09:26: And I know we normally look at babies and children and kids in puberty and we think, oh, they're so vital, they're so young.
+[UNKNOWN] 00:09:32: And yet the way you describe these changes in the epigenome and the way you have framed aging as a disease leads me to ask,
+[UNKNOWN] 00:09:43: Are periods of immense vitality the same periods when we're aging faster?
+[UNKNOWN] 00:09:50: Yes.
+[UNKNOWN] 00:09:51: Really good question.
+[UNKNOWN] 00:09:52: So those chemicals we can measure, it's also known as the Horvath clock.
+[UNKNOWN] 00:09:56: It's the biological clock.
+[UNKNOWN] 00:09:57: It's separate from your chronological age.
+[UNKNOWN] 00:09:59: There are some people that are 10, 20 years younger than other people biologically.
+[UNKNOWN] 00:10:05: And it turns out if you measure that clock from birth or even before birth, if you look at animals, there's a massive increase in age based on that clock early in life.
+[UNKNOWN] 00:10:14: So you're right.
+[UNKNOWN] 00:10:16: So that's a really important point, that you have accelerated aging during the first few years of life, and then it goes linear towards the rest of your life.
+[UNKNOWN] 00:10:24: But there's another interesting thing you brought up, which is that we're finding that the genes that get messed up, that get scratched,
+[UNKNOWN] 00:10:30: that are leading to aging are those early developmental genes.
+[UNKNOWN] 00:10:34: They come on late in life and just mess up the system.
+[UNKNOWN] 00:10:38: And they seem to be particularly susceptible to those scratches.
+[UNKNOWN] 00:10:41: So what's causing the scratches?
+[UNKNOWN] 00:10:43: Well, we know of a couple of things in my lab, we figured out.
+[UNKNOWN] 00:10:46: One is broken chromosomes, DNA damage, particularly cuts to the DNA breaks.
+[UNKNOWN] 00:10:51: So if you have an X-ray or a cosmic ray, or even if you go out in the sun and you'll get your broken chromosomes,
+[UNKNOWN] 00:10:57: that accelerates the unwinding of those beautiful DNA loops that I mentioned.
+[UNKNOWN] 00:11:04: We can actually do this to a mouse.
+[UNKNOWN] 00:11:06: We can accelerate that process and we get an old mouse, 50% older, and it has this bent spine, kyphosis, it has gray hair, its organs are old.
+[UNKNOWN] 00:11:15: So we now can control aging in the forwards direction.
+[UNKNOWN] 00:11:18: The other thing that accelerates aging is massive cell damage or stress.
+[UNKNOWN] 00:11:24: So we pinched nerves and we saw that their aging process was accelerated as well.
+[UNKNOWN] 00:11:29: Incredible.
+[UNKNOWN] 00:11:30: Yeah, this is more of an anecdotal phenomenon.
+[UNKNOWN] 00:11:34: It is an anecdotal phenomenon, but this experience of in junior high school, you know, going home for a summer and you come back and then some of the kids, like they grew beards over the summer or they completely matured quickly over the summer.
+[UNKNOWN] 00:11:50: Do you think there's any reason to believe that rates of entry into and through puberty can predict overall rates of aging?
+[UNKNOWN] 00:11:59: Well, yeah, I don't want to scare anybody.
+[UNKNOWN] 00:12:01: Sure.
+[UNKNOWN] 00:12:01: There are studies that show that the slower you take to develop, it also is predictive of having a longer, healthier life.
+[UNKNOWN] 00:12:09: And it may have something to do with growth hormone.
+[UNKNOWN] 00:12:12: We know that growth hormone is pro-aging.
+[UNKNOWN] 00:12:16: Anyone who's taking growth hormone for a short amount of time, you'll build up muscle, you feel great, but it's like burning your candle at both ends.
+[UNKNOWN] 00:12:23: Ultimately, if you want to live longer, you want less of that.
+[UNKNOWN] 00:12:27: And the animals that have been generated and mutants that have low growth hormone, sometimes these are dwarfs, they live the longest by far.
+[UNKNOWN] 00:12:36: Can we say that there's a direct relationship between body size and longevity?
+[UNKNOWN] 00:12:41: duration of life?
+[UNKNOWN] 00:12:44: Well, there is, but that doesn't mean that you're a slave to your early epigenome, nor to your genome.
+[UNKNOWN] 00:12:51: The good news is that the epigenome can change.
+[UNKNOWN] 00:12:54: Those loops and structures can be modified by how you live your life.
+[UNKNOWN] 00:12:58: No matter what size you are, you can have a bigger impact on your life than anything your genes give you.
+[UNKNOWN] 00:13:02: 80% is epigenetic, not genetic.
+[UNKNOWN] 00:13:06: So let's talk about some of the things that people can do.
+[UNKNOWN] 00:13:08: And I've kind of batched these into categories rather than just diving right into actionable protocols.
+[UNKNOWN] 00:13:17: So the first one relates to food, blood sugar, insulin.
+[UNKNOWN] 00:13:23: This is something I hear a lot about that fasting is good for us, but rarely do I hear why it's good for us.
+[UNKNOWN] 00:13:30: I think understanding the mechanism will allow people to make better choices.
+[UNKNOWN] 00:13:34: and not simply to just decide whether or not they're going to fast or not fast, or how long they're going to fast, I think should be dictated by some understanding of the mechanism.
+[UNKNOWN] 00:13:43: So why is it that having elevated blood sugar, glucose, and insulin ages us more quickly?
+[UNKNOWN] 00:13:50: And or why is it that having periods of time each day, or perhaps longer, can extend our lifespan?
+[UNKNOWN] 00:13:59: Well, let's start with what I think was a big mistake, was the idea that people should never be hungry.
+[UNKNOWN] 00:14:05: Some people never experience hunger in their whole lives.
+[UNKNOWN] 00:14:07: It's really, really bad for them.
+[UNKNOWN] 00:14:10: It was based, I believe, on the 20th century view that you don't want to stress out the pancreas.
+[UNKNOWN] 00:14:15: And you try to keep insulin levels pretty steady and not have this fluctuation.
+[UNKNOWN] 00:14:22: What we actually found, my colleagues and I,
+[UNKNOWN] 00:14:26: across this field of longevity is that when you look at animals, whether it's a dog or a mouse or a monkey,
+[UNKNOWN] 00:14:34: The ones that live the longest, by far, 30% longer and stay healthy are the ones that don't eat all the time.
+[UNKNOWN] 00:14:42: It actually was first discovered back in the early 20th century, but people ignored it.
+[UNKNOWN] 00:14:47: And then it was rediscovered in the 1930s.
+[UNKNOWN] 00:14:49: Clyde McKay did caloric restriction.
+[UNKNOWN] 00:14:51: He put cellulose in the food of rats so they couldn't get as many calories, even though they ate.
+[UNKNOWN] 00:14:57: And those rats lived 30% longer.
+[UNKNOWN] 00:14:59: But then it went away and then it came back in the 2000s in a big way when a couple of things happened.
+[UNKNOWN] 00:15:05: One is that my lab and others showed that there are longevity genes in the body that come on and protect us from aging and disease.
+[UNKNOWN] 00:15:14: The group of genes that I work on are called sirtuins, there's seven of them.
+[UNKNOWN] 00:15:18: And we showed in 2005 in a science paper that
+[UNKNOWN] 00:15:22: If you have low levels of insulin and another molecule called insulin-like growth factor, those low levels turn on the longevity genes.
+[UNKNOWN] 00:15:31: One of them that's really important is called SIRT1.
+[UNKNOWN] 00:15:34: But by having high levels of insulin all day, being fed means your longevity genes are not switched on.
+[UNKNOWN] 00:15:41: So you're falling apart, your epigenome, your information that keeps your cells functioning over time just degrades quickly.
+[UNKNOWN] 00:15:47: Your clock is ticking faster by always being fed.
+[UNKNOWN] 00:15:52: The other thing that I think might be happening by always having food around is that it's not allowing the cell to have periods of rest and reestablish the epigenome and so it also is accelerating in that direction.
+[UNKNOWN] 00:16:10: There's plenty of other reasons as well that are not as profound, such as having low levels of glucose in your body will trigger your major muscles in your brain to become more sensitive to insulin and suck the glucose out of your bloodstream, which is very good.
+[UNKNOWN] 00:16:25: You don't want to have glucose flowing around too much.
+[UNKNOWN] 00:16:28: And that will ward off type two diabetes.
+[UNKNOWN] 00:16:30: What is the protocol that people can extrapolate from that?
+[UNKNOWN] 00:16:34: Well, if there's one thing I could say, I would say definitely try to skip a meal a day.
+[UNKNOWN] 00:16:40: That's the best thing.
+[UNKNOWN] 00:16:41: Does it matter which meal?
+[UNKNOWN] 00:16:42: Or are they essentially equivalent?
+[UNKNOWN] 00:16:43: Well, as long as it's at the end or the beginning of the day, because then you add that to the sleep period where you're hopefully not eating.
+[UNKNOWN] 00:16:51: Beware that the first two to three weeks when you try that, you will feel hungry.
+[UNKNOWN] 00:16:54: And you also have a habit of wanting to chew on something.
+[UNKNOWN] 00:16:57: There's a lot of physical parts to it.
+[UNKNOWN] 00:17:00: But try to make it through the first three weeks and do without breakfast or do without dinner.
+[UNKNOWN] 00:17:05: and you'll get through it.
+[UNKNOWN] 00:17:06: Do you ever do longer fasts like 48 hours or 72 hours or week-long fasts?
+[UNKNOWN] 00:17:11: Not very often, I find it quite difficult to go more than 24 hours.
+[UNKNOWN] 00:17:17: But when I do it, maybe it's once a month, I'll go for two days.
+[UNKNOWN] 00:17:20: After two, and actually even better if you go for three days without eating, it kicks in even greater longevity benefits.
+[UNKNOWN] 00:17:29: So there's a system called the autophagy system, which digests old and misfolded proteins in the body.
+[UNKNOWN] 00:17:36: And there's a natural cleansing that happens when you're hungry.
+[UNKNOWN] 00:17:39: macro autophagy its name is, but a good friend of mine, Anna Maria Cuervo at Albert Einstein College of Medicine discovered a deep cleanse called the chaperone-mediated autophagy, which kicks in day two, day three, which really gets rid of the deep proteins.
+[UNKNOWN] 00:17:56: And what excites me is she just put out a big paper that said, if you trigger this process in an old mouse, it lives 35% longer.
+[UNKNOWN] 00:18:06: We've known for a long time that there are things that we can do to improve our sleep.
+[UNKNOWN] 00:18:10: And that includes things that we can take, things like magnesium threonate, theanine, chamomile extract, and glycine, along with lesser known things like saffron and valerian root.
+[UNKNOWN] 00:18:20: These are all clinically supported ingredients that can help you fall asleep, stay asleep, and wake up feeling more refreshed.
+[UNKNOWN] 00:18:26: I'm excited to share that our longtime sponsor, AG1, just created a new product called AGZ, a nightly drink designed to help you get better sleep and have you wake up feeling super refreshed.
+[UNKNOWN] 00:18:36: Over the past few years, I've worked with the team at AG1 to help create this new AGZ formula.
+[UNKNOWN] 00:18:41: It has the best sleep-supporting compounds in exactly the right ratios in one easy-to-drink mix.
+[UNKNOWN] 00:18:46: This removes all the complexity of trying to forage the vast landscape of supplements focused on sleep and figuring out the right dosages and which ones to take for you.
+[UNKNOWN] 00:18:55: AGZ is, to my knowledge, the most comprehensive sleep supplement on the market.
+[UNKNOWN] 00:18:59: I take it 30 to 60 minutes before sleep, it's delicious by the way, and it dramatically increases both the quality and the depth of my sleep.
+[UNKNOWN] 00:19:06: I know that both from my subjective experience of my sleep and because I track my sleep.
+[UNKNOWN] 00:19:10: I'm excited for everyone to try this new AGZ formulation and to enjoy the benefits of better sleep.
+[UNKNOWN] 00:19:15: AGZ is available in chocolate, chocolate mint, and mixed berry flavors.
+[UNKNOWN] 00:19:19: And as I mentioned before, they're all extremely delicious.
+[UNKNOWN] 00:19:22: My favorite of the three has to be, I think, chocolate mint, but I really like them all.
+[UNKNOWN] 00:19:26: If you'd like to try AGZ, go to drinkagz.com slash Huberman to get a special offer.
+[UNKNOWN] 00:19:32: Again, that's drinkagz.com slash Huberman.
+[UNKNOWN] 00:19:35: When you are fasting, regardless of how long, I know you're ingesting fluids like water and presumably some caffeine.
+[UNKNOWN] 00:19:42: I heard you had several or more espresso today.
+[UNKNOWN] 00:19:45: Are you also ingesting electrolytes?
+[UNKNOWN] 00:19:47: Like I know some people get lightheaded, they start to feel shaky when they fast and that the addition of sodium to their water or potassium, magnesium is something that's becoming a little more in vogue now.
+[UNKNOWN] 00:19:58: Is that something that you do or that you see a need for people to do?
+[UNKNOWN] 00:20:01: Well, it makes sense, but I haven't had a need to do it, so I don't.
+[UNKNOWN] 00:20:07: I drink tea during the day and coffee when I'm first awake, and I don't get the shakes.
+[UNKNOWN] 00:20:12: I don't fix what's not broken.
+[UNKNOWN] 00:20:14: Okay.
+[UNKNOWN] 00:20:15: You've told us that there's ample evidence that keeping your blood sugar low for a period of time, each 24 hours, can help trigger some of these pro-longevity anti-aging mechanisms.
+[UNKNOWN] 00:20:27: and that extending them out two or three days can trigger yet additional mechanisms of gobbling up of dead cells and things of that sort.
+[UNKNOWN] 00:20:39: How is it that blood glucose triggers these mechanisms?
+[UNKNOWN] 00:20:42: Because we've said, okay, remove glucose and things get better.
+[UNKNOWN] 00:20:45: You've talked before, maybe we could talk more now about some of the underlying cellular and genetic mechanisms, things like the sirtuins, but how are glucose and the sirtuins actually tethered to one another mechanistically?
+[UNKNOWN] 00:20:57: Yeah, there's a really good question.
+[UNKNOWN] 00:20:59: That proves you're a scientist, or a world-leading one.
+[UNKNOWN] 00:21:04: So what we now know is that these longevity pathways, we call them, these longevity genes, talk to each other.
+[UNKNOWN] 00:21:10: And we used to say, oh, my longevity gene's more important than yours.
+[UNKNOWN] 00:21:13: It was ridiculous.
+[UNKNOWN] 00:21:14: because they're all talking to each other.
+[UNKNOWN] 00:21:15: You pull one lever and the other one moves.
+[UNKNOWN] 00:21:18: And the way to think of it is that there are systems set up to detect what you're eating.
+[UNKNOWN] 00:21:22: So the sirtuins will mainly respond to sugar and insulin.
+[UNKNOWN] 00:21:27: And then there's this other system called mTOR, which is sensing how much protein or amino acids are coming into your body.
+[UNKNOWN] 00:21:35: And they talk to each other.
+[UNKNOWN] 00:21:36: We can pull one and affect the other and vice versa.
+[UNKNOWN] 00:21:39: But together when you're fasting,
+[UNKNOWN] 00:21:41: you'll get the sirtuin activation, which is good for you.
+[UNKNOWN] 00:21:45: And you'll also, through lack of amino acids, particularly three of them, leucine, isoleucine, valine, the body will downregulate mTOR.
+[UNKNOWN] 00:21:54: And it's that up sirtuin, down mTOR that is hugely beneficial and turns on all of the body's defenses.
+[UNKNOWN] 00:22:01: Chewing up the old proteins, improving insulin sensitivity, giving us more energy, repairing cells,
+[UNKNOWN] 00:22:07: All of that, and so these two pathways, I think, are the most important for longevity.
+[UNKNOWN] 00:22:11: You mentioned leucine.
+[UNKNOWN] 00:22:13: It's clear that because of leucine's effects on the mTOR pathway, that there are many people, not just people in these particular fitness communities, that are actively trying to ingest more leucine on a regular basis in order to maximize their wellness and fitness, and in some cases, muscle growth, but also just wellness.
+[UNKNOWN] 00:22:33: But what
+[UNKNOWN] 00:22:34: I interpret your last statement to mean is that leucine, because it triggers cellar growth, is actually pro-aging in some sense.
+[UNKNOWN] 00:22:43: Is that right?
+[UNKNOWN] 00:22:43: That's what the evidence suggests.
+[UNKNOWN] 00:22:45: And again, it goes back to the debate, should you supplement with growth hormone or testosterone
+[UNKNOWN] 00:22:51: All of these activities will give you immediate benefits.
+[UNKNOWN] 00:22:55: You'll bulk up more.
+[UNKNOWN] 00:22:56: You'll feel better immediately.
+[UNKNOWN] 00:22:59: But based on the research, it's at the expense of long-term health.
+[UNKNOWN] 00:23:03: So my view of longevity, the way I treat my body is I don't burn both candles.
+[UNKNOWN] 00:23:09: I have one end of the candle lit.
+[UNKNOWN] 00:23:11: I'm very careful.
+[UNKNOWN] 00:23:12: I don't blow on it.
+[UNKNOWN] 00:23:14: But I also do enough exercise that I'm building up my muscle, but I'm not huge.
+[UNKNOWN] 00:23:19: Anyone who's seen me knows that I'm not a professional bodybuilder.
+[UNKNOWN] 00:23:24: But I tried to actually, here's the key, and I haven't said this publicly that I can remember, I pulse things so that I get periods of fasting, and then I eat, then I take a supplement,
+[UNKNOWN] 00:23:36: then I fast, then I exercise, and I'm taking the supplements and eating in the right timing to allow me to build up muscle sometimes.
+[UNKNOWN] 00:23:45: Because you can't just expect to take something constantly and do something constantly for it to work.
+[UNKNOWN] 00:23:52: And that's why it's taken me about 15 years to develop my protocol.
+[UNKNOWN] 00:23:55: And there's a lot of subtlety to it.
+[UNKNOWN] 00:23:57: What you wanna do is to get the cells to be perceiving adversity.
+[UNKNOWN] 00:24:03: Because our modern life, we're sitting around, we're eating too much, we're not exercising.
+[UNKNOWN] 00:24:10: Our cells respond, they go, hey, everything's cool, no problem.
+[UNKNOWN] 00:24:14: And they become relaxed and they don't turn on their defenses and we age rapidly.
+[UNKNOWN] 00:24:17: We can see it in the clock.
+[UNKNOWN] 00:24:19: People who exercise and eat less have a slower ticking clock.
+[UNKNOWN] 00:24:22: It's a fact.
+[UNKNOWN] 00:24:23: One of the questions I get asked all the time is, does ingesting blank break the fast?
+[UNKNOWN] 00:24:28: Does eating this or drinking this, coffee, if I walk in the room and someone else is eating a cracker, does it break my fast?
+[UNKNOWN] 00:24:36: People get pretty extreme with this.
+[UNKNOWN] 00:24:37: My sense, and please tell me if I'm wrong, but my sense is that it depends on the context of what you did the night before, whether or not you're diabetic, lots of things.
+[UNKNOWN] 00:24:47: So for instance, if I eat an enormous meal at midnight, go to sleep, wake up at 6 a.m.,
+[UNKNOWN] 00:24:53: I could imagine that black coffee or coffee with a little bit of cream might quote-unquote break my fast, but the body doesn't have a breaking the fast switch.
+[UNKNOWN] 00:25:02: The body only speaks in the language of glucose, AMPK, mTOR, et cetera.
+[UNKNOWN] 00:25:07: So do you worry that ingesting these calories is gonna quote-unquote break your fast?
+[UNKNOWN] 00:25:13: And more generally, how do you think about the issue of whether or not you're fasting enough to get these positive effects?
+[UNKNOWN] 00:25:19: Because not everybody can manage on just water.
+[UNKNOWN] 00:25:23: or just tea, or we should say not everybody is willing to manage on just water or just tea for a certain part of the day.
+[UNKNOWN] 00:25:30: Well, my first answer is not scientific, it's philosophical.
+[UNKNOWN] 00:25:33: If you don't enjoy life, what's the point?
+[UNKNOWN] 00:25:35: And so I'd like a cup of coffee in the morning, a little bit of milk, a spoonful of yogurt's not gonna kill me.
+[UNKNOWN] 00:25:43: Olive oil doesn't have protein or carbs in it, not many, and so I'm probably not affecting those longevity pathways negatively.
+[UNKNOWN] 00:25:52: But without that, first of all, I wouldn't enjoy my life as much.
+[UNKNOWN] 00:25:55: Well, the olive oil is not as great as the yogurt, but I'm trying to optimize.
+[UNKNOWN] 00:26:01: perfect solution to what we're doing.
+[UNKNOWN] 00:26:04: And we're still learning.
+[UNKNOWN] 00:26:05: We don't know what's optimal for me, let alone everybody else.
+[UNKNOWN] 00:26:09: But I'm with you.
+[UNKNOWN] 00:26:10: I don't believe that taking a couple of spoonfuls of something, unless it's high fructose corn syrup, is gonna hurt you.
+[UNKNOWN] 00:26:17: The point about doing this is that you try to do your best.
+[UNKNOWN] 00:26:22: If you go from regular living to don't eat the whole day, you're gonna fail.
+[UNKNOWN] 00:26:27: Like quitting smoking cold turkey, it's easier to chew gum and stick the patch on.
+[UNKNOWN] 00:26:31: Because your body has to get used to all sorts of habits.
+[UNKNOWN] 00:26:34: And it's social, it's physical, putting stuff in your mouth, chewing, not just the low blood sugar levels.
+[UNKNOWN] 00:26:39: And your brain will fight it.
+[UNKNOWN] 00:26:41: Your limbic system is going to go, hey, do it, do it, do it.
+[UNKNOWN] 00:26:44: And you're going to have to fight it.
+[UNKNOWN] 00:26:46: But once you get through it, you'll be better.
+[UNKNOWN] 00:26:49: But you do it in stages.
+[UNKNOWN] 00:26:50: Don't go Kultogi, because everyone knows
+[UNKNOWN] 00:26:52: It's a fact that if you try to do a strict diet right out of the gates, you'll almost always fail.
+[UNKNOWN] 00:26:59: That captures the essence of fasting rationally and a rational approach to supplementation very well.
+[UNKNOWN] 00:27:06: Along the lines of supplementation, what about NMN?
+[UNKNOWN] 00:27:10: How does one incorporate that into a supplementation protocol should they choose to do that?
+[UNKNOWN] 00:27:15: Well, disclaimer is that I don't recommend anything, but I talk about what I do.
+[UNKNOWN] 00:27:19: So a bit of scientific background, these sirtuin genes that we discovered first in yeast cells when I was at MIT, and then in animals as I moved to Harvard in the 2000s.
+[UNKNOWN] 00:27:29: And one of my first postdocs, actually literally my first postdoc, Haim Cohen, published a great paper and found that turning on the sirtuin 6 gene, remember the 7, number 6 gene is very potent.
+[UNKNOWN] 00:27:41: It extended the lifespan dramatically of mice that he engineered.
+[UNKNOWN] 00:27:44: both males and females, which is great.
+[UNKNOWN] 00:27:46: So what you want to do is naturally boost the activity of these sirtuins.
+[UNKNOWN] 00:27:51: They are genes, but they also make proteins.
+[UNKNOWN] 00:27:53: That's what genes typically make or encode.
+[UNKNOWN] 00:27:56: And then those proteins take care of the body in many different ways.
+[UNKNOWN] 00:27:58: NAD levels are really important for keeping those sirtuin defenses at a youthful level.
+[UNKNOWN] 00:28:03: I take a precursor to NAD called NMN and the body uses that to make the NAD molecule in one step.
+[UNKNOWN] 00:28:12: And so I know from
+[UNKNOWN] 00:28:14: measuring dozens of human beings, that if you take NMN,
+[UNKNOWN] 00:28:19: for the time period that I do.
+[UNKNOWN] 00:28:21: I've been taking it for years.
+[UNKNOWN] 00:28:21: But if you take it for about two weeks, you'll double, on average, double your NAD levels in the blood.
+[UNKNOWN] 00:28:27: So I just want people to be aware that what I do may not perfectly work at all for others.
+[UNKNOWN] 00:28:34: But I have studied, as I said, dozens of people who take NMN at a gram, sometimes two grams.
+[UNKNOWN] 00:28:41: And I know by looking at all those people that without any exceptions, that if you do what I do, your NAD levels go up.
+[UNKNOWN] 00:28:48: by about twofold or more.
+[UNKNOWN] 00:28:51: Anecdotally, because I've been taking this for a long time.
+[UNKNOWN] 00:28:53: If I don't take it, I start to feel 50 years old.
+[UNKNOWN] 00:28:55: It's horrible.
+[UNKNOWN] 00:28:56: I can't think straight.
+[UNKNOWN] 00:28:58: It may be placebo, but who knows?
+[UNKNOWN] 00:29:00: But what we're doing now are very careful clinical trials.
+[UNKNOWN] 00:29:04: I'd like to take a quick break and acknowledge our sponsor, Eight Sleep.
+[UNKNOWN] 00:29:07: 8Sleep makes smart mattress covers with cooling, heating, and sleep tracking capacity.
+[UNKNOWN] 00:29:12: One of the best ways to ensure a great night's sleep is to make sure that the temperature of your sleeping environment is correct.
+[UNKNOWN] 00:29:17: And that's because in order to fall and stay deeply asleep, your body temperature actually has to drop by about 1 to 3 degrees.
+[UNKNOWN] 00:29:24: And in order to wake up feeling refreshed and energized, your body temperature actually has to increase by about 1 to 3 degrees.
+[UNKNOWN] 00:29:30: 8Sleep automatically regulates the temperature of your bed throughout the night according to your unique needs.
+[UNKNOWN] 00:29:36: I've been sleeping on an 8Sleep mattress cover for over four years now and it has completely transformed and improved the quality of my sleep.
+[UNKNOWN] 00:29:43: 8Sleep has just launched their latest model, the Pod 5, and the Pod 5 has several new important features.
+[UNKNOWN] 00:29:48: One of these new features is called Autopilot.
+[UNKNOWN] 00:29:50: Autopilot is an AI engine that learns your sleep patterns to adjust the temperature of your sleeping environment across different sleep stages.
+[UNKNOWN] 00:29:57: It also elevates your head if you're snoring, and it makes other shifts to optimize your sleep.
+[UNKNOWN] 00:30:02: The bass on the Pod 5 also has an integrated speaker that syncs to the 8Sleep app and can play audio to support relaxation and recovery.
+[UNKNOWN] 00:30:09: The audio catalog includes several NSDR, non-sleep deep rest scripts, that I worked on with Eight Sleep to record.
+[UNKNOWN] 00:30:15: If you're not familiar, NSDR involves listening to an audio script that walks you through a deep body relaxation combined with some very simple breathing exercises.
+[UNKNOWN] 00:30:24: And that combination has been shown in peer-reviewed studies to restore your mental and physical vigor.
+[UNKNOWN] 00:30:29: And this is great because while we would all like to get to bed on time and get up after a perfect night's sleep, oftentimes we get to bed a little late or later.
+[UNKNOWN] 00:30:36: Sometimes we have to get up early and charge into the day because we have our obligations.
+[UNKNOWN] 00:30:40: NSDR can help offset some of the negative effects of slight sleep deprivation.
+[UNKNOWN] 00:30:45: And NSDR gets you better at falling back asleep should you wake up in the middle of the night.
+[UNKNOWN] 00:30:49: It's an extremely powerful tool that anyone can benefit from the first time and every time.
+[UNKNOWN] 00:30:54: If you'd like to try 8sleep, go to 8sleep.com slash Huberman to get up to $350 off the new Pod 5.
+[UNKNOWN] 00:31:01: 8sleep ships to many countries worldwide, including Mexico and the UAE.
+[UNKNOWN] 00:31:05: Again, that's 8sleep.com slash Huberman to save up to $350.
+[UNKNOWN] 00:31:09: I want to talk about iron.
+[UNKNOWN] 00:31:12: an iron load.
+[UNKNOWN] 00:31:13: I don't think we can get right down into how much iron somebody needs because it'll vary person to person, but I was surprised to learn that iron is actually going to accelerate the aging process in various contexts.
+[UNKNOWN] 00:31:26: This is a new finding out of Spain.
+[UNKNOWN] 00:31:29: Manuel Serrano's lab has found that
+[UNKNOWN] 00:31:32: Excess iron will increase the number of senescent cells in the body.
+[UNKNOWN] 00:31:37: And senescent cells are the zombie cells that accumulate as you get older and they sit there and they cause inflammation mainly and also can cause cancer.
+[UNKNOWN] 00:31:45: And it's found that if you get rid of these cells or never accumulate them, you stay younger.
+[UNKNOWN] 00:31:53: There's some really interesting studies out of Mayo Clinic in humans as well.
+[UNKNOWN] 00:31:57: And what I find, for example, is people who are really healthy and live the way I do, and have a diet that's fairly vegetarian but not strict, still have slightly low hemoglobin levels, slightly low iron, slightly low ferritin, but we have super amounts of energy.
+[UNKNOWN] 00:32:15: We're not anemic.
+[UNKNOWN] 00:32:16: And we're getting along great in life, but a doctor who just looks at that might say, oh, we need to give you more iron.
+[UNKNOWN] 00:32:24: So what I'm getting at is an example of we need to personalize medicine and look at people over the long run to know what works for them and what's healthy for them.
+[UNKNOWN] 00:32:35: And not just work towards the average human, but work towards what's optimal for human.
+[UNKNOWN] 00:32:40: I love that answer.
+[UNKNOWN] 00:32:41: You mentioned tracking and tracking over time, and this is a really interesting area that I know you have been focused on for a long time.
+[UNKNOWN] 00:32:49: I've been getting blood work done about every six months, frankly, since I was in college.
+[UNKNOWN] 00:32:53: I like data.
+[UNKNOWN] 00:32:55: Are there any things that you pay attention to
+[UNKNOWN] 00:32:57: that you think are particularly interesting for people to just take note of?
+[UNKNOWN] 00:33:01: I mean, we're not asking you to go against anybody's physician, but what sorts of things should people start to educate themselves about in terms of what these molecules are on their charts if they choose to get them, and what do you look at?
+[UNKNOWN] 00:33:12: Yeah, the first is that you should be tracking things, because one measurement isn't enough.
+[UNKNOWN] 00:33:18: These things vary, and over time, and if you can have a decade or more of data, it's super informative, as you know.
+[UNKNOWN] 00:33:24: But there were some main ones, I would say your blood sugar levels, you wanna do your HbA1c, which is your average glucose levels over the month.
+[UNKNOWN] 00:33:32: There's CRP, which I mentioned for inflammation.
+[UNKNOWN] 00:33:34: Let's talk about C-reactive protein for a second, because I think it's been shown to be an early marker of macular degeneration, of heart disease, a variety of different things.
+[UNKNOWN] 00:33:45: CRP is something that we don't hear enough about, I think.
+[UNKNOWN] 00:33:48: It is the best marker for cardiovascular inflammation, and also we use it as a predictor of
+[UNKNOWN] 00:33:54: longevity, and its levels go up with
+[UNKNOWN] 00:33:59: mortality.
+[UNKNOWN] 00:34:00: And so this is an association, but there's enough data that I would say if you have high levels of CRP, you need to get your levels down quickly.
+[UNKNOWN] 00:34:09: And the levels usually go up with age and with levels of inflammation.
+[UNKNOWN] 00:34:13: So the ways to get it down would be to switch the diet, eat less, try to eat more vegetables.
+[UNKNOWN] 00:34:18: You'll find it will come down.
+[UNKNOWN] 00:34:20: There are also drugs that can do it.
+[UNKNOWN] 00:34:22: Anti-inflammatories can do it as well.
+[UNKNOWN] 00:34:25: But CRP is, it's actually HCRP.
+[UNKNOWN] 00:34:28: There's a high sensitive or HSCRP.
+[UNKNOWN] 00:34:30: Your doctor will know.
+[UNKNOWN] 00:34:31: Get one of those readings, because if you've got normal blood sugar levels, your doctor, or fasting blood sugar levels, your doctor might say you're fine.
+[UNKNOWN] 00:34:40: But a lot of people have normal blood sugar, but have high CRP, which is just as bad for you long-term, and can predict a future heart attack.
+[UNKNOWN] 00:34:49: zooming way out, what are the behavioral tools that one can start to think about in terms of ways to modulate these, you know, basically the way that DNA is being expressed and functioning?
+[UNKNOWN] 00:35:02: In other words, what are the sorts of things that people can do to improve the sirtuin pathway?
+[UNKNOWN] 00:35:07: And I realize that there are caveats, we can't go directly from a behavior to sirtuins, but in the general theme, what can people do, what do you do?
+[UNKNOWN] 00:35:15: Well, we know that aerobic exercise in mice and rats raises their NAD levels, and their levels of one of the genes goes up to actually number one and number three.
+[UNKNOWN] 00:35:26: I base my exercise on the scientific literature, which has shown that
+[UNKNOWN] 00:35:32: Maintaining muscle mass is very important for a number of reasons.
+[UNKNOWN] 00:35:35: The two main ones are you want to maintain your hormone levels.
+[UNKNOWN] 00:35:38: I'm an older male losing my testosterone and muscle mass over time.
+[UNKNOWN] 00:35:43: And by exercising, I will maintain that and have, in fact, I probably haven't had a body like this since I was 20.
+[UNKNOWN] 00:35:51: So that's one of the benefits of having this lifestyle.
+[UNKNOWN] 00:35:54: What about estrogen?
+[UNKNOWN] 00:35:55: Because women are different in the sense that they do the number of eggs and the ovaries change over time, right?
+[UNKNOWN] 00:36:04: Do you think that they can maintain estrogen levels over longer periods of time using some of these same protocols?
+[UNKNOWN] 00:36:11: I don't want to get too much into the anecdotes, but I'll tell you the science, which is that
+[UNKNOWN] 00:36:17: If you take a mouse and put it on fasting or caloric restriction for up until the point where it should be infertile, so that's about it, at a year of age, a mouse gets infertile, a female mouse.
+[UNKNOWN] 00:36:30: Due to fasting or simply to aging?
+[UNKNOWN] 00:36:33: Due to aging, due to aging.
+[UNKNOWN] 00:36:34: The fasting, it's not extreme fast, it's just less calories.
+[UNKNOWN] 00:36:39: Got it.
+[UNKNOWN] 00:36:39: Then you put them back on a regular food and they become fertile again.
+[UNKNOWN] 00:36:44: for many, many months afterwards.
+[UNKNOWN] 00:36:46: So the effect on slowing down aging is also on the reproductive system.
+[UNKNOWN] 00:36:52: Interesting.
+[UNKNOWN] 00:36:53: And so I wouldn't say to any woman, I wouldn't think that they should become super skinny to try and preserve fertility.
+[UNKNOWN] 00:36:59: That's not what I'm saying.
+[UNKNOWN] 00:37:00: But these pathways that we work on, these sirtuins, are known to delay infertility in female animals.
+[UNKNOWN] 00:37:07: Case in point, I'm one of the lead authors on a paper where we used NMN.
+[UNKNOWN] 00:37:11: Remember, this is the gas, the fuel, the petrol for the sirtuins.
+[UNKNOWN] 00:37:16: We gave old mice, one group of mice was 16 months old.
+[UNKNOWN] 00:37:22: Remember, they became infertile at 12.
+[UNKNOWN] 00:37:25: Gave them NMN, and I think it was only six weeks later, they had offspring.
+[UNKNOWN] 00:37:32: They became fertile again, which goes against biology, textbook biology, which is that female mammals run out of eggs.
+[UNKNOWN] 00:37:40: Turns out that's not true.
+[UNKNOWN] 00:37:42: You can rejuvenate the female reproductive system and even get them to come out of mouser pores, as we call it.
+[UNKNOWN] 00:37:50: So that's a whole new paradigm in biology as well.
+[UNKNOWN] 00:37:52: What I think is really interesting is that what we're learning
+[UNKNOWN] 00:37:55: from work that you and your colleagues have done, and in my lab as well, is that the body has remarkable powers of healing and recovering from illness and injury.
+[UNKNOWN] 00:38:06: And what we once thought was a one-way street, and you just can't repair, you can't get over these diseases, you can reset the system.
+[UNKNOWN] 00:38:14: And the body can really get rejuvenated in ways that in the future we'll wonder, why didn't we work on this earlier?
+[UNKNOWN] 00:38:19: And thank you for talking to us today.
+[UNKNOWN] 00:38:22: I realize I took us,
+[UNKNOWN] 00:38:24: down deep into the guts of mechanism and as well talking about global protocols, everything from what one can do and take if they choose, that's right for them, to how to think about this whole process that we talk about when we talk about lifespan, as always, incredibly illuminating.
+[UNKNOWN] 00:38:45: Thank you, David.
+[UNKNOWN] 00:38:46: Thanks, Andrew.
+[UNKNOWN] 00:38:52: Hey, Ryan Reynolds here for Mint Mobile.
+[UNKNOWN] 00:38:54: You know, one of the perks about having four kids that you know about is actually getting a direct line to the big man up north.
+[UNKNOWN] 00:39:01: And this year, he wants you to know the best gift that you can give someone is the gift of Mint Mobile's unlimited wireless for $15 a month.
+[UNKNOWN] 00:39:08: Now, you don't even need to wrap it.
+[UNKNOWN] 00:39:09: Give it a try at mintmobile.com slash switch.
+[UNKNOWN] 00:39:12: Upfront payment of $45 for three-month plan equivalent to $15 per month required.
+[UNKNOWN] 00:39:16: New customer offer for first three months only.
+[UNKNOWN] 00:39:18: Speed slow after 35 gigabytes if network's busy.
+[UNKNOWN] 00:39:20: Taxes and fees extra.
+[UNKNOWN] 00:39:20: See MintMobile.com.

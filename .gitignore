@@ -10,10 +10,7 @@
 # OUTPUT & GENERATED FILES
 # =================================================================
 # Generated transcriptions, summaries, and downloads
-output/
-shared/output/
-shared/summaries/
-shared/logs/
+
 
 # Temporary files
 temp/

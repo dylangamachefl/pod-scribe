@@ -1,0 +1,377 @@
+Title: Essentials: Science of Building Strong Social Bonds with Family, Friends & Romantic Partners
+Podcast: Huberman Lab
+Processed: 2025-12-03 16:04:40
+
+============================================================
+
+[UNKNOWN] 00:00:00: Welcome to Huberman Lab Essentials, where we revisit past episodes for the most potent and actionable science-based tools for mental health, physical health, and performance.
+[UNKNOWN] 00:00:11: I'm Andrew Huberman, and I'm a professor of neurobiology and ophthalmology at Stanford School of Medicine.
+[UNKNOWN] 00:00:17: Today's episode is about the biology, psychology, and practices of social bonding.
+[UNKNOWN] 00:00:23: From the day we are born until the day we die, the quality of our social bonds dictates much of our quality of life.
+[UNKNOWN] 00:00:30: It should therefore be no surprise that our brain and indeed much of our entire nervous system is wired for social bonds.
+[UNKNOWN] 00:00:39: Today, we are going to talk about those brain and nervous system circuitries.
+[UNKNOWN] 00:00:43: We're also going to talk about the neurochemicals and hormones that underlie their function.
+[UNKNOWN] 00:00:48: And we are going to touch on a number of important and actionable tools that you can apply in everyday life.
+[UNKNOWN] 00:00:54: And I'm confident that you will come away from today's episode with tremendous knowledge about how you function.
+[UNKNOWN] 00:01:00: For instance, if you're an introvert or an extrovert, why is that?
+[UNKNOWN] 00:01:03: Turns out there may be a neurochemical basis for that.
+[UNKNOWN] 00:01:06: Believe it or not, there's biology around that now, and it's excellent peer-reviewed work.
+[UNKNOWN] 00:01:10: Now, an important feature of biology generally, but in particular, as it relates to social bonding is that
+[UNKNOWN] 00:01:17: The neural circuits, meaning the brain areas and neurons, and the hormones, things like oxytocin, which we'll talk about today, and the other chemicals in the brain and body that are responsible for the process we call social bonding, are not unique to particular social bonds.
+[UNKNOWN] 00:01:33: They are generic.
+[UNKNOWN] 00:01:35: What I mean by that is that the same brain circuits that are responsible for establishing a bond between parent and child are actually repurposed in romantic relationships.
+[UNKNOWN] 00:01:46: Before we talk about social bonding, I want to talk about its mirror image, which is lack of social bonding or social isolation.
+[UNKNOWN] 00:01:52: Well, many people like time alone, but when we talk about social isolation, what we're referring to
+[UNKNOWN] 00:01:57: is when animals or humans are restricted from having the social contacts that they would prefer to have.
+[UNKNOWN] 00:02:05: And to just briefly touch on the major takeaways from this literature, which spans back a hundred years or more,
+[UNKNOWN] 00:02:13: Being socially isolated is stressful.
+[UNKNOWN] 00:02:16: And one of the hallmark features of social isolation is chronically elevated stress hormones, like adrenaline, also called epinephrine, like cortisol, a stress hormone that at healthy levels is good for combating inflammation, helps us have energy early in the day, focus throughout the day.
+[UNKNOWN] 00:02:33: But if cortisol is elevated for too long,
+[UNKNOWN] 00:02:36: which is the consequence of social isolation.
+[UNKNOWN] 00:02:39: The immune system suffers and other chemicals start to be released in the brain and body that are designed to motivate the organism, animal or human to seek out social bonds.
+[UNKNOWN] 00:02:49: So if you're somebody who's socially isolated and is craving social contact, that is a healthy craving.
+[UNKNOWN] 00:02:55: And as we'll learn next,
+[UNKNOWN] 00:02:57: The healthy craving for social contact has a very specific brain circuit, has a very specific neurochemical signature associated with it, and has some remarkable features that you can leverage in social contacts of all kinds.
+[UNKNOWN] 00:03:09: I'd like to take a quick break and acknowledge one of our sponsors, Element.
+[UNKNOWN] 00:03:13: Element is an electrolyte drink that has everything you need and nothing you don't.
+[UNKNOWN] 00:03:17: That means the electrolytes, sodium, magnesium, and potassium in the correct amounts, but no sugar.
+[UNKNOWN] 00:03:22: Proper hydration is critical for optimal brain and body function.
+[UNKNOWN] 00:03:25: Even a slight degree of dehydration can diminish cognitive and physical performance.
+[UNKNOWN] 00:03:30: It's also important that you get adequate electrolytes.
+[UNKNOWN] 00:03:32: The electrolytes, sodium, magnesium, and potassium, are vital for functioning of all the cells in your body, especially your neurons or your nerve cells.
+[UNKNOWN] 00:03:40: Drinking element dissolved in water makes it very easy to ensure that you're getting adequate hydration and adequate electrolytes.
+[UNKNOWN] 00:03:46: To make sure that I'm getting proper amounts of hydration and electrolytes,
+[UNKNOWN] 00:03:50: I dissolve one packet of Element in about 16 to 32 ounces of water when I first wake up in the morning, and I drink that basically first thing in the morning.
+[UNKNOWN] 00:03:57: I'll also drink Element dissolved in water during any kind of physical exercise that I'm doing, especially on hot days when I'm sweating a lot and losing water and electrolytes.
+[UNKNOWN] 00:04:05: Element has a bunch of great tasting flavors.
+[UNKNOWN] 00:04:08: I love the raspberry, I love the citrus flavor.
+[UNKNOWN] 00:04:10: Right now, Element has a limited edition lemonade flavor that is absolutely delicious.
+[UNKNOWN] 00:04:15: I hate to say that I love one more than all the others, but this lemonade flavor is right up there with my favorite other one, which is raspberry or watermelon.
+[UNKNOWN] 00:04:22: Again, I can't pick just one flavor, I love them all.
+[UNKNOWN] 00:04:24: If you'd like to try Element, you can go to drinkelement.com slash Huberman, spelled drinkelement.com slash Huberman, to claim a free Element sample pack with a purchase of any Element drink mix.
+[UNKNOWN] 00:04:36: Again, that's drinkelement.com slash Huberman to claim a free sample pack.
+[UNKNOWN] 00:04:41: Much like hunger, much like temperature, much like thirst,
+[UNKNOWN] 00:04:46: we have brain circuits that are devoted to what's called a social homeostasis.
+[UNKNOWN] 00:04:52: Homeostasis is the characteristic of various biological circuits and even individual cells to try and maintain a certain level.
+[UNKNOWN] 00:05:00: It's most easily thought of in the context of hunger.
+[UNKNOWN] 00:05:03: If you don't eat for a while, your drive to pursue food and think about food and
+[UNKNOWN] 00:05:07: make food and spend money on food.
+[UNKNOWN] 00:05:10: And indeed to enjoy food goes up.
+[UNKNOWN] 00:05:13: Whereas when you're well-fed, you don't tend to seek out food with as much vigor or as much intensity.
+[UNKNOWN] 00:05:19: So that's a simple way of thinking about homeostasis.
+[UNKNOWN] 00:05:22: Every homeostatic circuit has three components or at least three.
+[UNKNOWN] 00:05:26: One is a detector.
+[UNKNOWN] 00:05:28: Meaning the organism or the thermostat on your wall has to have some way of detecting what's going on in the environment.
+[UNKNOWN] 00:05:35: All right.
+[UNKNOWN] 00:05:36: In the context of social bonding, whether or not you are interacting with others and whether or not those interactions are going well.
+[UNKNOWN] 00:05:42: So that has to be detected.
+[UNKNOWN] 00:05:43: That's the first thing.
+[UNKNOWN] 00:05:44: Then there has to be a control center.
+[UNKNOWN] 00:05:46: That's the second thing.
+[UNKNOWN] 00:05:47: And the control center is the one that makes the adjustments to, in the case of social bonding, to your behavior and to your psychology.
+[UNKNOWN] 00:05:55: Now, the third component of this homeostatic circuit is the effector.
+[UNKNOWN] 00:06:00: The effector is actually what drives the behavioral response.
+[UNKNOWN] 00:06:04: It's what leads you to pick up your social media and start scrolling.
+[UNKNOWN] 00:06:07: It's what leads you to text a friend.
+[UNKNOWN] 00:06:09: So again, those three components are a detector, a control center, and an effector.
+[UNKNOWN] 00:06:14: And as you'll soon learn the neural circuit that controls this social homeostasis actually has a fourth component.
+[UNKNOWN] 00:06:21: And that fourth component is one that places subjective understanding as to why you are doing what you are doing and establishes your place in a hierarchy.
+[UNKNOWN] 00:06:32: When we talk about social hierarchies,
+[UNKNOWN] 00:06:34: in the context of human interactions, social hierarchies are very plastic, meaning in one setting, one person can be the leader.
+[UNKNOWN] 00:06:42: In another setting, the other person can be the leader.
+[UNKNOWN] 00:06:44: Hierarchies are very dynamic.
+[UNKNOWN] 00:06:46: And as a consequence, social bonding has to be very plastic and very fluid so that you move from one environment to the next, even with the same people, you have to be able to make those adjustments.
+[UNKNOWN] 00:06:57: And in the case of the social homeostasis circuit, those adjustments are made by a particular brain structure.
+[UNKNOWN] 00:07:03: I've talked about on this podcast before, it's called the prefrontal cortex.
+[UNKNOWN] 00:07:07: It is the seat of our higher consciousness, if you will.
+[UNKNOWN] 00:07:09: It's what allows us to play subjective labels on things.
+[UNKNOWN] 00:07:12: So we are not strictly input output.
+[UNKNOWN] 00:07:15: We are not robotic.
+[UNKNOWN] 00:07:16: The detector that underlies social homeostasis
+[UNKNOWN] 00:07:20: involves mainly two structures.
+[UNKNOWN] 00:07:22: One is called the ACC, the anterior cingulate cortex, and the other is the BLA, basolateral amygdala.
+[UNKNOWN] 00:07:27: And when you hear the word amygdala, you're probably thinking fear.
+[UNKNOWN] 00:07:30: But today, as you'll see, the amygdala actually has many different sub compartments and components.
+[UNKNOWN] 00:07:35: And there's a reason why the basolateral amygdala, which is associated with certain aspects of aversive behaviors, meaning moving away from certain types of things or interactions.
+[UNKNOWN] 00:07:45: There's a reason why the BLA is such an integral part of the detector system.
+[UNKNOWN] 00:07:50: And that's because just as it's important to form healthy social bonds, it's vitally important to try and avoid unhealthy social bonds.
+[UNKNOWN] 00:07:58: So we've got the ACC and the BLA.
+[UNKNOWN] 00:08:00: These are areas that are mainly involved in moving away from things, although also toward them.
+[UNKNOWN] 00:08:04: That's the detector.
+[UNKNOWN] 00:08:05: Then we've got the control center, which is in the hypothalamus.
+[UNKNOWN] 00:08:08: And then there's a very special and important area associated with social bonding that I want everyone to learn, which is the dorsal raphe nucleus or DRN, dorsal raphe nucleus.
+[UNKNOWN] 00:08:20: The dorsal raphe nucleus is a small collection of neurons in the midbrain.
+[UNKNOWN] 00:08:24: So it's deep in the brain.
+[UNKNOWN] 00:08:26: And most of the time, when you hear about RAFE, R-A-P-H-E, by the way, RAFE nucleus, you're talking about serotonin.
+[UNKNOWN] 00:08:35: Serotonin is a neuromodulator that is often associated with feelings of satiety after eating, basically satisfaction with things that you already have.
+[UNKNOWN] 00:08:45: However, within this dorsal RAFE nucleus, there is a small subset of neurons that release dopamine.
+[UNKNOWN] 00:08:52: Dopamine is a neuromodulator most often associated with movement, craving, motivation, and desire.
+[UNKNOWN] 00:08:58: This unique population of dopamine neurons in the RAFA is truly unique in that it's responsible for mediating what I've been calling social homeostasis.
+[UNKNOWN] 00:09:09: It is the effector or the response that mediates social homeostasis.
+[UNKNOWN] 00:09:13: In most popular conversations about dopamine, and even in scientific circles, when you hear dopamine release, you think about reward or feeling good.
+[UNKNOWN] 00:09:21: However, dopamine is not associated with feeling good.
+[UNKNOWN] 00:09:24: It is actually the neurochemical that's responsible for movement toward things that feel good.
+[UNKNOWN] 00:09:31: So to zoom out and conceptualize what we have here, we have a brain area that is a detector that either will move us toward or away from certain types of experiences or sensations.
+[UNKNOWN] 00:09:42: We have a control center that is going to release certain hormones and neuropeptides into our brain and blood, depending on the sorts of interactions that we happen to be having.
+[UNKNOWN] 00:09:52: And we have this response system, which is the dorsal raphe nucleus that contains dopamine neurons.
+[UNKNOWN] 00:09:58: If you're somebody who is accustomed to a lot of social interaction, and suddenly I take away that social interaction, you would feel kind of let down.
+[UNKNOWN] 00:10:08: You would crave a replacement social interaction, okay?
+[UNKNOWN] 00:10:11: This is called a prosocial craving.
+[UNKNOWN] 00:10:14: And indeed, this is what you see in animals and humans.
+[UNKNOWN] 00:10:17: If you,
+[UNKNOWN] 00:10:18: what's called acutely isolate them, which is just a fancy scientific word of saying deprive them of social interactions in a short-term basis, they start engaging in pro-social behavior.
+[UNKNOWN] 00:10:28: So the takeaway is that when we lack social interaction that we expect, we become pro-social.
+[UNKNOWN] 00:10:34: However, if we are chronically socially isolated, meaning we don't have interactions with people for a long time, we become actually more introverted.
+[UNKNOWN] 00:10:44: It's well-established now that in humans and in animals,
+[UNKNOWN] 00:10:48: If you don't give them enough social interaction, they actually become antisocial.
+[UNKNOWN] 00:10:53: The social homeostasis circuit works in a way such that when we don't have social interactions for a very long time, we start to lose our craving for social interactions.
+[UNKNOWN] 00:11:03: Let's look at the social homeostasis circuit through the lens of what's commonly called introversion and extroversion.
+[UNKNOWN] 00:11:10: Now, typically when we hear about introverts, we think about the quiet person at the party or the person that doesn't want to go out at all.
+[UNKNOWN] 00:11:16: And we think about an extrovert as somebody who's really social, the so-called social butterfly, who enjoys social interactions, is really chatty, is kind of life of the party type person.
+[UNKNOWN] 00:11:25: But actually in the psychology literature, that's not really the way it holds up.
+[UNKNOWN] 00:11:29: If we look at introversion and extroversion through this lens of the social homeostatic set point,
+[UNKNOWN] 00:11:34: And we think about dopamine as this molecule that drives motivation to seek out social interactions.
+[UNKNOWN] 00:11:42: What we can reasonably assume is that introverts are people that when they engage in certain forms of social interaction, either the amount of dopamine that's released is greater than it is in an extrovert.
+[UNKNOWN] 00:11:56: That's right, I said greater than it is in an extrovert.
+[UNKNOWN] 00:11:59: And so they actually feel quite motivated, but also satisfied by very brief or
+[UNKNOWN] 00:12:05: we could say sort of sparse social interactions.
+[UNKNOWN] 00:12:08: They don't need a lot of social engagement to feel sated.
+[UNKNOWN] 00:12:12: Whereas the extrovert, we can reasonably assume releases less dopamine in response to an individual social interaction.
+[UNKNOWN] 00:12:20: And so they need much more social interaction in order to feel filled up by that interaction.
+[UNKNOWN] 00:12:26: Now there's the fourth component of this social homeostasis circuit that I mentioned before, and that's the prefrontal cortex.
+[UNKNOWN] 00:12:31: The prefrontal cortex is involved in thinking and planning and action, and it has extensive connections with areas of the brain like the hypothalamus, which is responsible for a lot of motivated drives.
+[UNKNOWN] 00:12:43: It also has connections with the various reward centers of the brain, and it can act as kind of an accelerator
+[UNKNOWN] 00:12:48: Meaning it can encourage more electrical activity of other brain centers or as a break on those brain centers.
+[UNKNOWN] 00:12:55: So while there are some predictable elements of these circuits, they are not simply what we would call plug and chug.
+[UNKNOWN] 00:13:01: You have flexibility.
+[UNKNOWN] 00:13:02: You are able to say, you know, I love parties, but I really don't want to go to that party because so-and-so is there.
+[UNKNOWN] 00:13:07: So now I'd like to drill a little bit deeper into this incredible neural structure that is the dorsal raphe nucleus and this small collection of neurons, the dopamine neurons of the dorsal raphe, because while it's a small collection, they are very powerful.
+[UNKNOWN] 00:13:21: and it is this dorsal raphe nucleus and the dopamine neurons in that nucleus that underlie the bond that is social friendship and all types of social bonds.
+[UNKNOWN] 00:13:29: There's a key finding in the literature.
+[UNKNOWN] 00:13:32: The title of this paper is Dorsal Raphe Dopamine Neurons Represent the Experience of Social Isolation.
+[UNKNOWN] 00:13:37: This is a paper from K. Tai's lab.
+[UNKNOWN] 00:13:39: What they did is they were able to selectively activate the dopamine neurons in the dorsal raphe nucleus.
+[UNKNOWN] 00:13:45: And when they did that, they induced a loneliness-like state.
+[UNKNOWN] 00:13:49: Now, how did they know it was a loneliness-like state?
+[UNKNOWN] 00:13:51: They knew because it motivated the seeking out of social connections.
+[UNKNOWN] 00:13:55: This is the kind of social hunger that I was referring to before.
+[UNKNOWN] 00:13:59: Whereas when the dopamine neurons of the dorsal raphe are inhibited, meaning their activity is quieted, that suppressed a loneliness state.
+[UNKNOWN] 00:14:09: So that's a little counterintuitive, right?
+[UNKNOWN] 00:14:12: It's a group of neurons that when activated makes you feel lonely.
+[UNKNOWN] 00:14:16: And when this brain area is not activated, it suppresses loneliness.
+[UNKNOWN] 00:14:21: But if you think about it, that's exactly the kind of circuit that you would want in order to drive social behavior.
+[UNKNOWN] 00:14:27: When you're feeling lonely, dopamine is released and it causes you to go out and seek social interactions.
+[UNKNOWN] 00:14:33: So what we think of as loneliness as this big kind of dark cloud or
+[UNKNOWN] 00:14:38: or fog in our psychological landscape boils down to a very small set of neurons releasing a specific neurochemical for motivation.
+[UNKNOWN] 00:14:47: So just a couple of key points and actionable takeaways based on the information I've offered up until now.
+[UNKNOWN] 00:14:53: If you think of yourself as an introvert,
+[UNKNOWN] 00:14:56: it's very likely that you get a lot of dopamine from a few or minimal social interactions.
+[UNKNOWN] 00:15:03: Whereas if you're an extrovert, contrary to what you might think, social interactions are not going to flood your system with dopamine.
+[UNKNOWN] 00:15:10: They actually are going to lead to less dopamine release than it would for an introvert.
+[UNKNOWN] 00:15:15: And therefore you're going to need a lot more social interactions in order to feel filled up by those interactions.
+[UNKNOWN] 00:15:22: Now I'd like to shift gears a bit
+[UNKNOWN] 00:15:24: and focus on what are some things that we can do to encourage the formation of healthy bonds.
+[UNKNOWN] 00:15:32: There's a beautiful study that was published in Cell Reports, Cell Press Journal, excellent journal.
+[UNKNOWN] 00:15:37: The title of this paper is, Conscious Processing of Narrative Stimuli Synchronizes Heart Rate Between Individuals.
+[UNKNOWN] 00:15:42: Now this study involved a very simple type of experiment.
+[UNKNOWN] 00:15:46: They had people listen to a story.
+[UNKNOWN] 00:15:48: Everybody in the study listened to the same story, but they listened to that story at different times and indeed in different locations.
+[UNKNOWN] 00:15:54: So different people, same story.
+[UNKNOWN] 00:15:57: And they measured things like heart rate, they measured breathing, et cetera.
+[UNKNOWN] 00:16:01: Now, what was the motivation for doing this?
+[UNKNOWN] 00:16:03: Well, there's a long standing literature showing that our physiology, things like our heart rate, our breathing, our skin conductance, meaning the amount of sweating,
+[UNKNOWN] 00:16:14: can be synchronized between individuals.
+[UNKNOWN] 00:16:16: And that synchronization can occur according to a variety of different things.
+[UNKNOWN] 00:16:21: What this study found was that when people listen to the same story, but at different times, their heart rates start to synchronize.
+[UNKNOWN] 00:16:29: Now, we also know from an extensive literature that the quality and perceived depth of a social bond
+[UNKNOWN] 00:16:38: correlates very strongly with how much physiological synchronization there is between individuals.
+[UNKNOWN] 00:16:45: In other words, when your bodies feel the same, you tend to feel more bonded to somebody else.
+[UNKNOWN] 00:16:52: And so this whole thing is a rather circular argument.
+[UNKNOWN] 00:16:55: When you feel closer to somebody else, your physiology synchronize.
+[UNKNOWN] 00:16:59: And the reverse is true as well.
+[UNKNOWN] 00:17:01: When your physiologies are synchronized, you feel closer to other people.
+[UNKNOWN] 00:17:04: This really points to the fact that the body and the brain are reciprocally connected.
+[UNKNOWN] 00:17:10: Yes, indeed, what we think, what we hear, what we feel,
+[UNKNOWN] 00:17:13: drives our physiology, our heartbeat, our respiration, et cetera.
+[UNKNOWN] 00:17:17: But our heartbeat and respiration also are influencing our state of mind.
+[UNKNOWN] 00:17:22: And in this case, it's encouraging certain types of social bonds when our heart rates are synchronized.
+[UNKNOWN] 00:17:28: How can you leverage this?
+[UNKNOWN] 00:17:29: Well, many people, when they interact with others, expect that the mere interaction with the other person is going to create the sense of bonding.
+[UNKNOWN] 00:17:39: But in many types of social interactions,
+[UNKNOWN] 00:17:42: It's not the direct interaction with that person that makes us feel close to them, but rather it's shared experience.
+[UNKNOWN] 00:17:49: And shared experience is shared physiology.
+[UNKNOWN] 00:17:53: This is actually at the seat of what we come away from a social interaction with as feeling, wow, that was a really wonderful time.
+[UNKNOWN] 00:18:00: Often a really wonderful time can be by virtue of the specific things that were said or the specific things that one engaged in.
+[UNKNOWN] 00:18:07: But more often than not, the final common pathway we should say of great experiences was a great physiological experience and a shared physiological experience.
+[UNKNOWN] 00:18:19: We've known for a long time that there are things that we can do to improve our sleep.
+[UNKNOWN] 00:18:23: And that includes things that we can take, things like magnesium threonate, theanine, chamomile extract, and glycine, along with lesser known things like saffron and valerian root.
+[UNKNOWN] 00:18:33: These are all clinically supported ingredients that can help you fall asleep, stay asleep, and wake up feeling more refreshed.
+[UNKNOWN] 00:18:39: I'm excited to share that our longtime sponsor, AG1, just created a new product called AGZ, a nightly drink designed to help you get better sleep and have you wake up feeling super refreshed.
+[UNKNOWN] 00:18:49: Over the past few years, I've worked with the team at AG1 to help create this new AGZ formula.
+[UNKNOWN] 00:18:54: It has the best sleep-supporting compounds in exactly the right ratios in one easy-to-drink mix.
+[UNKNOWN] 00:18:59: This removes all the complexity of trying to forage the vast landscape of supplements focused on sleep and figuring out the right dosages and which ones to take for you.
+[UNKNOWN] 00:19:07: AGZ is, to my knowledge, the most comprehensive sleep supplement on the market.
+[UNKNOWN] 00:19:12: I take it 30 to 60 minutes before sleep.
+[UNKNOWN] 00:19:14: It's delicious, by the way.
+[UNKNOWN] 00:19:15: And it dramatically increases both the quality and the depth of my sleep.
+[UNKNOWN] 00:19:19: I know that both from my subjective experience of my sleep and because I track my sleep.
+[UNKNOWN] 00:19:23: I'm excited for everyone to try this new AGZ formulation and to enjoy the benefits of better sleep.
+[UNKNOWN] 00:19:28: AGZ is available in chocolate, chocolate mint, and mixed berry flavors.
+[UNKNOWN] 00:19:32: And as I mentioned before, they're all extremely delicious.
+[UNKNOWN] 00:19:34: My favorite of the three has to be, I think, chocolate mint, but I really like them all.
+[UNKNOWN] 00:19:39: If you'd like to try AGZ, go to drinkagz.com slash Huberman to get a special offer.
+[UNKNOWN] 00:19:45: Again, that's drinkagz.com slash Huberman.
+[UNKNOWN] 00:19:48: Up until now, we've been talking about social bonding through the lens of neural circuits that are already established.
+[UNKNOWN] 00:19:54: However, these very neural circuits that are responsible for social bonding in adult forms of attachment, be it romantic or friendship or otherwise, are actually established during development.
+[UNKNOWN] 00:20:05: One of the more important and I think exciting areas of early attachment as it relates to adult attachment comes to us from the work of Alan Shore.
+[UNKNOWN] 00:20:16: Alan Shore spelled A-L-L-A-N Shore, S-C-H-O-R-E is a psychoanalyst who also has deep understanding of neurobiology of attachment.
+[UNKNOWN] 00:20:27: both in childhood and in adulthood.
+[UNKNOWN] 00:20:30: And he's focused a lot on differences between right brain and left brain forms of attachment.
+[UNKNOWN] 00:20:37: Now, in a early episode of the Huberman Lab podcast, I touched into the fact that most of what's discussed in the general public and sort of pop psychology, and even in some neurobiology courses about
+[UNKNOWN] 00:20:49: right brain versus left brain and one side of the brain being more emotional and the other side being more rational is completely wrong.
+[UNKNOWN] 00:20:57: However, the work of Alan Shor points to some very concrete neural circuits that do have a lateralization bias, meaning they are more right brain than left brain or more left brain than right brain, that underlie certain forms of attachment between child and parent, in particular, child and mother.
+[UNKNOWN] 00:21:16: and that these right brain isms, if you will, and left brain isms for attachment get played out again and again in our forms of attachment as adults.
+[UNKNOWN] 00:21:28: So within the field of psychoanalysis, there's a longstanding discussion, of course, about the so-called unconscious or subconscious, the things that we are not aware of.
+[UNKNOWN] 00:21:36: And I think there's growing evidence pointing to the fact that at least one major component of the subconscious or the unconscious is the so-called autonomic nervous system.
+[UNKNOWN] 00:21:46: The autonomic nervous system is the portion of our nervous system that controls our reflexive breathing, our heart rate, our
+[UNKNOWN] 00:21:52: skin conductance, meaning our sweating, pupil size.
+[UNKNOWN] 00:21:56: It's the aspect of our nervous system that makes us more alert or more calm.
+[UNKNOWN] 00:22:00: It's the so-called sympathetic, meaning for alertness or parasympathetic branch of the autonomic nervous system, parasympathetic for more calming responses.
+[UNKNOWN] 00:22:08: You know, what Dr.
+[UNKNOWN] 00:22:10: Shore's work and the work of others is now showing is that early infant parent, in particular infant mother attachment, involves a coordination or synchronization of these right brain circuits and these left brain circuits as they relate, excuse me, to the autonomic nervous system.
+[UNKNOWN] 00:22:31: How does this play out?
+[UNKNOWN] 00:22:32: Well, it plays out where early on as an infant, when you're born, you're truly helpless.
+[UNKNOWN] 00:22:37: You can't feed yourself.
+[UNKNOWN] 00:22:38: You can't warm yourself.
+[UNKNOWN] 00:22:39: You can't change yourself.
+[UNKNOWN] 00:22:40: And you certainly can't ambulate, walk anywhere to get the things that you need.
+[UNKNOWN] 00:22:45: All of those functions, all of those needs rather are met by your primary caretaker.
+[UNKNOWN] 00:22:51: Typically that's the mother.
+[UNKNOWN] 00:22:52: I realize there are exceptions, but that's the general rule.
+[UNKNOWN] 00:22:55: There are now brain imaging studies examining the brains of infants and the brains of mothers as they interact and showing that the physical contact between the two, the breathing of the mother and child, the heart rate of the mother and child, and indeed the pupil size of the mother and child are actually actively getting coordinated.
+[UNKNOWN] 00:23:15: In other words,
+[UNKNOWN] 00:23:16: The mother is regulating the infant's autonomic nervous system primarily, and the infant is also regulating the mother's autonomic nervous system.
+[UNKNOWN] 00:23:24: A small coo from a baby or a cry, which is a stress cry from a baby, will definitely regulate the autonomic nervous system of the mother.
+[UNKNOWN] 00:23:31: As we get older, there's another system that starts to come into play in parent-child interactions.
+[UNKNOWN] 00:23:39: And this also comes into play in sibling interactions and so forth.
+[UNKNOWN] 00:23:43: And that's the left brain system as described by Alan Shore.
+[UNKNOWN] 00:23:46: Now, again, this isn't about emotion versus rationality.
+[UNKNOWN] 00:23:49: This is about autonomic versus more conscious forms of bonding.
+[UNKNOWN] 00:23:52: So on the left brain side of things, there is a processing more of narratives that are very concrete, logical narratives.
+[UNKNOWN] 00:24:00: And again, I have to zoom out and just really tamp down the idea that it's not that one side of the brain is emotional and the other side is rational, but rather there's a bit of a dominance for the left brain circuitry to be involved in the kinds of bonding that are associated with prediction and reward.
+[UNKNOWN] 00:24:18: The idea is that there are two parallel circuits.
+[UNKNOWN] 00:24:20: that are important for establishing bonds, and that this is set up very early on in childhood, and that it's neither emotional nor rational, but both.
+[UNKNOWN] 00:24:30: What's becoming clear from the neurobiological imaging studies is that as people start to advance into adolescence and adulthood and well into their elderly years,
+[UNKNOWN] 00:24:43: The same circuits that were active and established in childhood are repurposed for other forms of attachment.
+[UNKNOWN] 00:24:50: And that to have truly complete bonds with other individuals, but in particular with romantic partners, it's important that there be both synchronization of physiology and synchronization of these more, I guess we could call them more rational or predictive type circuits.
+[UNKNOWN] 00:25:07: So we can leverage this information.
+[UNKNOWN] 00:25:09: In the clinical psychology and in the neurobiological literature now,
+[UNKNOWN] 00:25:13: it's understood that there is both emotional empathy, like actually feeling what somebody is feeling, and what is now called cognitive empathy.
+[UNKNOWN] 00:25:22: Cognitive empathy is this idea that we both see and experience something the same way at a mental level.
+[UNKNOWN] 00:25:29: Emotional empathy is this idea that, yes, I can feel what you feel at a visceral, somatic, or autonomic level.
+[UNKNOWN] 00:25:37: And it's absolutely clear that strong social bonds between children and caretaker involve both emotional empathy, this autonomic function, and cognitive empathy, that there's a mutual understanding of how the other person feels and how the other person thinks in order to be able to make predictions about what they're going to do.
+[UNKNOWN] 00:25:58: Now, it's also very clear based on the emerging literature that romantic relationships and
+[UNKNOWN] 00:26:03: to some extent friendships, although friendships have been explored a bit less in the literature, that emotional empathy and cognitive empathy are both required in order to establish what we call a trusting social bond.
+[UNKNOWN] 00:26:16: So for those of you that are seeking to establish deeper bonds or bonds of any kind, it's important that you think about synchronization of bodily states.
+[UNKNOWN] 00:26:24: We talked about that earlier.
+[UNKNOWN] 00:26:25: and synchronization of cognitive states.
+[UNKNOWN] 00:26:28: Now that doesn't mean you have to agree on everything.
+[UNKNOWN] 00:26:29: In fact, oftentimes people who feel very close to one another, cognitively and emotionally, argue about all sorts of things and disagree about a lot of things.
+[UNKNOWN] 00:26:38: But the point isn't that there be total convergence of opinion or stance, but rather that we understand how the other feels, and we believe that they understand how we feel, that we understand how the other person thinks, and that they think that we understand how they think.
+[UNKNOWN] 00:26:54: So it's a reciprocal loop between two people that involves this cognition and involves emotion.
+[UNKNOWN] 00:27:00: And it's grounded as Dr.
+[UNKNOWN] 00:27:02: Shore has pointed out in our earliest forms of attachment.
+[UNKNOWN] 00:27:05: And that makes perfect sense because the same sorts of circuits that are responsible for social homeostasis
+[UNKNOWN] 00:27:11: the kind of right brain and left brain circuits that are responsible for infant mother attachment, and then later for more intellectual or predictive type attachments between child and caregiver are the exact same circuits that we superimpose into all other types of relationships throughout the rest of our life.
+[UNKNOWN] 00:27:29: And I should just mention that for those of you that might be thinking that you had a less than satisfactory infant caretaker interaction or form of attachment, you are not alone.
+[UNKNOWN] 00:27:42: And in fact, much of the work that Dr.
+[UNKNOWN] 00:27:43: Shore focuses on is about how those early circumstances can be understood and rewired toward the development of healthy adult attachment.
+[UNKNOWN] 00:27:52: I'd like to take a quick break and acknowledge one of our sponsors, David.
+[UNKNOWN] 00:27:56: David makes a protein bar unlike any other.
+[UNKNOWN] 00:27:58: It has 28 grams of protein, only 150 calories and zero grams of sugar.
+[UNKNOWN] 00:28:04: That's right, 28 grams of protein and 75% of its calories come from protein.
+[UNKNOWN] 00:28:09: That's 50% higher than the next closest protein bar.
+[UNKNOWN] 00:28:12: These bars from David also taste amazing.
+[UNKNOWN] 00:28:15: Right now, my favorite flavor is the new cinnamon roll flavor, but I also like the chocolate chip cookie dough flavor, and I also like the salted peanut butter flavor.
+[UNKNOWN] 00:28:22: Basically, I like all the flavors.
+[UNKNOWN] 00:28:24: They're all delicious.
+[UNKNOWN] 00:28:25: Also, big news, David bars are now back in stock.
+[UNKNOWN] 00:28:28: They were sold out for several months because they are that popular, but they are now back in stock.
+[UNKNOWN] 00:28:33: By eating a David Bar, I'm able to get 28 grams of protein in the calories of a snack, which makes it very easy for me to meet my protein goals of one gram of protein per pound of body weight per day, and to do so without eating excess calories.
+[UNKNOWN] 00:28:45: I generally eat a David Bar most afternoons, and I always keep them with me when I'm away from home or traveling because they're incredibly convenient to get enough protein.
+[UNKNOWN] 00:28:53: As I mentioned, they're incredibly delicious, and given that 28 grams of protein, they're pretty filling for just 150 calories, so they're great between meals as well.
+[UNKNOWN] 00:29:01: If you'd like to try David, you can go to davidprotein.com slash Huberman.
+[UNKNOWN] 00:29:06: Again, that's davidprotein.com slash Huberman.
+[UNKNOWN] 00:29:09: One of the key themes to understand about biological processes is that they often work on short timescales and longer timescales.
+[UNKNOWN] 00:29:17: And up until now, we've mainly been talking about the stuff that happens on short timescales.
+[UNKNOWN] 00:29:21: So the kind of synchronization of heart rate or activation of a given set of neurons that dump some dopamine and causes us to seek out more social interaction or less, for instance.
+[UNKNOWN] 00:29:31: But every biological circuit and function needs to have longstanding effects as well.
+[UNKNOWN] 00:29:37: And typically, when you're thinking about longstanding effects in the brain and body, you start looking towards the hormone system.
+[UNKNOWN] 00:29:43: So if ever there was a
+[UNKNOWN] 00:29:45: hormone or hormone-like molecule that's associated with social bonding, it's oxytocin.
+[UNKNOWN] 00:29:51: Oxytocin is involved in social recognition.
+[UNKNOWN] 00:29:54: That's right.
+[UNKNOWN] 00:29:55: When you see people that you consider your people, your team, your group, your friends, oxytocin is released, even if you don't come into physical contact with them.
+[UNKNOWN] 00:30:05: Oxytocin is also associated with pair bonding, the feeling that they are your person and that you are their person, is the common language people use.
+[UNKNOWN] 00:30:14: It's also associated with honesty.
+[UNKNOWN] 00:30:17: Believe it or not, there are experiments that show that if people receive oxytocin through an inhalation spray, that they will be more honest and forthcoming about certain things.
+[UNKNOWN] 00:30:26: The main types of interactions that release oxytocin at high levels
+[UNKNOWN] 00:30:30: are first of all, that the interaction be between individuals that see each other as very closely associated, right?
+[UNKNOWN] 00:30:39: Oftentimes they are in close contact.
+[UNKNOWN] 00:30:40: Oftentimes they are from the very body of the other.
+[UNKNOWN] 00:30:43: And so the amount or the amplitude of oxytocin release tends to scale with how closely associated individuals are.
+[UNKNOWN] 00:30:50: Just the sight of one's baby or smell of one's baby can evoke oxytocin release and vice versa from the mother.
+[UNKNOWN] 00:30:56: Physical contact even more so in romantic partners.
+[UNKNOWN] 00:31:00: physical contact, even the sight of a picture of a partner can evoke oxytocin release, and sexual desire, also trust.
+[UNKNOWN] 00:31:09: And it's important to point out that that feeling of connection is of the autonomic type that I was referring to earlier, a la Alan Shor's work.
+[UNKNOWN] 00:31:17: That it's not of the, oh, we think about things the exact same way, we agree on everything now.
+[UNKNOWN] 00:31:22: It's more of that their physiologies are synchronized.
+[UNKNOWN] 00:31:25: But the point here is that there's actually a hormonal glue between individuals, okay?
+[UNKNOWN] 00:31:31: Infant and mother, friends, teammates, romantic partners, and so on.
+[UNKNOWN] 00:31:36: And that hormonal glue is oxytocin.
+[UNKNOWN] 00:31:39: So we've covered a lot about the biology and indeed the neural circuitry and neurochemistry and neuroendocrinology of social bonding.
+[UNKNOWN] 00:31:47: I want to make sure that I highlight the key features that go into any and all of your social bonds.
+[UNKNOWN] 00:31:53: First of all, all social bonds have the potential to include both what we called emotional empathy and cognitive empathy.
+[UNKNOWN] 00:32:01: And so if you are interested in establishing and deepening social bonds of any kind, it's important that you put some effort toward this thing that we call emotional empathy, which is really about sharing autonomic experience.
+[UNKNOWN] 00:32:14: Emotional empathy and the synchronization of autonomic function, heart rate, breathing, et cetera, can be best accomplished by paying attention to external events in particular narrative, story, music, perhaps sports or other types of experience as an external stimulus to drive synchrony of those internal states.
+[UNKNOWN] 00:32:32: The other aspect of forming deep bonds is cognitive empathy.
+[UNKNOWN] 00:32:36: Again, cognitive empathy is not about agreeing on things or viewing things the exact same way.
+[UNKNOWN] 00:32:42: It's about really gaining understanding of how somebody else thinks about something, really paying attention to that, and then paying attention to how you think about and feel about something.
+[UNKNOWN] 00:32:54: Now, we also talked about introversion and extroversion.
+[UNKNOWN] 00:32:57: And I'd like to try and dismantle the common misperceptions about introversion, extroversion, because when we look at the neural circuitry, as you recall, introverts are not people that don't like social interaction.
+[UNKNOWN] 00:33:09: It's just that they feel filled up or sated by less social interaction than would be an extrovert.
+[UNKNOWN] 00:33:16: And that's because
+[UNKNOWN] 00:33:17: at least according to the social homeostasis circuit model, they actually get more dopamine from less social interaction.
+[UNKNOWN] 00:33:25: Whereas extroverts get less dopamine release from an equivalent amount of social interaction.
+[UNKNOWN] 00:33:31: So for those of you that feel as if you're an introvert or extrovert,
+[UNKNOWN] 00:33:35: or that no introverts and extroverts.
+[UNKNOWN] 00:33:37: It's not about how verbal people are.
+[UNKNOWN] 00:33:40: It's not about how much they seek out social interactions per se.
+[UNKNOWN] 00:33:44: It's about how much social interaction is enough for the given person.
+[UNKNOWN] 00:33:48: Now, the whole reason for providing this framework, this biological circuitry, et cetera,
+[UNKNOWN] 00:33:53: is not to simply put a reductionist view on things that you already realized and knew, but rather to give you some leverage points to understand how is it that you form social bonds?
+[UNKNOWN] 00:34:03: How is it that you might be challenged in forming certain types of social bonds?
+[UNKNOWN] 00:34:07: And to think about entry points to both establishing and reinforcing social bonds of different kinds.
+[UNKNOWN] 00:34:13: Hopefully it will also give you insight into why breakups
+[UNKNOWN] 00:34:17: whether it be between friendships or romantic partners can be so painful.
+[UNKNOWN] 00:34:21: A breakup of any kind involves both a breaking of that emotional empathy and that cognitive empathy.
+[UNKNOWN] 00:34:27: And indeed it has a neurobiological and hormonal underpinning, right?
+[UNKNOWN] 00:34:31: If one of our major sources of oxytocin or one of our major sources of dopamine suddenly is not around, that is incredibly devastating to a nervous system.
+[UNKNOWN] 00:34:41: And to borrow from
+[UNKNOWN] 00:34:43: the great psychologist and neurobiologist, Lisa Feldman Barrett, who says, you know, we are not just individuals, we are nervous systems influencing other nervous systems and their nervous systems are influencing us.
+[UNKNOWN] 00:34:54: I think that's the right way to think about it.
+[UNKNOWN] 00:34:56: So it should come as no surprise that breakups of various kinds are very challenging regardless of what,
+[UNKNOWN] 00:35:02: underlied that breakup, whether or not somebody moving or an actual decision of one person to leave the relationship or both, et cetera.
+[UNKNOWN] 00:35:09: Social bonds are vitally important to us as a species, whether or not they are at a distance over social media, whether or not they are in close proximity, actual physical contact.
+[UNKNOWN] 00:35:18: Today what I've really tried to illustrate is that there are a common set of biological, neurochemical, and hormonal underpinnings to what we call social bonding.
+[UNKNOWN] 00:35:28: And so while it is complex and it is subjective, it involves the hierarchies, it involves our
+[UNKNOWN] 00:35:34: previous upbringing, it involves our goals, etc.
+[UNKNOWN] 00:35:38: It is not infinitely complex.
+[UNKNOWN] 00:35:41: And in that sense, it is tractable.
+[UNKNOWN] 00:35:43: Hopefully, I've offered you some levers or some entry points under which you can both understand and move toward social bonds that would be more satisfying.
+[UNKNOWN] 00:35:51: and more gratifying for you.
+[UNKNOWN] 00:35:53: That's certainly one of the goals.
+[UNKNOWN] 00:35:54: The other one is that hopefully if you're a clinician or simply the friend that people go to, or the family member that people go to when they are challenged through various challenges and social bonds, that you can start to perhaps pass along some of the information as a way of people understanding what they're going through as they are breaking up, but also as they are falling in love.
+[UNKNOWN] 00:36:14: as they are forming attachments and as they are being challenged with attachments.
+[UNKNOWN] 00:36:18: That's my hope.
+[UNKNOWN] 00:36:19: And especially as you head into the holidays and end of year, I would hope that you would take this knowledge and apply it in any of the ways that you feel are meaningful and adaptive for you.

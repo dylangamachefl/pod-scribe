@@ -39,11 +39,29 @@ function EpisodeQueuePage() {
     };
 
     const handleToggleSelect = async (episode: Episode) => {
+        // Optimistic UI update - update immediately for better UX
+        setEpisodes((prev) =>
+            prev.map((ep) =>
+                ep.id === episode.id ? { ...ep, selected: !ep.selected } : ep
+            )
+        );
+
         try {
+            console.log('Toggling selection for episode:', episode.id, 'to', !episode.selected);
             await transcriptionApi.selectEpisode(episode.id, !episode.selected);
+            console.log('Selection API call succeeded, reloading episodes...');
+            // Reload to ensure consistency with backend
             await loadEpisodes();
-        } catch (err) {
+        } catch (err: any) {
             console.error('Failed to toggle selection:', err);
+            console.error('Error details:', {
+                message: err.message,
+                response: err.response?.data,
+                status: err.response?.status
+            });
+            alert(`Failed to update selection: ${err.response?.data?.detail || err.message}`);
+            // Revert optimistic update on error
+            await loadEpisodes();
         }
     };
 

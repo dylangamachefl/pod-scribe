@@ -7,6 +7,7 @@ import { mockApiClient } from './mockClient';
 import { mockTranscriptionClient } from './mockTranscriptionClient';
 import { apiClient } from './client';
 import { transcriptionClient } from './transcriptionClient';
+import { summarizationClient } from './summarizationClient';
 
 // Check if we should use mock API
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_API === 'true';
@@ -16,6 +17,9 @@ export const api = USE_MOCK ? mockApiClient : apiClient;
 
 // Export the appropriate transcription client
 export const transcriptionApi = USE_MOCK ? mockTranscriptionClient : transcriptionClient;
+
+// Export the summarization client (no mock version yet)
+export const summarizationApi = summarizationClient;
 
 // Export types
 export * from './types';

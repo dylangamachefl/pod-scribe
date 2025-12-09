@@ -9,8 +9,9 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Get project root (navigate from summarization-service/src/ -> summarization-service/ -> root/)
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+# Get project root (navigate from summarization-service/src/ -> summarization-service/)
+# In Docker: /app/src/config.py -> /app
+PROJECT_ROOT = Path(__file__).parent.parent
 
 # Gemini API Configuration
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")

@@ -6,17 +6,15 @@ channels:
   - defaults
 dependencies:
   - python=3.10
-  - pandas           
-  - pytorch==2.0.0
-  - torchaudio==2.0.0
-  - pytorch-cuda=11.8
+  - pandas
   - ffmpeg
   - pip
   - pip:
+    - -r pytorch-requirements.txt
     - git+https://github.com/m-bain/whisperx.git
     - feedparser
     - requests
     - yt-dlp
-    - pyannote.audio
+    - pyannote.audio==3.3.2
     - python-dotenv
 

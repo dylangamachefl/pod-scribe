@@ -4,349 +4,174 @@ Get up and running with the Podcast Transcriber in minutes!
 
 ## Prerequisites
 
-- **OS**: Windows 10/11 (Linux/Mac compatible with minor changes)
-- **GPU**: NVIDIA GPU with 8GB+ VRAM (for transcription service)
-- **Conda**: Anaconda or Miniconda installed
-- **Docker**: For RAG service (optional)
-
-## 🚀 Transcription Service Setup
-
-### 1. Create Conda Environment
-
-```bash
-# Navigate to project root
-cd podcast-transcriber
-
-# Create transcription environment
-conda env create -f transcription-service/environment.yml
-```
-
-This takes 10-15 minutes on first install (downloads CUDA binaries and models).
-
-### 2. Configure Environment
-
-```bash
-# Copy example environment file
-copy .env.example .env
-
-# Edit .env and add your tokens:
-# - HUGGINGFACE_TOKEN (required for diarization)
-# - GEMINI_API_KEY (optional, for RAG service)
-```
-
-**Get tokens:**
-- HuggingFace: https://huggingface.co/settings/tokens
-- Gemini API: https://makersuite.google.com/app/apikey
-
-### 3. Verify Installation
-
-```bash
-conda activate podcast_bot
-python -c "import whisperx; import torch; print(f'CUDA: {torch.cuda.is_available()}')"
-```
-
-✅ You should see: `CUDA: True`
-
-### 4. Launch Dashboard
-
-**Windows:**
-```bash
-cd scripts
-launch_ui.bat
-```
-
-**Linux/Mac:**
-```bash
-streamlit run transcription-service/src/ui/dashboard.py
-```
-
-Opens at http://localhost:8501
-
-### 5. Add Podcast Feeds
-
-1. Go to **"Feed Manager"** tab
-2. Paste RSS feed URL (see examples below)
-3. Click **"Add Feed"**
-
-**Example RSS Feeds:**
-- Lex Fridman: `https://lexfridman.com/feed/podcast/`
-- The Joe Rogan Experience: `http://joeroganexp.joerogan.libsynpro.com/rss`
-- 99% Invisible: `https://feeds.99percentinvisible.org/99percentinvisible`
-
-### 6. Select & Transcribe Episodes
-
-#### Option A: Manual Selection (Recommended)
-1. Go to **"Episode Queue"** tab
-2. Click **"Fetch Episodes"** for your feeds
-3. Select episodes you want to transcribe
-4. Click **"Run Transcription"** in Dashboard
-
-#### Option B: Via Command Line
-```bash
-conda activate podcast_bot
-
-# Process selected episodes
-python transcription-service/src/cli.py
-
-# Or fetch and process latest episode automatically
-python transcription-service/src/cli.py --schedule --limit-episodes 1
-```
-
-### 7. View Transcripts
-
-Transcripts are saved to:
-```
-shared/output/
-  └── Podcast Name/
-      └── Episode Title.txt
-```
-
-Example transcript format:
-```
-[SPEAKER_00] 00:15:32: Welcome to the show!
-[SPEAKER_01] 00:15:35: Thanks for having me!
-```
+- **OS**: Windows 10/11
+- **GPU**: NVIDIA GPU with 8GB+ VRAM (Recommended for fast transcription)
+- **Software**:
+  - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Required for core services)
+  - [Ollama](https://ollama.ai/download) (Required for RAG/chat features)
+  - [Anaconda](https://www.anaconda.com/download) or Miniconda (Required for transcription worker)
 
 ---
 
-## 🤖 RAG Service Setup (Optional)
+## 🚀 Setup
 
-Add semantic search and Q&A capabilities over your transcripts.
+### 1. Installation
 
-### 1. Start Qdrant Vector Database
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd podcast-transcriber
+   ```
 
-```bash
-# Using Docker
-docker run -p 6333:6333 -v "${pwd}/qdrant_data:/qdrant/storage" qdrant/qdrant
+2. Create the transcription environment (Required for GPU workers):
+   ```bash
+   conda env create -f transcription-service/environment.yml
+   ```
+   *Note: This takes 10-15 minutes as it downloads CUDA binaries and AI models.*
 
-# Or using docker-compose (includes RAG service)
-docker-compose up -d qdrant
-```
+3. Create custom Ollama RAG model (Required for RAG/chat):
 
-### 2. Create RAG Environment
+   This project uses a custom version of `qwen3:8b` optimized for GPUs with 8GB VRAM (RTX 3070). The context window is tuned to **6144 tokens** to maximize document capacity without running out of memory.
 
-```bash
-conda env create -f rag-service/rag-environment.yml
-conda activate rag_env
-```
+   **a. Pull the base models:**
+   ```bash
+   ollama pull qwen3:8b
+   ollama pull nomic-embed-text
+   ```
 
-### 3. Add Gemini API Key
+   **b. Create a `Modelfile`:**
+   
+   Create a file named `Modelfile` (no extension) in your project root with this content:
+   
+   ```dockerfile
+   FROM qwen3:8b
 
-Edit `.env` and add:
-```bash
-GEMINI_API_KEY=your_gemini_api_key_here
-```
+   # RTX 3070 Optimization (8GB VRAM)
+   # Context window set to 6144 to prevent Out-Of-Memory errors while allowing RAG.
+   PARAMETER num_ctx 6144
 
-### 4. Start RAG Service
+   # Model Parameters for Balanced RAG
+   PARAMETER temperature 0.6
+   PARAMETER top_k 20
+   PARAMETER top_p 0.95
+   ```
 
-```bash
-cd rag-service
-python -m src.main
-```
+   **c. Build the custom model:**
+   ```bash
+   ollama create qwen3:rag -f Modelfile
+   ```
 
-Service starts at http://localhost:8000
-API docs at http://localhost:8000/docs
+   **d. Verify installation:**
+   ```bash
+   ollama run qwen3:rag
+   ```
+   Type `/bye` to exit the test chat.
 
-### 5. Test the Service
+   > [!NOTE]
+   > Ensure Ollama is running before starting the application.
 
-```bash
-# Health check
-curl http://localhost:8000/health
+### 2. Configuration
 
-# Ask a question
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What topics were discussed?"}'
-```
+1. Create your configuration file:
+   ```bash
+   copy .env.example .env
+   ```
 
----
+2. Edit `.env` with your API keys:
+   - **HUGGINGFACE_TOKEN** (Required): Get from [HuggingFace Settings](https://huggingface.co/settings/tokens) - Used for speaker diarization
+   - **GEMINI_API_KEY** (Required): Get from [Google AI Studio](https://makersuite.google.com/app/apikey) - Used for episode summarization
 
-## ⚡ Quick Commands Reference
-
-### Transcription Service
-
-```bash
-# Activate environment
-conda activate podcast_bot
-
-# Show help
-python transcription-service/src/cli.py --help
-
-# Process selected episodes (default mode)
-python transcription-service/src/cli.py
-
-# Auto-process all new episodes from feeds
-python transcription-service/src/cli.py --auto
-
-# Fetch and process latest 2 episodes per feed
-python transcription-service/src/cli.py --schedule --limit-episodes 2
-
-# Launch dashboard
-streamlit run transcription-service/src/ui/dashboard.py
-```
-
-### RAG Service
-
-```bash
-# Activate environment
-conda activate rag_env
-
-# Start service
-cd rag-service && python -m src.main
-
-# Health check
-curl http://localhost:8000/health
-```
-
-### Docker
-
-```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-```
+> [!NOTE]
+> The app uses **Ollama** (running locally via Docker) for RAG/chat features and **Gemini API** for creating episode summaries.
 
 ---
 
-## 🎯 Expected Performance
+## ▶️ Running the App
 
-**Transcription (RTX 3070, 8GB VRAM):**
-- 10-min episode: ~2-3 minutes
-- 30-min episode: ~6-8 minutes
-- 60-min episode: ~12-15 minutes
+We use a universal startup script to launch all services.
 
-**RAG Service:**
-- Embedding: ~1-2 seconds
-- Search: <100ms
-- Q&A: 2-5 seconds (Gemini API)
+### 1. Start the Application
+Double-click `start_app.bat` or run in terminal:
+```bash
+start_app.bat
+```
+
+This will:
+- Launch Docker containers (Frontend, RAG, API, Database)
+- Start the host-side listener for the transcription worker
+- Open the Web UI in your browser
+
+### 2. Access the Interface
+- **Web UI**: http://localhost:3000
+- **API Docs**: http://localhost:8001/docs
 
 ---
 
-## 🐛 Troubleshooting
+## 🎙️ How to Transcribe
 
-### "CUDA not available"
+The transcription process runs separately from the main application to keep your system responsive while using the GPU.
 
-**Check NVIDIA drivers:**
-```bash
-nvidia-smi
-```
+### 1. Queue Episodes
+- Go to `http://localhost:3000`
+- Add RSS feeds in the **Feeds** tab
+- Click "Fetch Episodes" to see available episodes
+- Select episodes and add them to your Queue
 
-**Verify PyTorch CUDA:**
-```bash
-python -c "import torch; print(torch.version.cuda)"
-```
+### 2. Run Transcription Worker
 
-**Solution:** Update NVIDIA drivers or reinstall PyTorch with CUDA support.
+You have **two options** for running the transcription worker:
 
-### "Out of Memory" Error
+**Option A: Trigger from UI (Recommended)**
+- Click the "Start Transcription" button in the Queue page
+- The host listener service (started by `start_app.bat`) will automatically launch the transcription worker in a new window
+- This uses your GPU to process all queued episodes
 
-**Reduce batch size in `.env`:**
-```bash
-BATCH_SIZE=2  # Change from 4 to 2
-```
+**Option B: Manual Launch**
+- Run the script directly when you're ready to process episodes:
+  ```bash
+  scripts\run_bot.bat
+  ```
+- Useful for scheduling with Windows Task Scheduler for automated runs
 
-**Or use smaller model:**
-```bash
-WHISPER_MODEL=medium  # Instead of large-v2
-```
+> [!TIP]
+> The transcription worker runs in a separate window so you can monitor progress while continuing to use the UI.
 
-### "Import Error: No module named..."
-
-**Ensure correct environment:**
-```bash
-# Check active environment
-conda env list
-
-# Activate correct one
-conda activate podcast_bot  # For transcription
-conda activate rag_env      # For RAG
-```
-
-### "Qdrant connection refused"
-
-**Start Qdrant:**
-```bash
-docker run -p 6333:6333 qdrant/qdrant
-```
-
-**Or check if running:**
-```bash
-docker ps
-```
-
-### "File not found" Errors
-
-**Run from project root:**
-```bash
-cd podcast-transcriber  # Make sure you're in project root
-python transcription-service/src/cli.py
-```
-
-### Dashboard Won't Launch
-
-**Check Streamlit is installed:**
-```bash
-conda activate podcast_bot
-streamlit --version
-```
-
-**Reinstall if needed:**
-```bash
-pip install streamlit
-```
+### 3. View Results
+- Refresh the **Library** page to see completed transcripts
+- Episode summaries are automatically generated after transcription
+- You can chat with episodes using the RAG features
 
 ---
 
-## 📁 Project Structure Quick Reference
+## 🛠️ Troubleshooting
 
-```
-podcast-transcriber/
-├── transcription-service/     # AI transcription service
-│   ├── src/cli.py             # Main entry point
-│   └── src/ui/dashboard.py    # Streamlit UI
-│
-├── rag-service/               # Semantic search service
-│   └── src/main.py            # FastAPI server
-│
-├── shared/                    # Shared resources
-│   ├── config/                # Configuration files
-│   ├── output/                # Transcripts
-│   └── summaries/             # Episode summaries
-│
-├── scripts/                   # Launcher scripts
-│   ├── launch_ui.bat          # Windows UI launcher
-│   └── run_bot.bat            # Windows transcription runner
-│
-├── .env                       # Your configuration
-└── docker-compose.yml         # Docker orchestration
-```
+### Docker Services Failed to Start
+- Ensure Docker Desktop is running.
+- Run `docker-compose logs` to see errors.
 
----
+### "Conda not found" in `run_bot.bat`
+- Use the standard `Anaconda Prompt` or `Miniconda Prompt` to run the script.
+- If using standard CMD, you may need to add Conda to your PATH or edit `scripts\run_bot.bat` to point to your installation.
 
-## 🎓 Next Steps
+### Ollama Connection Issues
+- Ensure Ollama is installed and running:
+  ```bash
+  ollama list
+  ```
+- Verify required models are downloaded:
+  ```bash
+  ollama pull qwen3:rag
+  ollama pull nomic-embed-text
+  ```
+- Check Ollama is accessible:
+  ```bash
+  curl http://localhost:11434/api/tags
+  ```
 
-1. **Monitor First Transcription:** Watch VRAM usage with `nvidia-smi -l 1`
-2. **Check Accuracy:** Review first transcript for quality
-3. **Automate:** Set up weekly processing with Task Scheduler (Windows) or cron (Linux)
-4. **Explore RAG:** Ask questions about your transcripts via the RAG API
-5. **Star the Repo:** If you find this useful! ⭐
-
----
-
-## 🆘 Need More Help?
-
-- **Full Documentation:** See [README.md](README.md)
-- **Service Details:**
-  - [Transcription Service README](transcription-service/README.md)
-  - [RAG Service README](rag-service/README.md)
-- **Configuration:** Check [.env.example](.env.example) for all options
-- **Upgrading:** See [MIGRATION.md](MIGRATION.md) if coming from old version
-
-## 🚀 You're Ready!
-
-Start transcribing and enjoy searchable podcast content!
+### GPU Not Used / CUDA Errors
+- Ensure you have the latest NVIDIA Drivers installed.
+- Verify installation:
+  ```bash
+  conda activate podcast_bot
+  python -c "import torch; print(f'CUDA Available: {torch.cuda.is_available()}')"
+  ```

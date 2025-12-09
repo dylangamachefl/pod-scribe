@@ -38,7 +38,8 @@ from managers.episode_manager import (
 from managers.status_monitor import read_status
 
 # Get absolute paths
-SCRIPT_DIR = Path(os.path.abspath(__file__)).parent.parent.parent.parent
+# In Docker: /app/src/api/transcription_api.py → /app/src/api → /app/src → /app
+SCRIPT_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
 CONFIG_DIR = SCRIPT_DIR / "shared" / "config"
 OUTPUT_DIR = SCRIPT_DIR / "shared" / "output"
 CLI_SCRIPT = SCRIPT_DIR / "transcription-service" / "src" / "cli.py"

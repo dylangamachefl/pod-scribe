@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import './LibraryPage.css';
-import { api, Summary } from '../api';
+import { summarizationApi, Summary } from '../api';
 import EpisodeDetailModal from '../components/EpisodeDetailModal';
 import ChatPopup from '../components/ChatPopup';
 
@@ -19,7 +19,7 @@ function LibraryPage() {
     const loadSummaries = async () => {
         try {
             setIsLoading(true);
-            const data = await api.getSummaries();
+            const data = await summarizationApi.getSummaries();
             setSummaries(data);
         } catch (err) {
             console.error('Error loading summaries:', err);

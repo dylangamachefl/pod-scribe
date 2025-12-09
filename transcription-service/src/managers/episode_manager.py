@@ -13,8 +13,16 @@ from typing import List, Dict, Optional
 import feedparser
 
 # Get absolute paths
-# Navigate up from: transcription-service/src/managers/ -> transcription-service/ -> root/ -> shared/
-SCRIPT_DIR = Path(__file__).parent.parent.parent.parent
+# In Docker: /app/src/managers/episode_manager.py → /app/src/managers → /app/src → /app
+# On Host: transcription-service/src/managers/episode_manager.py → transcription-service/src/managers → transcription-service/src → transcription-service → root
+# We need different logic for container vs host!
+import os
+
+if os.path.exists('/app/src'):  # Running in Docker container
+    SCRIPT_DIR = Path(__file__).parent.parent.parent  # Go to /app
+else:  # Running on host
+    SCRIPT_DIR = Path(__file__).parent.parent.parent.parent  # Go to project root
+
 CONFIG_DIR = SCRIPT_DIR / "shared" / "config"
 PENDING_EPISODES_FILE = CONFIG_DIR / "pending_episodes.json"
 HISTORY_FILE = CONFIG_DIR / "history.json"
@@ -69,16 +77,25 @@ def remove_episode_from_queue(episode_id: str):
     save_pending_episodes(data)
 
 
-def mark_episode_selected(episode_id: str, selected: bool):
-    """Mark episode as selected or unselected."""
+def mark_episode_selected(episode_id: str, selected: bool) -> bool:
+    """Mark episode as selected or unselected.
+    
+    Returns:
+        True if episode was found and updated, False otherwise.
+    """
     data = load_pending_episodes()
     
+    found = False
     for episode in data['episodes']:
         if episode.get('id') == episode_id:
             episode['selected'] = selected
+            found = True
             break
     
-    save_pending_episodes(data)
+    if found:
+        save_pending_episodes(data)
+    
+    return found
 
 
 def get_selected_episodes() -> List[Dict]:

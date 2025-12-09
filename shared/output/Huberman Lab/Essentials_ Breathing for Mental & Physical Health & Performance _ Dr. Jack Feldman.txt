@@ -1,0 +1,520 @@
+Title: Essentials: Breathing for Mental & Physical Health & Performance | Dr. Jack Feldman
+Podcast: Huberman Lab
+Processed: 2025-12-03 16:12:44
+
+============================================================
+
+[UNKNOWN] 00:00:00: Welcome to Huberman Lab Essentials, where we revisit past episodes for the most potent and actionable science-based tools for mental health, physical health, and performance.
+[UNKNOWN] 00:00:11: I'm Andrew Huberman, and I'm a professor of neurobiology and ophthalmology at Stanford School of Medicine.
+[UNKNOWN] 00:00:17: And now for my conversation with Dr. Jack Feldman.
+[UNKNOWN] 00:00:20: Thanks for joining me today.
+[UNKNOWN] 00:00:21: Pleasure to be here, Andrew.
+[UNKNOWN] 00:00:23: You're my go-to source for all things respiration and how the brain and breathing interact.
+[UNKNOWN] 00:00:30: You're the person I call.
+[UNKNOWN] 00:00:31: Why don't we start off by just talking about what's involved in generating breath?
+[UNKNOWN] 00:00:36: So on the mechanical side, which is obvious to everyone, we want to have air flow in, inhale, and we need to have air flow out.
+[UNKNOWN] 00:00:46: And the reason we need to do this is because for body metabolism, we need oxygen.
+[UNKNOWN] 00:00:52: And when oxygen is utilized through the aerobic metabolic process, we produce carbon dioxide.
+[UNKNOWN] 00:01:00: And so we have to get rid of the carbon dioxide that we produce
+[UNKNOWN] 00:01:03: in particular because the carbon dioxide affects the acid-base balance of the blood, the pH, and all living cells are very sensitive to what the pH value is, so your body is very interested in regulating that pH.
+[UNKNOWN] 00:01:18: So, how do we generate this airflow?
+[UNKNOWN] 00:01:21: We have to expand the lungs, and as the lungs expand,
+[UNKNOWN] 00:01:24: Basically, it's like a balloon that you would pull apart.
+[UNKNOWN] 00:01:28: The pressure inside that balloon drops, and air will flow into the balloon.
+[UNKNOWN] 00:01:32: That lowers the pressure in the air sacs called alveoli, and air will flow in because pressure outside the body is higher than pressure inside the body when you're doing this expansion, when you're inhaling.
+[UNKNOWN] 00:01:44: What produces that?
+[UNKNOWN] 00:01:46: Well, the principal muscle is the diaphragm, which is sitting inside the body just below the lung.
+[UNKNOWN] 00:01:53: And when you want to inhale, you basically contract the diaphragm and it pulls it down.
+[UNKNOWN] 00:01:58: And as it pulls it down, it's inserting pressure forces on the lung, and the lung wants to expand.
+[UNKNOWN] 00:02:05: At the same time, the ribcage is going to rotate up and out.
+[UNKNOWN] 00:02:09: and therefore expanding the cavity, the thoracic cavity.
+[UNKNOWN] 00:02:14: At the end of inspiration,
+[UNKNOWN] 00:02:16: Under normal conditions, when you're at rest, you just relax.
+[UNKNOWN] 00:02:20: And it's like pulling on a spring.
+[UNKNOWN] 00:02:22: You pull down a spring and you let go and it relaxes.
+[UNKNOWN] 00:02:24: Where does that activity originate?
+[UNKNOWN] 00:02:27: The region in the brainstem.
+[UNKNOWN] 00:02:29: That's, once again, this region sort of above the spinal cord, which was critical for generating this rhythm.
+[UNKNOWN] 00:02:36: It's called the prebutzinger complex.
+[UNKNOWN] 00:02:38: This small site, which contains, in humans, a few thousand neurons, it's located on either side,
+[UNKNOWN] 00:02:46: and works in tandem, and every breath begins with neurons in this region beginning to be active, and those neurons then connect, ultimately, to these motor neurons going to the diaphragm and to the external intercostals, causing them to be active and causing this inspiratory effort.
+[UNKNOWN] 00:03:09: When the neurons in the prebiotic complex finish their burst of activity,
+[UNKNOWN] 00:03:14: then inspiration stops and then you begin to exhale because of this passive recall of the lung and ribcage.
+[UNKNOWN] 00:03:25: Is there anything known about the activation of the diaphragm and the intercostal muscles between the ribs as it relates to nose versus mouth breathing?
+[UNKNOWN] 00:03:36: I don't think we fully have the answer to that.
+[UNKNOWN] 00:03:39: Clearly, there are differences between nasal and mouth breathing.
+[UNKNOWN] 00:03:43: At rest, the tendency is to do nasal breathing because the air flows that are necessary for normal breathing is easily managed by passing through the nasal cavities.
+[UNKNOWN] 00:03:58: However, when your ventilation needs to increase, like during exercise, you need to move more air
+[UNKNOWN] 00:04:04: you do that through your mouth because the airways are much larger then and therefore you can move much more air.
+[UNKNOWN] 00:04:10: But at the level of the intercostals and the diaphragm, their contraction is almost agnostic to whether or not the nose and mouth are open.
+[UNKNOWN] 00:04:23: I'm excited to share that Matina, the yerba mate drink I helped create, is now available at Whole Foods stores nationwide.
+[UNKNOWN] 00:04:30: Long-time listeners of this podcast know that yerba mate is my preferred caffeine source.
+[UNKNOWN] 00:04:35: It provides smooth energy without giving you the jitters, and it has a lot of other potential benefits, including helping to regulate your blood sugar, improving digestion, mild appetite suppression, and much more.
+[UNKNOWN] 00:04:45: Matina is my absolute favorite of all the yerba mate brands out there, and I've tried them all.
+[UNKNOWN] 00:04:50: Given my love for Matina, I decided to become a part owner in the business, and I helped them create their new line of products, which are all entirely zero sugar.
+[UNKNOWN] 00:04:57: These zero sugar cold brew Matina flavors are fantastic.
+[UNKNOWN] 00:05:01: I drink at least three cans of them every single day.
+[UNKNOWN] 00:05:03: You'll often see them on the table during my podcast recordings.
+[UNKNOWN] 00:05:06: I absolutely love the product, and I'm proud to now have it sold at Whole Foods.
+[UNKNOWN] 00:05:10: So check out Matina at Whole Foods stores nationwide.
+[UNKNOWN] 00:05:13: It's cold brewed with the absolute best ingredients.
+[UNKNOWN] 00:05:16: It has zero sugar and it tastes amazing.
+[UNKNOWN] 00:05:18: And if you don't have a Whole Foods near you, you can also buy it online at drinkmatina.com.
+[UNKNOWN] 00:05:24: Maybe you could march us through the brain centers that you've discovered and others have worked on as well that control breathing, pre-Butzinger as well as related structures.
+[UNKNOWN] 00:05:36: So when we discovered the pre-Butzinger, we thought that it was the primary source of all rhythmic respiratory movements, both inspiration and expiration.
+[UNKNOWN] 00:05:48: And then in a series of experiments, we discovered that there was a second oscillator, and that oscillator is involved in generating what we call active expiration.
+[UNKNOWN] 00:06:01: That is this active... Like if I go, shh.
+[UNKNOWN] 00:06:03: Yeah, or when you begin to exercise, you have to go...
+[UNKNOWN] 00:06:09: and actually move that air out, this group of cells, which is silent at rest, suddenly becomes active to drive those muscles.
+[UNKNOWN] 00:06:18: And it appears that it's an independent oscillator in a region around the facial nucleus.
+[UNKNOWN] 00:06:24: When this region was initially identified,
+[UNKNOWN] 00:06:27: We thought it was involved in sensing carbon dioxide.
+[UNKNOWN] 00:06:32: It was what we call a central chemoreceptor.
+[UNKNOWN] 00:06:34: That is, we want to keep carbon dioxide levels, particularly in the brain, at a relatively stable level because the brain is extraordinarily sensitive to changes in pH.
+[UNKNOWN] 00:06:45: if there's a big shift in carbon dioxide, there'll be a big shift in brain pH, and that'll throw your brain, if I can use the technical term, out of whack.
+[UNKNOWN] 00:06:55: And so you want to regulate that.
+[UNKNOWN] 00:06:57: And the way to regulate something in the brain is you have a sensor in the brain.
+[UNKNOWN] 00:07:02: And others basically identified that the ventral surface of the brainstem, that is the part of the brainstem that's on this side,
+[UNKNOWN] 00:07:11: was critical for that, and then we identified a structure near the trapezoid nucleus.
+[UNKNOWN] 00:07:17: It was not named in any of these neuroanatomical atlases, so we just picked the name out of the hat, and we called it the retrotrapezoid nucleus.
+[UNKNOWN] 00:07:26: If you go back in an evolutionary sense, and a lot of things that are hard to figure out begin to make sense when you look at the evolution of the nervous system.
+[UNKNOWN] 00:07:36: When control of facial muscles, going back to more primitive creatures, because they had to take things in their mouth for eating, so we call that, the face sort of developed, the eyes were there, the mouth is there.
+[UNKNOWN] 00:07:52: These,
+[UNKNOWN] 00:07:53: nuclei that contained the motor neurons, a lot of the control systems for them developed in the immediate vicinity.
+[UNKNOWN] 00:08:02: So if you think about the face, there's a lot of sub-nuclei around there that had various roles at various different times in evolution.
+[UNKNOWN] 00:08:11: And at one point in evolution, the facial muscles were probably very important in moving
+[UNKNOWN] 00:08:18: fluid in and out of the mouth and moving air in and out of the mouth.
+[UNKNOWN] 00:08:22: And so part of these many different sub-nuclei now seems to be in mammals to be involved in the control of expiratory muscles.
+[UNKNOWN] 00:08:32: But we have to remember that mammals are very special when it comes to breathing because we're the only class of vertebrates that have a diaphragm.
+[UNKNOWN] 00:08:43: If you look at amphibians and reptiles, they don't have a diaphragm.
+[UNKNOWN] 00:08:48: And the way they breathe is not by actively inspiring and passively expiring.
+[UNKNOWN] 00:08:55: They breathe by actively expiring and passively inspiring because they don't have a powerful inspiratory muscle.
+[UNKNOWN] 00:09:03: And somewhere along the line, the diaphragm developed.
+[UNKNOWN] 00:09:08: The amazing thing about the diaphragm is that it's mechanically extremely efficient.
+[UNKNOWN] 00:09:14: If you look at how oxygen gets from outside the body into the bloodstream,
+[UNKNOWN] 00:09:20: The critical passage is across the membrane in the lung.
+[UNKNOWN] 00:09:25: It's called the alveolar capillary membrane.
+[UNKNOWN] 00:09:28: The alveolus is part of the lung, and the blood runs through capillaries, which are the smallest tubes in the circulatory system.
+[UNKNOWN] 00:09:38: And at that point, oxygen can go from the air-filled alveolus
+[UNKNOWN] 00:09:43: into the blood.
+[UNKNOWN] 00:09:45: The key element is the surface area.
+[UNKNOWN] 00:09:48: The bigger the surface area, the more oxygen that can pass through.
+[UNKNOWN] 00:09:52: It's entirely a passive process.
+[UNKNOWN] 00:09:54: There's no magic about making oxygen go in.
+[UNKNOWN] 00:09:58: Now, how do you get a pack, a large surface area, in a small chest?
+[UNKNOWN] 00:10:04: Well, you start out with one tube, which is the trachea.
+[UNKNOWN] 00:10:07: The trachea expands.
+[UNKNOWN] 00:10:09: Now you have two tubes, then you have four tubes, and it keeps branching.
+[UNKNOWN] 00:10:14: At some point, at the end of those branches, you put a little sphere, which is an alveolus.
+[UNKNOWN] 00:10:21: And that determines what the surface area is going to be.
+[UNKNOWN] 00:10:26: You then have a mechanical problem.
+[UNKNOWN] 00:10:28: You have this surface area.
+[UNKNOWN] 00:10:30: You have to be able to pull it apart.
+[UNKNOWN] 00:10:32: So imagine you have a little square of elastic membrane.
+[UNKNOWN] 00:10:36: It doesn't take a lot of force to pull it apart.
+[UNKNOWN] 00:10:40: But now if you increase it by 50 times, you need a lot more force to pull it apart.
+[UNKNOWN] 00:10:46: So amphibians, who were breathing not by compressing the lungs and then just passively expanding it,
+[UNKNOWN] 00:10:54: weren't able to generate a lot of force.
+[UNKNOWN] 00:10:56: So they have relatively few branches.
+[UNKNOWN] 00:10:59: So if you look at the surface area that they pack in their lungs relative to their body size, it's not very impressive.
+[UNKNOWN] 00:11:07: Whereas when you get to mammals,
+[UNKNOWN] 00:11:10: the amount of branching that you have, is you have four to 500 million alveoli.
+[UNKNOWN] 00:11:17: So you have a membrane inside of you, a third the size of a tennis court, that you actually have to expand every breath.
+[UNKNOWN] 00:11:24: And you do that without exerting much of a, you don't feel it.
+[UNKNOWN] 00:11:28: And that's because you have this amazing muscle, the diaphragm, which because of its positioning, just by moving
+[UNKNOWN] 00:11:36: two-thirds of an inch down, is able to expand that membrane enough to move air into the lungs.
+[UNKNOWN] 00:11:43: At rest, the value of air in your lungs is about two and a half liters.
+[UNKNOWN] 00:11:48: When you take a breath, you're taking another 500 milliliters or half a liter.
+[UNKNOWN] 00:11:54: That's the size maybe of my fist.
+[UNKNOWN] 00:11:57: So you're increasing the volume by 20%.
+[UNKNOWN] 00:12:01: But you're doing that by pulling on this 70 square meter membrane.
+[UNKNOWN] 00:12:06: But that's enough to bring enough fresh air into the lung to mix in with the air that's already there that the oxygen levels in your,
+[UNKNOWN] 00:12:15: Your bloodstream goes from a partial pressure of oxygen, which is 40 millimeters of mercury, to 100 millimeters of mercury.
+[UNKNOWN] 00:12:25: So we have this amazing mechanical advantage by having a diaphragm.
+[UNKNOWN] 00:12:33: Do you think that our brains are larger than that of other mammals in part because of the amount of oxygen that we have been able to bring into our system?
+[UNKNOWN] 00:12:42: I would say a key step in the ability to develop a large brain that has a continuous demand for oxygen is the diaphragm.
+[UNKNOWN] 00:12:53: Without a diaphragm, you're an amphibian.
+[UNKNOWN] 00:12:56: You know, over the years,
+[UNKNOWN] 00:12:58: whether it be for yoga class or a breath work thing, or you hear online that we should be breathing with our diaphragm, that rather than lifting our rib cage when we breathe and our chest, that it is healthier, in air quotes, or better somehow to have the belly expand when we inhale.
+[UNKNOWN] 00:13:17: I'm not aware of any particular studies that have really examined the direct health benefits of diaphragmatic versus non-diaphragmatic breathing.
+[UNKNOWN] 00:13:25: But if you don't mind commenting on
+[UNKNOWN] 00:13:28: anything you're aware of as it relates to diaphragmatic versus non-diaphragmatic breathing, that would be, I think, interesting to a number of people.
+[UNKNOWN] 00:13:36: In the context of things like breath practice, I'm a bit agnostic about the effects of some of the different patterns of breathing.
+[UNKNOWN] 00:13:47: Clearly, some are going to work through different mechanisms, and we can talk about that.
+[UNKNOWN] 00:13:52: But at certain level, for example, whether it's primarily diaphragm or you move your abdomen or not, I am agnostic about it.
+[UNKNOWN] 00:14:02: I think that the changes that breathing induces in emotion and cognition, I have different ideas about what the influence is and I don't see that primarily as how, which particular muscles you're choosing.
+[UNKNOWN] 00:14:20: But that just could be my own prejudice.
+[UNKNOWN] 00:14:23: Could you tell us about physiological size, what's known about them, what your particular interest in them is, and what they're good for?
+[UNKNOWN] 00:14:33: It turns out we sigh about every five minutes.
+[UNKNOWN] 00:14:36: And I would encourage anyone who finds that to be an unbelievable fact is to lie down in a quiet room and just breathe normally, just relax, just let go, and just pay attention to your breathing.
+[UNKNOWN] 00:14:53: And you'll find that every couple of minutes you're taking a deep breath.
+[UNKNOWN] 00:14:58: And you can't stop it.
+[UNKNOWN] 00:15:01: You know, it just happens.
+[UNKNOWN] 00:15:03: Now why?
+[UNKNOWN] 00:15:05: Well, we have to go back to the lung again.
+[UNKNOWN] 00:15:07: The lung has these 500 million alveoli, and they're very tiny.
+[UNKNOWN] 00:15:11: They're 200 microns across.
+[UNKNOWN] 00:15:13: So they're really, really tiny.
+[UNKNOWN] 00:15:15: And you can think of them as fluid-filled.
+[UNKNOWN] 00:15:18: They're fluid-lined.
+[UNKNOWN] 00:15:19: And the reason they're fluid-lined has to do with the esoterica of the mechanics of that.
+[UNKNOWN] 00:15:26: It makes it a little easier to stretch them with this fluid-line, which is called surfactant.
+[UNKNOWN] 00:15:31: Your alveoli have a tendency to collapse.
+[UNKNOWN] 00:15:35: There's 500 million of them.
+[UNKNOWN] 00:15:37: They're not collapsing at a very high rate, but it's a slow rate that's not trivial.
+[UNKNOWN] 00:15:43: And when an alveolus collapses, it no longer can receive oxygen or take carbon dioxide out.
+[UNKNOWN] 00:15:51: It's sort of taken out of the equation.
+[UNKNOWN] 00:15:53: Now, if you have 500 million of them and you lose 10, no big deal.
+[UNKNOWN] 00:15:57: But if they keep collapsing, you can lose a significant part of the surface area of your lung.
+[UNKNOWN] 00:16:04: Now, a normal breath is not enough to pop them open, but if you take a deep breath- Through nose or mouth, okay.
+[UNKNOWN] 00:16:13: Through nose and mouth.
+[UNKNOWN] 00:16:14: Or- Just increase that lung volume, because you're just pulling on the lungs, they'll pop open about every five minutes.
+[UNKNOWN] 00:16:24: And so we're doing it every five minutes in order to maintain the health of our lung.
+[UNKNOWN] 00:16:29: In the early days of mechanical ventilation, which was used to treat polio victims who had weakness of their respiratory muscles, they'd be put in these big steel tubes.
+[UNKNOWN] 00:16:43: And the way they would work is that the pressure outside the body would drop.
+[UNKNOWN] 00:16:48: that would put an expansion pressure on the ribcage, the ribcage would expand, and then the lung would expand.
+[UNKNOWN] 00:16:57: And then the pressure would go back to normal, and the lung and ribcage would go back to normal.
+[UNKNOWN] 00:17:02: But there was a relatively high mortality rate.
+[UNKNOWN] 00:17:06: It was a bit of a mystery.
+[UNKNOWN] 00:17:07: And one solution was to just give bigger breaths.
+[UNKNOWN] 00:17:11: I gave bigger breaths and the mortality rate dropped.
+[UNKNOWN] 00:17:14: And it wasn't until, I think it was the 50s,
+[UNKNOWN] 00:17:17: where they realized that they didn't have to increase every breath to be big.
+[UNKNOWN] 00:17:23: What they needed to do is, every so often, they need to have one big breath.
+[UNKNOWN] 00:17:27: So you have a couple of minutes of normal breaths and then one big breath, just mimicking the physiological size.
+[UNKNOWN] 00:17:33: And then the mortality rate drops significantly.
+[UNKNOWN] 00:17:36: And if you see someone on a ventilator in the hospital,
+[UNKNOWN] 00:17:42: If you watch, every couple of minutes, you'll see the membrane move up and down.
+[UNKNOWN] 00:17:46: Every couple of minutes, there'll be a super breath, and that pops it open.
+[UNKNOWN] 00:17:51: So there are these mechanisms for these physiological size.
+[UNKNOWN] 00:17:55: So just like with the collapse of the lungs, where you need a big pressure to pop it open, it's the same thing with the alveoli.
+[UNKNOWN] 00:18:04: You need a bigger pressure, and a normal breath is not enough.
+[UNKNOWN] 00:18:08: So you have to take a big inhale.
+[UNKNOWN] 00:18:12: And what nature has done is instead of requiring us to remember to do it, it does it automatically.
+[UNKNOWN] 00:18:18: And it does it about every five minutes.
+[UNKNOWN] 00:18:22: We've known for a long time that there are things that we can do to improve our sleep.
+[UNKNOWN] 00:18:26: And that includes things that we can take, things like magnesium threonate, theanine, chamomile extract, and glycine, along with lesser known things like saffron and valerian root.
+[UNKNOWN] 00:18:36: These are all clinically supported ingredients that can help you fall asleep, stay asleep, and wake up feeling more refreshed.
+[UNKNOWN] 00:18:42: I'm excited to share that our longtime sponsor, AG1, just created a new product called AGZ, a nightly drink designed to help you get better sleep and have you wake up feeling super refreshed.
+[UNKNOWN] 00:18:52: Over the past few years, I've worked with the team at AG1 to help create this new AGZ formula.
+[UNKNOWN] 00:18:57: It has the best sleep-supporting compounds in exactly the right ratios in one easy-to-drink mix.
+[UNKNOWN] 00:19:02: This removes all the complexity of trying to forage the vast landscape of supplements focused on sleep and figuring out the right dosages and which ones to take for you.
+[UNKNOWN] 00:19:11: AGZ is, to my knowledge, the most comprehensive sleep supplement on the market.
+[UNKNOWN] 00:19:15: I take it 30 to 60 minutes before sleep.
+[UNKNOWN] 00:19:17: It's delicious, by the way.
+[UNKNOWN] 00:19:19: And it dramatically increases both the quality and the depth of my sleep.
+[UNKNOWN] 00:19:22: I know that both from my subjective experience of my sleep and because I track my sleep.
+[UNKNOWN] 00:19:26: I'm excited for everyone to try this new AGZ formulation and to enjoy the benefits of better sleep.
+[UNKNOWN] 00:19:31: AGZ is available in chocolate, chocolate mint, and mixed berry flavors.
+[UNKNOWN] 00:19:35: And as I mentioned before, they're all extremely delicious.
+[UNKNOWN] 00:19:38: My favorite of the three has to be, I think, chocolate mint, but I really like them all.
+[UNKNOWN] 00:19:42: If you'd like to try AGZ, go to drinkagz.com slash Huberman to get a special offer.
+[UNKNOWN] 00:19:48: Again, that's drinkagz.com slash Huberman.
+[UNKNOWN] 00:19:52: we hear often that people will overdose on drugs of various kinds because they stop breathing.
+[UNKNOWN] 00:19:58: So barbiturates, alcohol combined with barbiturates is a common cause of death for drug users and contraindications of drugs and these kinds of things.
+[UNKNOWN] 00:20:08: You hear all the time about celebrities dying because they combine alcohol with barbiturates.
+[UNKNOWN] 00:20:14: Is there any evidence that the size that occur during sleep or during states of, you know, deep, deep,
+[UNKNOWN] 00:20:20: relaxation and sedation that size recover the brain, because you could imagine that if the size don't happen as a consequence of some drug impacting these brain centers, that that could be one cause of basically asphyxiation and death.
+[UNKNOWN] 00:20:40: If you look at the progression of any mammal to a death due to quote natural causes, their breathing slows down,
+[UNKNOWN] 00:20:51: It will stop and then they'll gasp.
+[UNKNOWN] 00:20:54: So we have the phrase dying gasp, super large breaths.
+[UNKNOWN] 00:20:59: They're often described as an attempt to auto-resuscitate.
+[UNKNOWN] 00:21:04: That is you take that super deep breath and that maybe it can kickstart the engine again.
+[UNKNOWN] 00:21:09: We do not know the degree to such things as gasp are really size that are particularly large.
+[UNKNOWN] 00:21:17: And so if you suppress the ability to gasp,
+[UNKNOWN] 00:21:21: in an individual who is subject to an overdose, then, whereas they might have been able to re-arouse their breathing, if that's prevented, they don't get re-aroused.
+[UNKNOWN] 00:21:34: So that is certainly a possibility.
+[UNKNOWN] 00:21:37: I'd love to get your thoughts on how breathing interacts with other things in the brain.
+[UNKNOWN] 00:21:43: As we know, when we get stressed, our breathing changes.
+[UNKNOWN] 00:21:47: When we're happy and relaxed, our breathing changes.
+[UNKNOWN] 00:21:51: But also if we change our breathing, we, in some sense, can adjust our internal state.
+[UNKNOWN] 00:21:57: What is the relationship between brain state and breathing?
+[UNKNOWN] 00:22:01: This is a topic which has really intrigued me over the past decade.
+[UNKNOWN] 00:22:06: I would say before that I was in my silo, just interested about how the rhythm of breathing is generated, and didn't really pay much attention to this other stuff.
+[UNKNOWN] 00:22:16: For some reason I got interested in it.
+[UNKNOWN] 00:22:18: I felt, maybe I can study this in rodents.
+[UNKNOWN] 00:22:22: So we got this idea that we're going to teach rodents to meditate.
+[UNKNOWN] 00:22:26: And you know, that's laughable, but we said, but if we can, then we can actually study how this happens.
+[UNKNOWN] 00:22:36: So I was able to get a sort of a starter grant, an R21 from NCCIH.
+[UNKNOWN] 00:22:43: That's the National Complementary Medicine Institute.
+[UNKNOWN] 00:22:46: A wonderful institute, I should mention.
+[UNKNOWN] 00:22:48: Our government puts major tax dollars
+[UNKNOWN] 00:22:52: toward studies of things like meditation, breath work, supplements, herbs, acupuncture.
+[UNKNOWN] 00:22:59: This is, I think, not well-known, and it's an incredible thing that our government does that, and I think it deserves a nod.
+[UNKNOWN] 00:23:08: I totally agree with you.
+[UNKNOWN] 00:23:09: I think that it's the kind of thing that many of us, including many scientists, thinks is too woo-woo and unsubstantiated.
+[UNKNOWN] 00:23:18: But we're learning more and more.
+[UNKNOWN] 00:23:20: You know, we used to laugh at neuroimmunology.
+[UNKNOWN] 00:23:22: There are all these things that we're learning that we used to dismiss.
+[UNKNOWN] 00:23:26: And I think there's real nuggets to be learned here.
+[UNKNOWN] 00:23:30: So recently, we had a major breakthrough.
+[UNKNOWN] 00:23:33: We found a protocol by which we can get a white mice to breed slowly.
+[UNKNOWN] 00:23:38: In other words, whatever their normal breath is, we could slow it down by a factor of 10, and they're fine doing that.
+[UNKNOWN] 00:23:44: We did that 30 minutes a day for four weeks, okay, like a breath practice.
+[UNKNOWN] 00:23:51: And we had control animals where we did everything the same, except the manipulation we made did not slow down their breathing.
+[UNKNOWN] 00:23:59: We then put them to a standard fear conditioning, which we did with my colleague Michael Fanzelow, who's one of the real gurus of fear.
+[UNKNOWN] 00:24:07: We measured a standard test to put mice in a condition where they're concerned to receive a shock.
+[UNKNOWN] 00:24:15: and their response is that they freeze.
+[UNKNOWN] 00:24:17: And the measure of how fearful they are is how long they freeze.
+[UNKNOWN] 00:24:22: The control mice had a freezing time which was just the same as ordinary mice would have.
+[UNKNOWN] 00:24:28: The ones that went through our protocol froze much, much less.
+[UNKNOWN] 00:24:33: The degree to which they showed less freezing was as much as if there was a major manipulation in the amygdala, which is a part of the brain that's important in fear processing.
+[UNKNOWN] 00:24:45: I'll just pause you for a moment there because I think that the, you know, you're talking about a rodent study, but I think the benefits of doing rodent studies that you can get deep into mechanism.
+[UNKNOWN] 00:24:54: And for people that might think, well, we've known that meditation has these benefits.
+[UNKNOWN] 00:25:00: Why do you need to get mechanistic science?
+[UNKNOWN] 00:25:02: I think that one thing that's important for people to remember is that first of all,
+[UNKNOWN] 00:25:08: as many people as one might think are meditating out there or doing breath work, a far, far, far greater number of people are not, right?
+[UNKNOWN] 00:25:17: I mean, there's a, the majority of people don't take any time to do dedicated breath work nor meditate.
+[UNKNOWN] 00:25:24: So whatever can incentivize people would be a wonderful.
+[UNKNOWN] 00:25:28: But the other thing is that it's never really been clear to me
+[UNKNOWN] 00:25:32: just how much meditation is required for a real effect, meaning a practical effect.
+[UNKNOWN] 00:25:37: People say 30 minutes a day, 20 minutes a day, once a week, twice a week, same thing with breath work.
+[UNKNOWN] 00:25:43: Finding minimum or effective thresholds for changing neural circuitry is what I think is the holy grail of all these practices.
+[UNKNOWN] 00:25:51: And that's only going to be determined by the sorts of mechanistic studies that you describe.
+[UNKNOWN] 00:25:55: One of the issues, I think, for a lot of people is that there's a placebo effect.
+[UNKNOWN] 00:26:01: That is, in humans, they can respond to something even though the mechanism has nothing to do with what the intervention is.
+[UNKNOWN] 00:26:10: And so it's easy to say that the meditative response has a big component which is a placebo effect.
+[UNKNOWN] 00:26:18: My mice don't believe in the placebo effect.
+[UNKNOWN] 00:26:21: And so if we could show there's a bona fide effect in mice, it is convincing in ways that no matter how many human experiments you did, the control for the placebo effect is extremely difficult in humans.
+[UNKNOWN] 00:26:33: In mice, it's a non-issue.
+[UNKNOWN] 00:26:36: So I think that that in and of itself would be an enormous message to send.
+[UNKNOWN] 00:26:41: Excellent, and indeed a better point.
+[UNKNOWN] 00:26:44: A 30 minute a day meditation in these mice, if I understand correctly, the meditation, we don't know what they're thinking about.
+[UNKNOWN] 00:26:52: It's breath practice.
+[UNKNOWN] 00:26:52: Right, so it's breath practice.
+[UNKNOWN] 00:26:54: So there, because we don't, they're presumably, they're not thinking about their third eye center, lotus position, levitation, whatever it is.
+[UNKNOWN] 00:27:00: They're not instructed as to what to do.
+[UNKNOWN] 00:27:02: And if they were, they probably wouldn't do it anyway.
+[UNKNOWN] 00:27:04: So 30 minutes a day in which breathing is deliberately slowed or is slowed relative to their normal patterns of breathing.
+[UNKNOWN] 00:27:12: Got it.
+[UNKNOWN] 00:27:12: So the fear centers are altered in some way that creates a shorter fear response to a foot shock.
+[UNKNOWN] 00:27:21: What are some other examples that you are aware of from work in your laboratory or work in other laboratories for that matter, about interactions between breathing and brain state or emotional state?
+[UNKNOWN] 00:27:31: I want people to understand that when we're talking about breathing affecting emotional cognitive state, it's not simply coming from pre-Butzinger.
+[UNKNOWN] 00:27:40: There are several other sites.
+[UNKNOWN] 00:27:41: And let me sort of, I need to sort of go through that.
+[UNKNOWN] 00:27:44: One is olfaction.
+[UNKNOWN] 00:27:46: So when you're breathing, normal breathing, you're inhaling and exhaling.
+[UNKNOWN] 00:27:52: This is creating signals coming from the nasal mucosa that is going back into the olfactory bulb that's respiratory modulated.
+[UNKNOWN] 00:28:02: And the olfactory bulb has a profound influence and projections through many parts of the brain.
+[UNKNOWN] 00:28:09: So there's a signal arising from this rhythmic moving of air in and out of the nose that's going into the brain that has contained in it a respiratory modulation.
+[UNKNOWN] 00:28:21: Another potential source is the vagus nerve.
+[UNKNOWN] 00:28:24: The vagus nerve is a major nerve which is containing afferents from all of the viscera.
+[UNKNOWN] 00:28:31: afferents just being signals to, yeah.
+[UNKNOWN] 00:28:34: Signals from the viscera.
+[UNKNOWN] 00:28:36: It also has signals coming from the brainstem down, which are called efferents, but it's getting major signals from the lung, from the gut, and this is going up into the brainstem, so it's there.
+[UNKNOWN] 00:28:50: there are very powerful receptors in the lung.
+[UNKNOWN] 00:28:53: They're responding to the expansion and relaxation in the lung.
+[UNKNOWN] 00:28:58: And so, if you record from the vagus nerve, you'll see that there's a huge respiratory modulation due to the mechanical changes in the lung.
+[UNKNOWN] 00:29:06: Now, why that is of interest is that for some forms of refractory depression, electrostimulation of the vagus nerve can provide tremendous relief.
+[UNKNOWN] 00:29:21: Why this is the case still remains to be determined, but it's clear that signals in the vagus nerve, at least artificial signals in the vagus nerve, can have a positive effect on reducing depression.
+[UNKNOWN] 00:29:34: So it's not a leap to think that under normal circumstances, that that rhythm coming in from the vagus nerve is playing a role in normal processing.
+[UNKNOWN] 00:29:45: Okay, let me continue.
+[UNKNOWN] 00:29:47: carbon dioxide and oxygen levels.
+[UNKNOWN] 00:29:49: Now, under normal circumstances, your oxygen levels are fine.
+[UNKNOWN] 00:29:54: And unless you go to altitude, they don't really change very much.
+[UNKNOWN] 00:29:59: But your CO2 levels can change quite a bit with even a relatively small change in your overall breathing.
+[UNKNOWN] 00:30:06: That's going to change your pH level.
+[UNKNOWN] 00:30:07: I have a colleague, Alicia Moret, who is working with patients who are anxious.
+[UNKNOWN] 00:30:16: and many of them hyperventilate.
+[UNKNOWN] 00:30:19: And as a result of that hyperventilation, their carbon dioxide levels are low.
+[UNKNOWN] 00:30:24: She has developed a therapeutic treatment where she trains these people to breathe slower, to restore their CO2 levels back to normal, and she gets relief in their anxiety.
+[UNKNOWN] 00:30:38: So CO2 levels, which are not going to affect brain function on a breath-by-breath level,
+[UNKNOWN] 00:30:44: although it does fluctuate breath by breath, but sort of as a continuous background, can change.
+[UNKNOWN] 00:30:50: And if it's changed chronically, we know that highly elevated levels of CO2 can produce panic attacks.
+[UNKNOWN] 00:30:58: Your body is so sensitive, the control of breathing, like how much you breathe per minute, is determined in a very sensitive way by the CO2 level.
+[UNKNOWN] 00:31:08: So even a small change in your CO2 will have a significant effect on your ventilation.
+[UNKNOWN] 00:31:15: So this is another thing that not only changes your ventilation, but affects your brain state.
+[UNKNOWN] 00:31:21: I'd like to take a quick break and acknowledge our sponsor, Eight Sleep.
+[UNKNOWN] 00:31:25: Eight Sleep makes smart mattress covers with cooling, heating, and sleep tracking capacity.
+[UNKNOWN] 00:31:29: One of the best ways to ensure you get a great night's sleep is to make sure that the temperature of your sleeping environment is correct.
+[UNKNOWN] 00:31:35: And that's because in order to fall asleep and stay deeply asleep, your body temperature actually has to drop by about one to three degrees.
+[UNKNOWN] 00:31:42: And in order to wake up feeling refreshed and energized, your body temperature actually has to increase by about one to three degrees.
+[UNKNOWN] 00:31:48: EightSleep automatically regulates the temperature of your bed throughout the night according to your unique needs.
+[UNKNOWN] 00:31:54: I've been sleeping on an EightSleep mattress cover for nearly five years now and it has completely transformed and improved the quality of my sleep.
+[UNKNOWN] 00:32:01: The latest EightSleep model is the Pod 5.
+[UNKNOWN] 00:32:04: This is what I'm now sleeping on and I absolutely love it.
+[UNKNOWN] 00:32:07: It has so many incredible features.
+[UNKNOWN] 00:32:08: For instance, the Pod 5 has a feature called Autopilot, which is an AI engine that learns your sleep patterns and then adjusts the temperature of your sleeping environment across different sleep stages.
+[UNKNOWN] 00:32:18: It'll even elevate your head if you're snoring, and it makes other shifts to optimize your sleep.
+[UNKNOWN] 00:32:22: If you'd like to try 8Sleep, go to 8Sleep.com slash Huberman to get up to $700 off the Pod 5 Ultra.
+[UNKNOWN] 00:32:30: This is 8Sleep's biggest sale of the year.
+[UNKNOWN] 00:32:32: It goes from now until December 1st, 2025.
+[UNKNOWN] 00:32:35: 8Sleep ships to many countries worldwide, including Mexico and the UAE.
+[UNKNOWN] 00:32:40: Again, that's 8sleep.com slash Huberman to save up to $700 now through December 1st, 2025.
+[UNKNOWN] 00:32:47: Now, another thing that could affect how breathing practice can affect your emotional state is simply the descending command.
+[UNKNOWN] 00:32:57: Because breathing practice involves volitional control of your breathing, and therefore there's a signal that's originating somewhere in your motor cortex.
+[UNKNOWN] 00:33:07: That is not, of course, that's gonna go down to pre-Butzinger.
+[UNKNOWN] 00:33:10: but it's also gonna send off collaterals to other places.
+[UNKNOWN] 00:33:14: Those collaterals could obviously influence your emotional state.
+[UNKNOWN] 00:33:18: So we have quite a few different potential sources.
+[UNKNOWN] 00:33:22: None of them that are exclusive.
+[UNKNOWN] 00:33:25: What are some of the other features of our brain and body, be it blinking or eye movements or ability to encode sounds or,
+[UNKNOWN] 00:33:37: any features of the way that we function and move and perceive things that are coordinated with breathing in some interesting way?
+[UNKNOWN] 00:33:47: Almost everything.
+[UNKNOWN] 00:33:49: So we have, for example, on the autonomic side, we have respiratory sinus arrhythmia.
+[UNKNOWN] 00:33:55: That is, during expiration, the heart slows down.
+[UNKNOWN] 00:34:00: Your pupils oscillate with the respiratory cycle.
+[UNKNOWN] 00:34:03: Your fear response.
+[UNKNOWN] 00:34:05: Let's take something like depression.
+[UNKNOWN] 00:34:09: You can envision depression as activity sort of going around in a circuit.
+[UNKNOWN] 00:34:15: And because it's continuous in the nervous system, as signals keep repeating, they tend to get stronger.
+[UNKNOWN] 00:34:23: And they can get so strong, you can't break them.
+[UNKNOWN] 00:34:25: And I mean, all of us get depressed at some point, but if it's not continuous, it's not long lasting, we're able to break it.
+[UNKNOWN] 00:34:33: Well, there are extreme measures to break it.
+[UNKNOWN] 00:34:35: We could do electro-combulsive shock.
+[UNKNOWN] 00:34:38: We shock the whole brain.
+[UNKNOWN] 00:34:40: That's disrupting activity in the whole brain.
+[UNKNOWN] 00:34:42: And when the circuit starts to get back together again, it's been disruptive.
+[UNKNOWN] 00:34:48: And we know that the brain, when signals get disrupted a little bit, we can weaken the connections.
+[UNKNOWN] 00:34:54: And weakening the connections, if it's that in the circuit involved in depression, we may get some relief.
+[UNKNOWN] 00:35:00: An electroconvulsive shock does work for relieving many kinds of depression.
+[UNKNOWN] 00:35:05: Focal deep brain stimulation does the same thing, but more localized or transcranial stimulation.
+[UNKNOWN] 00:35:13: You're disrupting a network, and while it's getting back together, it may weaken some of the connections.
+[UNKNOWN] 00:35:20: If breathing is playing some role in this circuit,
+[UNKNOWN] 00:35:25: And now, instead of doing like a one second shock, I do 30 minutes of disruption by doing slow breathing or other breathing practice, those circuits begin to break down a little bit.
+[UNKNOWN] 00:35:41: and I get some relief.
+[UNKNOWN] 00:35:42: And if I continue to do it before the circuit can then build back up again, I gradually can wear that circuit down.
+[UNKNOWN] 00:35:50: I sort of liken this, I tell people it's like walking around on a dirt path.
+[UNKNOWN] 00:35:55: You build a rut, the rut gets so deep you can't get out of it.
+[UNKNOWN] 00:35:59: And what breathing is doing is sort of filling in the rut bit by bit to the point that you can climb out of that rut.
+[UNKNOWN] 00:36:05: And that is because
+[UNKNOWN] 00:36:07: the breathing signal is playing some role in the way the circuit works.
+[UNKNOWN] 00:36:14: And then when you disrupt it, the circuit gets a little thrown off kilter.
+[UNKNOWN] 00:36:19: And as you know, when circuits get thrown off, the nervous system tries to adjust in some way or another.
+[UNKNOWN] 00:36:26: And it turns out, at least for breathing,
+[UNKNOWN] 00:36:30: for some evolutionary reason or just by happenstance, it seems to improve our emotional function or our cognitive function.
+[UNKNOWN] 00:36:38: And, you know, we're very fortunate that that's the case.
+[UNKNOWN] 00:36:42: What do you do with all this knowledge in terms of a breathing practice?
+[UNKNOWN] 00:36:47: I find I get tremendous benefit by relatively short periods between five and maybe 20 minutes of doing box breathing.
+[UNKNOWN] 00:36:58: It's very simple to do.
+[UNKNOWN] 00:37:01: I'm now trying this two mole because I'm just curious and exploring it because it may be acting for a different way.
+[UNKNOWN] 00:37:08: And I want to see if I respond differently.
+[UNKNOWN] 00:37:12: I have friends and colleagues who are into, you know, particular styles like Wim Hof.
+[UNKNOWN] 00:37:18: And I think what he's doing is great and getting people who are interested.
+[UNKNOWN] 00:37:23: I think the notion is that I would like to see more people exploring this, and to some degree, as you point out, 30 minutes a day, some of the breath patterns that some of these stars like Wim Hof
+[UNKNOWN] 00:37:40: are a little intimidating to newbies, and so I would like to see something very simple.
+[UNKNOWN] 00:37:46: What I tell my friends is, look, just try it five or ten minutes, see if you feel better, do it for a few days.
+[UNKNOWN] 00:37:51: If you don't like it, stop it, it doesn't cost anything.
+[UNKNOWN] 00:37:55: Invariably, they find that it's helpful.
+[UNKNOWN] 00:37:58: I will often interrupt my day to take 5 or 10 minutes, like if I find that I'm lagging.
+[UNKNOWN] 00:38:05: I think there's some pretty good data that your performance after lunch
+[UNKNOWN] 00:38:13: declines, and so very often what I'll do after lunch is take five or 10 minutes and just sort of breath practice.
+[UNKNOWN] 00:38:20: And lately what does that breath practice look like?
+[UNKNOWN] 00:38:23: It's just box breathing for five or 10 minutes.
+[UNKNOWN] 00:38:25: So five seconds inhale, five second hold, five second exhale, five second hold.
+[UNKNOWN] 00:38:30: Yeah, and sometimes I'll do doubles.
+[UNKNOWN] 00:38:32: I'll do 10 seconds.
+[UNKNOWN] 00:38:35: Just because I get bored, you know, it's just I feel like doing it.
+[UNKNOWN] 00:38:40: And it's,
+[UNKNOWN] 00:38:43: It's very helpful.
+[UNKNOWN] 00:38:45: Now, you're one of the few colleagues I have who openly admits to exploring supplementation.
+[UNKNOWN] 00:38:53: I'm a long time supplement fan.
+[UNKNOWN] 00:38:56: I think there's power in compounds, both prescription, non-prescription, natural, synthesized.
+[UNKNOWN] 00:39:03: I don't use these haphazardly, but I think there are certainly power in them.
+[UNKNOWN] 00:39:07: And one of the places where you and I converge is in terms of our interest in the nervous system and supplementation is vis-a-vis magnesium.
+[UNKNOWN] 00:39:17: Now I've talked at, you know, endlessly on the podcast and elsewhere about magnesium for sake of sleep and improving transitions to sleep and so forth.
+[UNKNOWN] 00:39:27: But you have a,
+[UNKNOWN] 00:39:29: somewhat different interest in magnesium as it relates to cognitive function and durability of cognitive function.
+[UNKNOWN] 00:39:36: Would you mind just sharing with us a little bit about what that interest is, where it stems from, and because it's the Huberman Lab podcast and we often talk about supplementation, what you do with that information.
+[UNKNOWN] 00:39:48: So I need to disclose that I am a scientific advisor to a company called Neuroscentria, which my graduate student, Guo Song Lu, is CEO.
+[UNKNOWN] 00:40:00: So that said, I can give you some background.
+[UNKNOWN] 00:40:03: Guo Song, although when he was in my lab, worked on breathing, had a deep interest in learning and memory.
+[UNKNOWN] 00:40:09: And when he left my lab, he went to work with a renowned learning and memory guy at Stanford, Dick Chen.
+[UNKNOWN] 00:40:17: And when he finished there, he was hired by Susumu Tanegawa at MIT.
+[UNKNOWN] 00:40:23: who also knows a thing or two about memory.
+[UNKNOWN] 00:40:25: I'm teasing, Susumu has a Nobel for his work on immunoglobulins, but then is a world-class memory researcher.
+[UNKNOWN] 00:40:32: Yeah.
+[UNKNOWN] 00:40:34: And more.
+[UNKNOWN] 00:40:35: He's many things.
+[UNKNOWN] 00:40:37: And, and Guo Song had very curious, very bright guy.
+[UNKNOWN] 00:40:41: And he was interested in how signals between neurons get strengthened, which is called long-term potentiation or LTP.
+[UNKNOWN] 00:40:52: And one of the questions that arose was, if I have inputs to a neuron and I get LTP, is the LTP bigger if the signal is bigger or the noise is less?
+[UNKNOWN] 00:41:10: So we can imagine that when we're listening to something, if it's louder, we can hear it better, or if there's less noise, we can hear it better.
+[UNKNOWN] 00:41:17: And he wanted to investigate this.
+[UNKNOWN] 00:41:20: So he did this in tissue culture of hippocampal neurons.
+[UNKNOWN] 00:41:25: And what he found was that if he lowered the background activity in all of the neurons,
+[UNKNOWN] 00:41:34: that the LTP he elicited got stronger.
+[UNKNOWN] 00:41:38: And the way he did that was increasing the level of magnesium in the bathing solution.
+[UNKNOWN] 00:41:44: So he played around with the magnesium, and he found out that when the magnesium was elevated, there was more LTP.
+[UNKNOWN] 00:41:53: All right, that's an observation in a tissue culture.
+[UNKNOWN] 00:41:55: And I should just mention that more LTP essentially translates to more neuroplasticity, more rewiring of connections in essence.
+[UNKNOWN] 00:42:04: So he tested this in mice and basically he offered them a,
+[UNKNOWN] 00:42:14: He had control mice, which got a normal diet and one that had one enriched with magnesium.
+[UNKNOWN] 00:42:19: And the ones that lived enriched with magnesium had higher cognitive function, lived longer, everything you'd want in some magic pill.
+[UNKNOWN] 00:42:29: Those mice did that.
+[UNKNOWN] 00:42:31: Excuse me, rats.
+[UNKNOWN] 00:42:35: The problem was that you couldn't imagine taking this into humans because most magnesium salts don't passively get from the gut into the bloodstream, into the brain.
+[UNKNOWN] 00:42:49: They pass via what's called a transporter.
+[UNKNOWN] 00:42:53: Transporter is something in a membrane that grabs
+[UNKNOWN] 00:42:56: a magnesium molecule, or atom, and pulls it into the other side.
+[UNKNOWN] 00:43:03: So if you imagine you have magnesium in your gut, you have transporters that pull the magnesium into the gut, into the bloodstream.
+[UNKNOWN] 00:43:10: Well, if you had taken normal magnesium supplement that you can buy at the pharmacy, it doesn't cross the gut very easily.
+[UNKNOWN] 00:43:19: And if you would take enough of it to get it in your bloodstream, you start getting diarrhea.
+[UNKNOWN] 00:43:26: So it's not a good way to go.
+[UNKNOWN] 00:43:29: Oh, it is a good way to go.
+[UNKNOWN] 00:43:31: Sorry, couldn't help myself.
+[UNKNOWN] 00:43:34: Well said.
+[UNKNOWN] 00:43:35: So he worked with this brilliant chemist, Fay Mao, and Fay looked at a whole range of magnesium compounds and he found that magnesium threonate
+[UNKNOWN] 00:43:51: was much more effective in crossing the gut blood barrier.
+[UNKNOWN] 00:43:58: Now, they didn't realize at the time, but threonate is a metabolite of vitamin C.
+[UNKNOWN] 00:44:03: And there's lots of threonate in your body.
+[UNKNOWN] 00:44:06: So magnesium threonate would appear to be safe.
+[UNKNOWN] 00:44:09: And maybe part of the role, or now they believe it's part of the role of the threonate, is that it supercharges the transporter to get the magnesium in.
+[UNKNOWN] 00:44:21: And remember, you need a transporter at the gut,
+[UNKNOWN] 00:44:25: into the brain and into cells.
+[UNKNOWN] 00:44:27: They did a study in humans.
+[UNKNOWN] 00:44:29: They hired a company to do a test.
+[UNKNOWN] 00:44:33: It was a hands-off test.
+[UNKNOWN] 00:44:35: It's one of these companies that gets hired by the big pharma to do their test for them.
+[UNKNOWN] 00:44:40: And they got patients who were diagnosed as malcognitive decline.
+[UNKNOWN] 00:44:47: These are people who had cognitive disorder, which was age inappropriate.
+[UNKNOWN] 00:44:51: And the metric that they use for determining how far off they were is Spearman's g-factor, which is a generalized measure of intelligence that most psychologists accept.
+[UNKNOWN] 00:45:10: And the biological age of the subjects was, I think, 51, and the cognitive age was 61, based on the Spearman-G's test.
+[UNKNOWN] 00:45:22: I should say, the Spearman-G factor starts at a particular level in the population
+[UNKNOWN] 00:45:29: at age 20 and declines about 1% a year.
+[UNKNOWN] 00:45:33: So, sorry to say, we're not 20-year-olds anymore.
+[UNKNOWN] 00:45:39: But when you get a number from that, you can put on the curve and see whether it's about your age or not.
+[UNKNOWN] 00:45:45: These people were about 10 years older according to that metric.
+[UNKNOWN] 00:45:50: And long story short, after three months, this is a placebo-controlled double-blind study,
+[UNKNOWN] 00:45:58: The people who were in the placebo arm improved two years, which is common for human studies because of placebo effect.
+[UNKNOWN] 00:46:09: The people who got the compound improved eight years on average.
+[UNKNOWN] 00:46:16: And some improved more than eight years.
+[UNKNOWN] 00:46:18: They didn't do any further diagnosis as to what caused the myocognitive decline.
+[UNKNOWN] 00:46:22: But it was pretty, it was extraordinarily impressive.
+[UNKNOWN] 00:46:25: So it moved their cognition closer to their biological age.
+[UNKNOWN] 00:46:29: Biological age.
+[UNKNOWN] 00:46:30: Do you recall what the dose is of magnesium-3?
+[UNKNOWN] 00:46:33: It's in the paper and it's basically what they have in the compound which is sold commercially.
+[UNKNOWN] 00:46:39: So the compound which is sold commercially is handled by a nutraceutical wholesaler who sells it to the retailers and they make whatever formulation they want.
+[UNKNOWN] 00:46:52: But it's a dosage which is, in my understanding, is rarely tolerable.
+[UNKNOWN] 00:47:00: I take half a dose.
+[UNKNOWN] 00:47:04: The reason I take half a dose is that I had my blood magnesium measured.
+[UNKNOWN] 00:47:10: And it was low normal for my age.
+[UNKNOWN] 00:47:15: I took half a dose, it became high normal.
+[UNKNOWN] 00:47:18: And I felt comfortable staying in the normal range.
+[UNKNOWN] 00:47:22: But, you know, a lot of people are taking the full dose.
+[UNKNOWN] 00:47:29: At my age, I'm not looking to get smarter.
+[UNKNOWN] 00:47:33: I'm looking to decline more slowly.
+[UNKNOWN] 00:47:35: And it's hard for me to tell you whether or not it's effective or not.
+[UNKNOWN] 00:47:39: When I've recommended it to my friends, academics who were not by nature skeptical, if not cynical, and I insist that they try it.
+[UNKNOWN] 00:47:49: They usually don't report a major change in their cognitive function, although sometimes they do report, well, I feel a little bit more alert and my physical movements are better.
+[UNKNOWN] 00:48:01: But many of them report they sleep better.
+[UNKNOWN] 00:48:04: And that makes sense.
+[UNKNOWN] 00:48:06: I think there's good evidence that 3-8 can accelerate the transition into sleep and maybe even access to deeper modes of sleep.
+[UNKNOWN] 00:48:16: But that's very interesting because I, until you and I had the discussion about 3-8, I wasn't aware of the cognitive enhancing effects, but the story makes sense from a mechanistic perspective.
+[UNKNOWN] 00:48:28: And it brings it around to a bigger and more important statement, which is that,
+[UNKNOWN] 00:48:34: I so appreciate your...
+[UNKNOWN] 00:48:37: attention to mechanism.
+[UNKNOWN] 00:48:38: I guess this stems from your early training as a physicist and the desire to get numbers and to really parse things at a fine level.
+[UNKNOWN] 00:48:46: We've covered a lot today.
+[UNKNOWN] 00:48:47: I know there's much more that we could cover.
+[UNKNOWN] 00:48:49: I'm going to insist on a part two at some point, but I really want to speak on behalf of a huge number of people and just thank you, not just for your time and energy and attention to detail and accuracy and clarity around this topic today, but also,
+[UNKNOWN] 00:49:05: What I should have said at the beginning, which is that, you know, you really are a pioneer in this field of studying respiration and the mechanisms underlying respiration with modern tools for now for many decades.
+[UNKNOWN] 00:49:17: I really want to extend a sincere thanks.
+[UNKNOWN] 00:49:20: It means a lot to me.
+[UNKNOWN] 00:49:21: And I know to the audience of this podcast, as someone with your depth and rigor in this area is both a scientist and a practitioner, and that you would share this with us.
+[UNKNOWN] 00:49:30: So thank you.
+[UNKNOWN] 00:49:31: I appreciate the opportunity and I would be delighted to come back at any time.
+[UNKNOWN] 00:49:36: Wonderful.
+[UNKNOWN] 00:49:37: We will absolutely do it.
+[UNKNOWN] 00:49:38: Thanks again, Jack.
