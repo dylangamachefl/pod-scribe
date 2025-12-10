@@ -1,0 +1,52 @@
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+
+# Prevent interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-dev \
+    python3-pip \
+    ffmpeg \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symlink for python
+RUN ln -s /usr/bin/python3.11 /usr/bin/python
+
+# Upgrade pip
+RUN python -m pip install --upgrade pip
+
+# Copy requirements for transcription worker
+COPY transcription-service/pytorch-requirements.txt ./
+
+# Install PyTorch with CUDA support
+# Using CUDA 12.1 compatible version
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Install other ML dependencies
+RUN pip install --no-cache-dir -r pytorch-requirements.txt
+
+# Install Redis client for events
+RUN pip install --no-cache-dir redis
+
+# Copy application code
+COPY transcription-service/src/ ./src/
+COPY shared/ /app/shared/
+
+# Set PYTHONPATH
+ENV PYTHONPATH=/app/src:/app
+
+# Set environment variables for CUDA
+ENV CUDA_VISIBLE_DEVICES=0
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+# Create directories for shared volumes
+RUN mkdir -p /app/shared/output /app/shared/config /app/shared/logs
+
+# Command will be overridden in docker-compose
+CMD ["python", "src/cli.py"]

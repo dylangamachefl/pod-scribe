@@ -1,5 +1,17 @@
-# PyTorch with CUDA 12.6 support
---index-url https://download.pytorch.org/whl/cu126
-torch==2.8.0
-torchvision==0.23.0
-torchaudio==2.8.0
+# ML/Audio Processing Dependencies
+# These are installed AFTER PyTorch (which is installed separately in Dockerfile with CUDA index)
+
+# Core ML packages
+pandas>=1.5.0
+faster-whisper>=0.10.0
+git+https://github.com/m-bain/whisperx.git  # WhisperX from git (as in environment.yml)
+pyannote.audio==3.3.2  # Specific version from environment.yml
+torchaudio  # Already installed with PyTorch but explicitly listed
+
+# Utilities
+feedparser  # For RSS feed parsing
+requests  # For HTTP requests
+yt-dlp>=2023.0.0  # For audio downloads
+pydub>=0.25.0  # For audio processing
+pydantic  # For data models
+python-dotenv  # For environment config

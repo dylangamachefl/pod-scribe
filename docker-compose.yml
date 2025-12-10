@@ -17,6 +17,64 @@ services:
       - podcast-network
     restart: unless-stopped
 
+  # Redis Message Broker
+  # Used for event-driven communication between services
+  redis:
+    image: redis:7-alpine
+    container_name: podcast-redis
+    ports:
+      - "6379:6379"  # Redis port
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes  # Enable persistence
+    networks:
+      - podcast-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Transcription Worker (GPU-enabled)
+  # Runs on GPU for Whisper transcription
+  # Uses event-driven architecture - listens for transcription requests via Redis
+  transcription-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.transcription-worker
+    container_name: podcast-transcription-worker
+    runtime: nvidia  # Requires nvidia-container-toolkit
+    environment:
+      # GPU configuration
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      # Service configuration
+      - REDIS_URL=redis://redis:6379
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
+      - DEVICE=cuda
+      - COMPUTE_TYPE=int8
+      - BATCH_SIZE=4
+      - WHISPER_MODEL=large-v2
+    volumes:
+      # Shared directories for reading/writing
+      - ./shared/config:/app/shared/config
+      - ./shared/output:/app/shared/output
+      - ./shared/logs:/app/shared/logs
+    depends_on:
+      - redis
+    networks:
+      - podcast-network
+    # Don't auto-restart on failure (manual trigger)
+    restart: "no"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
   # RAG Service (FastAPI Backend)
   # Provides semantic search and Q&A over transcripts using Ollama
   rag-service:
@@ -43,8 +101,10 @@ services:
       - TOP_K_RESULTS=${TOP_K_RESULTS:-5}
       - SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD:-0.7}
       - RAG_FRONTEND_URL=${RAG_FRONTEND_URL:-http://localhost:3000}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}  # Redis for events
     depends_on:
       - qdrant
+      - redis
     networks:
       - podcast-network
     extra_hosts:
@@ -73,6 +133,9 @@ services:
       - SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-gemini-2.5-flash-lite}
       - SUMMARIZATION_API_PORT=${SUMMARIZATION_API_PORT:-8002}
       - SUMMARIZATION_FRONTEND_URL=${SUMMARIZATION_FRONTEND_URL:-http://localhost:3000}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}  # Redis for events
+    depends_on:
+      - redis
     networks:
       - podcast-network
     restart: unless-stopped
@@ -120,6 +183,10 @@ services:
 volumes:
   # Persistent storage for Qdrant vector database
   qdrant_storage:
+    driver: local
+  
+  # Persistent storage for Redis (event queue and cache)
+  redis_data:
     driver: local
 
 secrets:

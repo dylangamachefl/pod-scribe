@@ -23,52 +23,77 @@ from managers.episode_manager import (
 from managers.status_monitor import write_status, clear_status, update_progress
 
 
-def ingest_transcript_to_rag(transcript_path: str, episode_title: str, podcast_name: str) -> bool:
+def publish_transcription_event(
+    transcript_path: Path,
+    episode_id: str,
+    episode_title: str,
+    podcast_name: str,
+    config: TranscriptionConfig,
+    audio_url: Optional[str] = None
+) -> bool:
     """
-    Trigger RAG service to ingest a transcript.
+    Publish EpisodeTranscribed event to notify downstream services.
+    
+    This replaces the direct HTTP call to RAG service with event-driven architecture.
+    Services (RAG, Summarization) subscribe to this event and process asynchronously.
     
     Args:
         transcript_path: Absolute path to transcript file
+        episode_id: Unique episode identifier
         episode_title: Title of the episode
         podcast_name: Name of the podcast
+        config: Transcription configuration
+        audio_url: Optional URL to the audio file
         
     Returns:
-        True if successful, False otherwise
+        True if published successfully, False otherwise
     """
-    # RAG service URL - use localhost for host machine
-    # Since transcription runs on host, use localhost
-    rag_url = "http://localhost:8000/ingest"
-    
-    # Convert Windows path to Docker path format
-    docker_path = str(transcript_path).replace('\\', '/')
-    if docker_path[1] == ':':
-        # Convert C:/path to /app/shared/output/... format
-        # Extract the path after 'shared'
-        parts = docker_path.split('shared')
-        if len(parts) > 1:
-            docker_path = '/app/shared' + parts[1]
-    
-    payload = {
-        "file_path": docker_path
-    }
-    
     try:
-        response = requests.post(rag_url, json=payload, timeout=60)
-        response.raise_for_status()
+        # Import event bus (lazy import to avoid circular dependencies)
+        import sys
+        sys.path.insert(0, str(config.root_dir / "shared"))
+        from events import get_event_bus, EpisodeTranscribed
+        import uuid
         
-        result = response.json()
-        chunks_created = result.get('chunks_created', 0)
-        print(f"   📊 RAG: Created {chunks_created} chunks")
-        return True
+        # Get event bus
+        event_bus = get_event_bus()
         
-    except requests.exceptions.ConnectionError:
-        print(f"   ⚠️  RAG service unavailable (not running or not accessible)")
-        return False
-    except requests.exceptions.Timeout:
-        print(f"   ⚠️  RAG ingestion timed out")
-        return False
+        # Convert to Docker path for container services
+        try:
+            docker_path = config.get_docker_path(transcript_path)
+        except ValueError as e:
+            print(f"   ⚠️  Path conversion error: {e}")
+            return False
+        
+        # Create event
+        event = EpisodeTranscribed(
+            event_id=f"evt_{uuid.uuid4().hex[:12]}",
+            service="transcription",
+            episode_id=episode_id,
+            episode_title=episode_title,
+            podcast_name=podcast_name,
+            transcript_path=str(transcript_path),
+            docker_transcript_path=docker_path,
+            audio_url=audio_url
+        )
+        
+        # Publish event
+        success = event_bus.publish(event_bus.CHANNEL_TRANSCRIBED, event)
+        
+        if success:
+            print(f"   📤 Published EpisodeTranscribed event: {event.event_id}")
+            print(f"   ℹ️  RAG and Summarization services will process asynchronously")
+        else:
+            print(f"   ⚠️  Failed to publish event (Redis may be unavailable)")
+            print(f"   ℹ️  Services will rely on file watcher as backup")
+        
+        return success
+        
     except Exception as e:
-        print(f"   ⚠️  RAG ingestion failed: {e}")
+        print(f"   ⚠️  Event publishing failed: {e}")
+        print(f"   ℹ️  Services will rely on file watcher as backup")
+        import traceback
+        traceback.print_exc()
         return False
 
 
@@ -217,20 +242,43 @@ def process_episode(episode_data: Dict, config: TranscriptionConfig,
         podcast_dir = config.output_dir / sanitize_filename(feed_title)
         podcast_dir.mkdir(exist_ok=True)
         
+        # Write to temporary file first (atomic write pattern)
+        # This prevents file watcher from reading partially-written files
         output_file = podcast_dir / f"{safe_filename}.txt"
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(f"Title: {episode_title}\n")
-            f.write(f"Podcast: {feed_title}\n")
-            f.write(f"Processed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"\n{'='*60}\n\n")
-            f.write(transcript_text)
+        temp_output_file = podcast_dir / f"{safe_filename}.tmp"
         
-        print(f"💾 Saved transcript: {output_file}")
-        update_progress("saving", 1.0)
+        try:
+            # Write complete content to .tmp file
+            with open(temp_output_file, 'w', encoding='utf-8') as f:
+                f.write(f"Title: {episode_title}\n")
+                f.write(f"Podcast: {feed_title}\n")
+                f.write(f"Processed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"\n{'='*60}\n\n")
+                f.write(transcript_text)
+            
+            # Atomic rename from .tmp to .txt
+            # This ensures file watcher only sees complete files
+            temp_output_file.replace(output_file)
+            
+            print(f"💾 Saved transcript: {output_file}")
+            update_progress("saving", 1.0)
+            
+        except Exception as e:
+            # Clean up temp file if something goes wrong
+            if temp_output_file.exists():
+                temp_output_file.unlink()
+            raise
         
-        # Trigger RAG ingestion
-        print(f"🔄 Triggering RAG ingestion...")
-        ingest_transcript_to_rag(str(output_file), episode_title, feed_title)
+        # Publish transcription event for downstream services
+        print(f"📤 Publishing transcription event...")
+        publish_transcription_event(
+            transcript_path=output_file,
+            episode_id=guid,
+            episode_title=episode_title,
+            podcast_name=feed_title,
+            config=config,
+            audio_url=audio_url if 'audio_url' in locals() else None
+        )
         
         # Update history
         history['processed_episodes'].append(guid)

@@ -32,10 +32,12 @@ class TranscriptFileHandler(FileSystemEventHandler):
         file_path = Path(event.src_path)
         print(f"🔔 File created event: {file_path.name} (in {file_path.parent.name}/)")
         
-        # Only process .txt files
+        # Only process .txt files (ignore .tmp files = partial writes)
         if file_path.suffix.lower() == '.txt':
             print(f"✅ Queuing transcript for processing: {file_path.name}")
             self.pending_files[str(file_path)] = time.time()
+        elif file_path.suffix.lower() == '.tmp':
+            print(f"⏭️  Skipping temporary file: {file_path.name}")
         else:
             print(f"⏭️  Skipping non-txt file: {file_path.name}")
     
@@ -46,13 +48,18 @@ class TranscriptFileHandler(FileSystemEventHandler):
             
         file_path = Path(event.src_path)
         
+        # Ignore .tmp files (they're intermediate states)
+        if file_path.suffix.lower() == '.tmp':
+            return
+        
         # Only process .txt files that aren't already pending or processed
         if file_path.suffix.lower() == '.txt':
             file_str = str(file_path)
             if file_str not in self.pending_files and file_str not in self.processed_files:
-                # Check if file has content (avoid partial writes)
+                # Check if file has content and is stable
+                # With atomic rename pattern, this is less critical but still useful
                 try:
-                    if file_path.exists() and file_path.stat().st_size > 1000:  # At least 1KB
+                    if file_path.exists() and file_path.stat().st_size > 500:  # At least 500 bytes
                         print(f"🔔 File modified event (new content): {file_path.name} (in {file_path.parent.name}/)")
                         print(f"✅ Queuing transcript for processing: {file_path.name}")
                         self.pending_files[file_str] = time.time()

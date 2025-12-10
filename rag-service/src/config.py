@@ -44,7 +44,7 @@ SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.7"))  # minimu
 # Hybrid Search Configuration
 HYBRID_SEARCH_ENABLED = os.getenv("HYBRID_SEARCH_ENABLED", "true").lower() == "true"
 BM25_WEIGHT = float(os.getenv("BM25_WEIGHT", "0.5"))  # 0.0 to 1.0
-FAISS_WEIGHT = float(os.getenv("FAISS_WEIGHT", "0.5"))  # 0.0 to 1.0
+QDRANT_WEIGHT = float(os.getenv("QDRANT_WEIGHT", "0.5"))  # 0.0 to 1.0 (replaces FAISS_WEIGHT)
 HYBRID_TOP_K = int(os.getenv("HYBRID_TOP_K", "5"))
 
 # Index persistence

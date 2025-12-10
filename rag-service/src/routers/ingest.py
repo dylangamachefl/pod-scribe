@@ -58,9 +58,10 @@ async def ingest_file(request: IngestRequest):
         qdrant_service = get_qdrant_service()
         num_inserted = qdrant_service.insert_chunks(chunks, embeddings, metadata)
         
-        # Rebuild hybrid search indexes
+        # Update hybrid search indexes incrementally
         try:
             from services.hybrid_retriever import get_hybrid_retriever_service
+            from langchain_core.documents import Document
             
             try:
                 hybrid_service = get_hybrid_retriever_service()
@@ -71,13 +72,29 @@ async def ingest_file(request: IngestRequest):
                     qdrant_service=qdrant_service
                 )
             
-            print(f"Rebuilding hybrid search indexes after ingestion...")
-            hybrid_service.build_indexes()
-            hybrid_service.save_indexes()
-            print(f"✅ Hybrid indexes rebuilt successfully")
+            # Convert chunks to Documents for BM25 indexing
+            new_documents = []
+            for i, chunk in enumerate(chunks):
+                doc = Document(
+                    page_content=chunk["text"],
+                    metadata={
+                        "episode_title": metadata.get("episode_title", "Unknown"),
+                        "podcast_name": metadata.get("podcast_name", "Unknown"),
+                        "speaker": chunk.get("speaker", "UNKNOWN"),
+                        "timestamp": chunk.get("timestamp", "00:00:00"),
+                        "chunk_index": i,
+                        "source_file": metadata.get("source_file", "")
+                    }
+                )
+                new_documents.append(doc)
+            
+            # Incrementally add to BM25 index (much faster than full rebuild!)
+            print(f"Adding {len(new_documents)} documents to BM25 index...")
+            hybrid_service.add_documents(new_documents)
+            print(f"✅ BM25 index updated incrementally")
         except Exception as e:
-            print(f"⚠️ Warning: Failed to rebuild hybrid indexes: {str(e)}")
-            # Don't fail the ingestion if hybrid index rebuild fails
+            print(f"⚠️ Warning: Failed to update hybrid indexes: {str(e)}")
+            # Don't fail the ingestion if hybrid index update fails
         
         return IngestResponse(
             status="success",

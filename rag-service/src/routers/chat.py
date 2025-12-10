@@ -17,11 +17,11 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 @router.post("", response_model=ChatResponse)
 async def ask_question(request: ChatRequest):
     """
-    Answer a question about a specific episode using hybrid search (BM25 + FAISS).
+    Answer a question about a specific episode using hybrid search (BM25 + Qdrant).
     
     The hybrid retriever combines:
-    - BM25: Keyword-based matching
-    - FAISS: Semantic vector search
+    - BM25: Keyword-based matching (local index)
+    - Qdrant: Semantic vector search (remote database)
     
     Results are filtered to the specified episode only.
     """
@@ -67,19 +67,23 @@ async def ask_question(request: ChatRequest):
                     embeddings_service=embeddings_service,
                     qdrant_service=qdrant_service
                 )
-                # Try to load existing indexes
-                if not hybrid_service.load_indexes():
-                    # Build new indexes if loading fails
-                    print("📊 Building new hybrid search indexes...")
-                    hybrid_service.build_indexes()
-                    hybrid_service.save_indexes()
-                    print("✅ Indexes built and saved")
+                # BM25 index loads from disk on init if available
+                # If not available, it will be built on first search or manually
+                if not hybrid_service._loaded_from_disk:
+                    print("📊 Building BM25 index from Qdrant...")
+                    hybrid_service.build_bm25_index()
+                    print("✅ BM25 index built and saved")
             except Exception as e:
                 print(f"❌ Failed to initialize hybrid retriever: {e}")
                 raise HTTPException(
                     status_code=500,
                     detail=f"Failed to initialize search indexes: {str(e)}"
                 )
+        
+        # Ensure BM25 index exists before search
+        if hybrid_service.bm25_retriever is None:
+            print("📊 BM25 index not available, building from Qdrant...")
+            hybrid_service.build_bm25_index()
         
         # Perform hybrid search scoped to the episode
         print(f"🔍 Searching for relevant chunks...")
@@ -88,7 +92,7 @@ async def ask_question(request: ChatRequest):
                 query=request.question,
                 k=5,
                 bm25_weight=request.bm25_weight,
-                faiss_weight=request.faiss_weight,
+                qdrant_weight=request.faiss_weight,  # Still using faiss_weight name in request model for backward compat
                 episode_filter=request.episode_title  # Always filter by episode
             )
             print(f"✅ Found {len(retrieved_chunks)} relevant chunks")
