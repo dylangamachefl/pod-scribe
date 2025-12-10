@@ -94,7 +94,7 @@ class TranscriptFileHandler(FileSystemEventHandler):
             print(f"📄 Episode: {metadata['episode_title']}")
             print(f"🎙️  Podcast: {metadata['podcast_name']}")
             
-            # Generate summary with Gemini
+            # Generate summary with Gemini (returns StructuredSummary Pydantic model)
             print(f"🤖 Generating summary with Gemini...")
             gemini_service = get_gemini_service()
             summary_result = gemini_service.summarize_transcript(
@@ -103,23 +103,26 @@ class TranscriptFileHandler(FileSystemEventHandler):
                 metadata["podcast_name"]
             )
             
-            # Save summary
+            # Save summary - use Pydantic model's dict() method for complete serialization
             summary_file = SUMMARY_OUTPUT_PATH / f"{file_path.stem}_summary.json"
+            
+            # Combine metadata with the complete structured summary
+            complete_summary_data = {
+                "episode_title": metadata["episode_title"],
+                "podcast_name": metadata["podcast_name"],
+                "processed_date": metadata.get("processed_date"),
+                "created_at": metadata.get("processed_date"),  # Map to created_at for frontend
+                # Unpack all structured summary fields from Pydantic model
+                **summary_result.model_dump(),
+                # Add metadata fields
+                "speakers": metadata.get("speakers", []),
+                "duration": metadata.get("duration"),
+                "audio_url": metadata.get("audio_url"),
+                "source_file": str(file_path)
+            }
+            
             with open(summary_file, 'w', encoding='utf-8') as f:
-                json.dump({
-                    "episode_title": metadata["episode_title"],
-                    "podcast_name": metadata["podcast_name"],
-                    "processed_date": metadata.get("processed_date"),
-                    "summary": summary_result.get("summary", ""),
-                    "key_topics": summary_result.get("key_topics", []),
-                    "insights": summary_result.get("insights", []),
-                    "quotes": summary_result.get("quotes", []),
-                    "speakers": metadata.get("speakers", []),
-                    "duration": metadata.get("duration"),
-                    "audio_url": metadata.get("audio_url"),
-                    "source_file": str(file_path),
-                    "processing_time_ms": summary_result.get("processing_time_ms", 0)
-                }, f, indent=2)
+                json.dump(complete_summary_data, f, indent=2)
             
             print(f"✅ Summary saved: {summary_file.name}")
             print(f"{'='*60}\n")

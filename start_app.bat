@@ -41,12 +41,22 @@ REM Start the listener in the background using python (assuming python is in pat
 REM We use start /b to run it in the same window background or minimal intrusion
 start /b python scripts\host_listener.py
 
+REM [3/3] Wait for services to be ready and open browser
+echo.
+echo [3/3] Waiting for services to initialize...
+echo.
+timeout /t 5 /nobreak >nul
+
+REM Open browser to the web interface
+echo Opening browser to http://localhost:3000...
+start http://localhost:3000
+
 echo.
 echo ========================================================================
-echo   Startup Initiated Successfully!
+echo   Startup Completed Successfully!
 echo ========================================================================
 echo.
-echo   Web Interface:    http://localhost:3000
+echo   Web Interface:    http://localhost:3000  [OPENED]
 echo   RAG API Docs:     http://localhost:8000/docs
 echo   Transcribe API:   http://localhost:8001/docs
 echo   Summary API:      http://localhost:8002/docs

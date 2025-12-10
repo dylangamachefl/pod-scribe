@@ -6,11 +6,11 @@
 import axios from 'axios';
 import type { ChatRequest, ChatResponse, Summary, HealthStatus, IngestStats } from './types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_RAG_API_URL || 'http://localhost:8000';
 
 const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 30000, // 30 second timeout for LLM generation
+    timeout: 60000, // 60 second timeout for LLM generation (RAG queries can be slow)
     headers: {
         'Content-Type': 'application/json',
     },

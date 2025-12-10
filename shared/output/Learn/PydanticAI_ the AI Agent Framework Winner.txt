@@ -1,0 +1,197 @@
+Title: PydanticAI: the AI Agent Framework Winner
+Podcast: Learn
+Processed: 2025-12-10 10:49:07
+
+============================================================
+
+[SPEAKER_00] 00:00:00: This video is brought to you by Squarespace.
+[SPEAKER_00] 00:00:03: What if you could integrate GPT-4 right into your Python app and make it aware of your business logic, your data, and your models?
+[SPEAKER_00] 00:00:12: Today, I'll show you exactly how to do this with Pydantic AI, a really nice toolkit that connects AI with real Python code.
+[SPEAKER_00] 00:00:19: And don't worry, it's not just theoretical.
+[SPEAKER_00] 00:00:21: I'll walk you through an actual example.
+[SPEAKER_00] 00:00:24: Let's dive in.
+[SPEAKER_00] 00:00:25: First, what is Pydantic AI?
+[SPEAKER_00] 00:00:27: It's basically an extension of Pydantic that helps you build AI-powered agents.
+[SPEAKER_00] 00:00:33: These agents can use your domain data models, they can access dependencies like databases or APIs, and they can return structured outputs with validation, thus the Pydantic extension.
+[SPEAKER_00] 00:00:46: So an agent, in that sense, is an LLM that's aware of your business.
+[SPEAKER_00] 00:00:50: context and pedantic AI integrates with popular models including GPT-4.
+[SPEAKER_00] 00:00:56: Why is this helpful?
+[SPEAKER_00] 00:00:57: Well if you're just using a chatbot directly then you're going to get unstructured text back which is going to be hard to deal with in production systems and what pedantic AI adds is that you have type safe outputs that are validated by pedantic, you have a clean way to inject contextual dependencies
+[SPEAKER_00] 00:01:15: like a database for example.
+[SPEAKER_00] 00:01:17: And you also have the ability to define tools, custom functions that the agent can call.
+[SPEAKER_00] 00:01:23: And this helps you build AI systems that go beyond just being simple chatbots.
+[SPEAKER_00] 00:01:27: So let's take a look at a concrete example in healthcare.
+[SPEAKER_00] 00:01:31: That being said, I'm not a doctor.
+[SPEAKER_00] 00:01:33: I don't recommend you actually start using this in your hospital.
+[SPEAKER_00] 00:01:36: But theoretically, this is possible.
+[SPEAKER_00] 00:01:39: Let's say you're building a triage system that helps nurses respond to patient questions.
+[SPEAKER_00] 00:01:46: So here is the starting point of this example.
+[SPEAKER_00] 00:01:48: It doesn't use any AI.
+[SPEAKER_00] 00:01:50: So as you can see, I'm using AsyncIO because
+[SPEAKER_00] 00:01:52: Well, why not?
+[SPEAKER_00] 00:01:54: It's helpful if we're sending requests to an API.
+[SPEAKER_00] 00:01:56: I'm using a data class to represent a mock database.
+[SPEAKER_00] 00:02:00: I'm importing environment variables from a .env file.
+[SPEAKER_00] 00:02:03: In this case, this contains my OpenAI API key.
+[SPEAKER_00] 00:02:07: I'm not going to show you that file.
+[SPEAKER_00] 00:02:08: But then I have a simple mock database, very basic.
+[SPEAKER_00] 00:02:12: It has a patient class, using a data class for that one.
+[SPEAKER_00] 00:02:15: A patient has an ID, a name, and vitals, which is a dictionary of strings to
+[SPEAKER_00] 00:02:21: whatever.
+[SPEAKER_00] 00:02:22: I'm not saying that this is how you should model patients, but it's a simple example.
+[SPEAKER_00] 00:02:26: Then I have my database, which is nothing more than a dictionary that has two patients with each an ID, a name, and some vitals.
+[SPEAKER_00] 00:02:36: Then I have a helper class that helps me access some of that data.
+[SPEAKER_00] 00:02:40: So here, given an ID, this is going to give me the name of the patient.
+[SPEAKER_00] 00:02:44: And this method gives the latest vital of a patient by ID.
+[SPEAKER_00] 00:02:48: Extremely basic.
+[SPEAKER_00] 00:02:50: Of course, if you have an actual database, you would fill this with way more information, you'd have way more capabilities here.
+[SPEAKER_00] 00:02:56: It's just a basic example.
+[SPEAKER_00] 00:02:58: The only thing I have now is a main function that creates a database connection and gets a patient name and vitals and then prints that.
+[SPEAKER_00] 00:03:06: So when I run this, then this is what we get.
+[SPEAKER_00] 00:03:08: Very basic, right?
+[SPEAKER_00] 00:03:10: So now as a first step, let's set up a bit of scaffolding for our agents.
+[SPEAKER_00] 00:03:15: One thing that we're going to need is some class that represents the things that the agent depends on.
+[SPEAKER_00] 00:03:21: Let's call that triage dependencies.
+[SPEAKER_00] 00:03:25: And for simplicity, I'm going to use a data class here.
+[SPEAKER_00] 00:03:30: And what we're going to need is a patient ID.
+[SPEAKER_00] 00:03:34: And we're also going to need a database connection, right?
+[SPEAKER_00] 00:03:38: So that for any patient, we can access them the database and do something with it.
+[SPEAKER_00] 00:03:44: So that's what the agent is going to be dependent on.
+[SPEAKER_00] 00:03:47: Next, we're also going to need to decide what the output of the agent should look like.
+[SPEAKER_00] 00:03:52: So that's going to be triage output.
+[SPEAKER_00] 00:03:56: I'll show why it's indented here.
+[SPEAKER_00] 00:03:58: And since we're using Pydentik AI, this is where we should rely on Pydentik's base model.
+[SPEAKER_00] 00:04:09: And of course, we're going to need to import that.
+[SPEAKER_00] 00:04:12: So what the output is going to be, actually AI already sort of
+[SPEAKER_00] 00:04:16: indicates that here is that we're going to have a response text from the chat agent.
+[SPEAKER_00] 00:04:21: We also need a Boolean indicating whether or not this should be escalated, and we're going to need to indicate the urgency as a number between 1 and 10.
+[SPEAKER_00] 00:04:31: These are the three things that we are going to need.
+[SPEAKER_00] 00:04:35: We're going to use a field to give a bit more information about this.
+[SPEAKER_00] 00:04:40: In this case, the response text is going to be a field,
+[SPEAKER_00] 00:04:44: with a description, and that's the response text for the triage.
+[SPEAKER_00] 00:04:49: And maybe we can actually write that a bit clearer by saying this is a message to the actual patient.
+[SPEAKER_00] 00:04:56: Like so.
+[SPEAKER_00] 00:04:57: And then we can do the same thing for escalate and for urgency.
+[SPEAKER_00] 00:05:01: So whether we should escalate this case and what the urgency level of this case is.
+[SPEAKER_00] 00:05:06: To a human nurse.
+[SPEAKER_00] 00:05:08: Don't forget about the humans, AI.
+[SPEAKER_00] 00:05:10: So now we have created our sort of context for the agent.
+[SPEAKER_00] 00:05:13: So this is what the agent depends on.
+[SPEAKER_00] 00:05:15: which is the patient ID and a reference to a database connection, and we define what the agent should output, response text, whether to escalate, and what the urgency is.
+[SPEAKER_00] 00:05:25: Now, before I show you how to create an agent, first I want to take a minute to talk about today's sponsor, Squarespace.
+[SPEAKER_00] 00:05:32: Squarespace is an all-in-one website platform designed to help you stand out and succeed online.
+[SPEAKER_00] 00:05:38: Whether you're just starting out or scaling your business, it gives you everything you need to claim your domain, build a professional site, grow your brand, and get paid all in one place.
+[SPEAKER_00] 00:05:47: I've used Squarespace myself to launch websites for my businesses.
+[SPEAKER_00] 00:05:51: And as someone who builds software and teaches software design, I really appreciate tools that are thoughtfully designed and just work.
+[SPEAKER_00] 00:05:57: It's really easy to get started by using Blueprint AI, which generates a fully custom website based on just a few prompts.
+[SPEAKER_00] 00:06:05: There are a ton of templates that all look really good.
+[SPEAKER_00] 00:06:07: After that, it's trivial to add sections or change the appearance to your liking.
+[SPEAKER_00] 00:06:12: And boom, you have a full professional website.
+[SPEAKER_00] 00:06:15: Squarespace comes with integrated SEO tools, so you don't need to worry about optimizing meta descriptions or generating sitemaps.
+[SPEAKER_00] 00:06:22: It handles all of that automatically.
+[SPEAKER_00] 00:06:25: If you ever try to get a new dev blog or documentation site indexed properly, you know how frustrating that can be.
+[SPEAKER_00] 00:06:33: With Squarespace, it's baked in.
+[SPEAKER_00] 00:06:35: And with the built-in analytics dashboard, you can track traffic, engagement, and even revenue if you're selling something.
+[SPEAKER_00] 00:06:43: Or you can use it to figure out what landing pages are working and what needs to be improved.
+[SPEAKER_00] 00:06:48: Whether you're building a site to showcase your portfolio or launch a software-as-a-service that you just vibe-coded, Squarespace makes it incredibly easy.
+[SPEAKER_00] 00:06:57: Head over to squarespace.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com.com
+[SPEAKER_00] 00:07:10: Now, next thing that we're going to do is define an agent that uses GPT-4, that takes our dependencies, and then returns a structured output.
+[SPEAKER_00] 00:07:20: We also need to supply it with a system prompt that explains the role of this particular agent, which is a triage assistant.
+[SPEAKER_00] 00:07:27: So I'm going to create a triage agent, which is an agent, and that is actually something that we're going to need to import from Pydantic AI.
+[SPEAKER_00] 00:07:43: going to import the agent and then the agent is going to use the OpenAI GPT 4.0 model.
+[SPEAKER_00] 00:07:57: We're going to need to supply the dependencies, which is triage dependencies.
+[SPEAKER_00] 00:08:02: We're going to need to specify the output type, which is triage output, and we're going to supply a system prompt.
+[SPEAKER_00] 00:08:16: You are a triage assistant helping patients.
+[SPEAKER_00] 00:08:25: I still can't type.
+[SPEAKER_00] 00:08:28: There.
+[SPEAKER_00] 00:08:30: Provide clear advice and assess urgency.
+[SPEAKER_00] 00:08:37: There we go.
+[SPEAKER_00] 00:08:38: That's our system prompts.
+[SPEAKER_00] 00:08:40: I'm missing closing parenthesis.
+[SPEAKER_00] 00:08:44: Oh, yeah.
+[SPEAKER_00] 00:08:45: Well, Copilot even corrects my spelling.
+[SPEAKER_00] 00:08:48: Very helpful.
+[SPEAKER_00] 00:08:49: So this is my agent.
+[SPEAKER_00] 00:08:51: And now what you can do, let's change this main function here, is we can create the dependencies.
+[SPEAKER_00] 00:08:58: So we're going to do that for patient 42.
+[SPEAKER_00] 00:09:01: And we have a database connection.
+[SPEAKER_00] 00:09:04: And then we're going to get a result.
+[SPEAKER_00] 00:09:08: from the triage agents.run.
+[SPEAKER_00] 00:09:14: We can now specify a prompt, supply the dependencies.
+[SPEAKER_00] 00:09:19: There we go.
+[SPEAKER_00] 00:09:21: Now we can print the result.output.
+[SPEAKER_00] 00:09:26: Something went wrong here with the parenthesis.
+[SPEAKER_00] 00:09:30: I don't know if you also have that problem.
+[SPEAKER_00] 00:09:31: If you have these kind of editing AI kind of tools, they always screw up my parenthesis for some reason.
+[SPEAKER_00] 00:09:38: Not sure why that happens.
+[SPEAKER_00] 00:09:39: Okay, so now we're actually running the agent.
+[SPEAKER_00] 00:09:42: and let's see what happens if we run the file again.
+[SPEAKER_00] 00:09:46: Now you see we get back an object with a response text.
+[SPEAKER_00] 00:09:51: We have escalate as false, urgency is two, which is probably right in this particular case.
+[SPEAKER_00] 00:09:58: Seems like it's not very urgent.
+[SPEAKER_00] 00:10:01: But the thing is, of course, that it's not really using any of the patient information right now.
+[SPEAKER_00] 00:10:07: Before I show you how to make this more patient dependent, if you're enjoying this video, give it a like.
+[SPEAKER_00] 00:10:12: and subscribe to the channel.
+[SPEAKER_00] 00:10:13: This is a small thing but it really helps and lets me keep making these types of videos.
+[SPEAKER_00] 00:10:18: Now let's say we want to personalize this more to the patient instead of this very generic thing that we get here as a response.
+[SPEAKER_00] 00:10:28: So what you can do then with the Pydentik AI agents is you can add things.
+[SPEAKER_00] 00:10:33: Like, for example, you can add a system prompt.
+[SPEAKER_00] 00:10:37: triage agents dot system prompt.
+[SPEAKER_00] 00:10:41: So I'm going to use the system prompt decorator.
+[SPEAKER_00] 00:10:49: And then we're going to add the patient name and prompts in Pydentic AI.
+[SPEAKER_00] 00:10:53: They're going to get a context.
+[SPEAKER_00] 00:10:55: So in this case, that is a run context, which, well, we need to import that from a Pydentic AI.
+[SPEAKER_00] 00:11:05: like so, and runContext is a generic type that gets dependencies, like so.
+[SPEAKER_00] 00:11:15: And this is going to return a name because we want a patient name, of course.
+[SPEAKER_00] 00:11:20: So then we get the patient name from the database, providing the patient ID, and then what we can do is simply write the patient name.
+[SPEAKER_00] 00:11:33: patient name is like so.
+[SPEAKER_00] 00:11:35: Now this is going to add this particular system prompt to our agents, which is nice.
+[SPEAKER_00] 00:11:42: And then we can do in the agent, for example, is to also indicate always mention the patient name when available, like so.
+[SPEAKER_00] 00:11:51: So it's more personalized.
+[SPEAKER_00] 00:11:52: So we're going to get generic advice, but at least it's going to be personalized to you.
+[SPEAKER_00] 00:11:58: So when I run this, let's see what the response text is.
+[SPEAKER_00] 00:12:03: There you go, John for your symptoms, et cetera, et cetera.
+[SPEAKER_00] 00:12:06: So now it's personalized to the patient name because it uses the system prompt and adds it to my agent.
+[SPEAKER_00] 00:12:14: So that's a really helpful tool.
+[SPEAKER_00] 00:12:15: You can of course add more of these prompts if that's helpful and get useful information from the dependencies.
+[SPEAKER_00] 00:12:22: Now, instead of just getting data, you can also add tools.
+[SPEAKER_00] 00:12:25: For example, calling a function that does something.
+[SPEAKER_00] 00:12:28: So in this case, I'm going to keep it really simple.
+[SPEAKER_00] 00:12:32: And I'm just going to add a tool to get the latest vitals for a patient.
+[SPEAKER_00] 00:12:37: Now this is simply a database request, but you can also imagine that the tool is actually, I don't know, augmenting some patient information in a database or do basically whatever you want.
+[SPEAKER_00] 00:12:47: But here I'm just going to get the latest vitals.
+[SPEAKER_00] 00:12:51: So now when I run this again, it's going to take the latest vitals into account when creating the response.
+[SPEAKER_00] 00:13:00: So as you can see, it now mentions the vital signs and the blood pressure.
+[SPEAKER_00] 00:13:06: And if I change these things, so in this case we're talking about John, let's say I'm going to give John a heart rate of 30, it's not very high, and also like a very low blood pressure, like so.
+[SPEAKER_00] 00:13:22: Not sure if this is even realistic, but just to see how it influences the results.
+[SPEAKER_00] 00:13:26: So now you see that whereas in the previous responses we got escalate as false, right?
+[SPEAKER_00] 00:13:32: We got that here and we got a pretty low urgency.
+[SPEAKER_00] 00:13:35: Now, even though the patient is saying the same thing, it used the information to actually change these values.
+[SPEAKER_00] 00:13:41: So now escalate is true.
+[SPEAKER_00] 00:13:44: So a nurse should take a look at this and the urgency is also high.
+[SPEAKER_00] 00:13:47: So what's really cool about this is that you can combine LM reasoning with your domain knowledge.
+[SPEAKER_00] 00:13:54: The outputs you get are validated by Bidentic and they're structured so you can trust them and use them in other parts of your application.
+[SPEAKER_00] 00:14:02: You can extend this agent by adding more tools.
+[SPEAKER_00] 00:14:05: or prompts or anything you like.
+[SPEAKER_00] 00:14:07: In my opinion, this is a big step in incorporating AI in your Python applications in a more useful way.
+[SPEAKER_00] 00:14:14: Now, pedantic AI has other possibilities as well.
+[SPEAKER_00] 00:14:16: In particular, graphs are interesting.
+[SPEAKER_00] 00:14:19: Although they say in the documentation themselves that, well, don't use it if you don't really need it because, of course, graphs can potentially complicate things.
+[SPEAKER_00] 00:14:28: But they do mention different ways of organizing your agent workflows.
+[SPEAKER_00] 00:14:33: So the one that I showed you today was a single agent workflow.
+[SPEAKER_00] 00:14:36: That's also what most of the documentation shows.
+[SPEAKER_00] 00:14:39: But you can also combine agents.
+[SPEAKER_00] 00:14:42: For example, you could have one agent that then defines a tool that uses another agent.
+[SPEAKER_00] 00:14:48: you can have an agent run something and then the application code could do something with the data or call another agent.
+[SPEAKER_00] 00:14:56: Or you could go full-on graph-based control and then you can define these graphs with nodes and edges and make a really complicated setup.
+[SPEAKER_00] 00:15:06: But only do that if it actually adds something to your application.
+[SPEAKER_00] 00:15:10: If you can use one of the simpler methods I mentioned just now, I think that overall is better.
+[SPEAKER_00] 00:15:15: But I'd like to know what you think.
+[SPEAKER_00] 00:15:18: Do you use Pydentic AI?
+[SPEAKER_00] 00:15:19: Could you see yourself using it in your own projects?
+[SPEAKER_00] 00:15:22: Maybe in finance, healthcare, or something completely different?
+[SPEAKER_00] 00:15:27: Let me know in the comments.
+[SPEAKER_00] 00:15:28: Now, there are, of course, next to Pydentic AI, a bunch of other libraries that are incredibly helpful to building stuff in Python.
+[SPEAKER_00] 00:15:35: You probably already know quite a few of them, like Pandas or FastAPI.
+[SPEAKER_00] 00:15:39: Now, if you want to learn about more libraries that are really helpful, but only a few developers know about, check out this video next.
+[SPEAKER_00] 00:15:46: Thanks for watching and see you next time.

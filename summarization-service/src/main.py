@@ -7,7 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import threading
 
-from config import SUMMARIZATION_API_PORT, SUMMARIZATION_FRONTEND_URL, SUMMARIZATION_MODEL
+from config import (
+    SUMMARIZATION_API_PORT, 
+    SUMMARIZATION_FRONTEND_URL, 
+    STAGE1_MODEL,
+    STAGE2_MODEL
+)
 from models import HealthResponse
 from routers import summaries
 from services.gemini_service import get_gemini_service
@@ -48,7 +53,8 @@ async def lifespan(app: FastAPI):
     
     print("\n" + "="*60)
     print("✅ Summarization Service is ready!")
-    print(f"   Model: {SUMMARIZATION_MODEL}")
+    print(f"   Stage 1 Model (Thinker): {STAGE1_MODEL}")
+    print(f"   Stage 2 Model (Structurer): {STAGE2_MODEL}")
     print("="*60 + "\n")
     
     yield
@@ -83,8 +89,10 @@ async def root():
     """Root endpoint with API information."""
     return {
         "service": "Podcast Summarization Service",
-        "version": "1.0.0",
-        "model": SUMMARIZATION_MODEL,
+        "version": "2.0.0",
+        "architecture": "two-stage",
+        "stage1_model": STAGE1_MODEL,
+        "stage2_model": STAGE2_MODEL,
         "status": "running",
         "docs": "/docs",
         "health": "/health"
@@ -104,7 +112,7 @@ async def health_check():
         return HealthResponse(
             status="healthy",
             gemini_api_configured=gemini_service is not None,
-            model_name=SUMMARIZATION_MODEL,
+            model_name=f"{STAGE1_MODEL} + {STAGE2_MODEL}",
             file_watcher_active=file_watcher_thread is not None and file_watcher_thread.is_alive()
         )
     
@@ -112,7 +120,7 @@ async def health_check():
         return HealthResponse(
             status="unhealthy",
             gemini_api_configured=False,
-            model_name=SUMMARIZATION_MODEL,
+            model_name=f"{STAGE1_MODEL} + {STAGE2_MODEL}",
             file_watcher_active=False
         )
 

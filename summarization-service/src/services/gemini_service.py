@@ -1,33 +1,64 @@
 """
-Gemini API Client for Summarization
-Generates comprehensive summaries using configurable Gemini models.
+Gemini API Client for Two-Stage Summarization
+Stage 1: Generates high-fidelity unstructured summaries
+Stage 2: Extracts structured data using Instructor for guaranteed validation
 """
 from typing import Dict
 import google.generativeai as genai
+import instructor
 import time
-import json
 
-from config import GEMINI_API_KEY, SUMMARIZATION_MODEL
+from config import (
+    GEMINI_API_KEY, 
+    STAGE1_MODEL, 
+    STAGE2_MODEL,
+    STAGE1_MAX_RETRIES,
+    STAGE1_BASE_DELAY,
+    STAGE2_MAX_RETRIES,
+    STAGE2_BASE_DELAY
+)
+from structured_models_v2 import RawSummary, StructuredSummaryV2
 
 
 class GeminiSummarizationService:
-    """Client for generating podcast summaries with Gemini."""
+    """Two-stage summarization client using Gemini and Instructor."""
     
     def __init__(self):
-        """Initialize Gemini summarization client with configurable model."""
+        """Initialize two-stage Gemini summarization client."""
+        # Configure API key
         genai.configure(api_key=GEMINI_API_KEY)
-        self.model_name = SUMMARIZATION_MODEL
-        self.model = genai.GenerativeModel(self.model_name)
-        print(f"✅ Gemini Summarization Service configured with model: {self.model_name}")
+        
+        # Stage 1: Standard Gemini client for raw summarization (The Thinker)
+        self.stage1_model_name = STAGE1_MODEL
+        self.stage1_model = genai.GenerativeModel(self.stage1_model_name)
+        self.stage1_max_retries = STAGE1_MAX_RETRIES
+        self.stage1_base_delay = STAGE1_BASE_DELAY
+        
+        # Stage 2: Instructor-wrapped client for structure extraction (The Structurer)
+        self.stage2_model_name = STAGE2_MODEL
+        self.stage2_client = instructor.from_gemini(
+            client=genai.GenerativeModel(self.stage2_model_name),
+            mode=instructor.Mode.GEMINI_JSON
+        )
+        self.stage2_max_retries = STAGE2_MAX_RETRIES
+        self.stage2_base_delay = STAGE2_BASE_DELAY
+        
+        print(f"✅ Two-Stage Summarization Service Initialized:")
+        print(f"   Stage 1 (Thinker): {self.stage1_model_name}")
+        print(f"   Stage 2 (Structurer): {self.stage2_model_name}")
     
-    def summarize_transcript(
+    def _stage1_generate_raw_summary(
         self,
         transcript_text: str,
         episode_title: str,
         podcast_name: str
-    ) -> Dict:
+    ) -> RawSummary:
         """
-        Generate a comprehensive summary of a podcast transcript.
+        Stage 1: Generate high-fidelity unstructured summary.
+        
+        This stage focuses purely on comprehension and analysis without
+        any JSON formatting constraints. The model can express ideas naturally
+        in markdown/text format.
         
         Args:
             transcript_text: Full transcript text
@@ -35,9 +66,9 @@ class GeminiSummarizationService:
             podcast_name: Podcast name
             
         Returns:
-            Dict with summary, key topics, insights, and quotes
+            RawSummary with unstructured content
         """
-        prompt = f"""Role: You are an expert synthesizer and content strategist. Your goal is to distill the provided podcast transcript into a clear, high-value summary that captures the essence, actionable advice, and nuance of the conversation.
+        prompt = f"""You are an expert podcast analyst. Your task is to deeply analyze this transcript and create a comprehensive summary.
 
 Podcast: {podcast_name}
 Episode: {episode_title}
@@ -45,71 +76,203 @@ Episode: {episode_title}
 TRANSCRIPT:
 {transcript_text[:50000]}
 
-Please analyze the transcript and generate a structured summary using the following format:
+INSTRUCTIONS:
+Write a detailed, nuanced analysis covering:
 
-1. The One-Sentence Hook
-   A single, compelling sentence that summarizes the core theme or "big idea" of the episode.
+1. **One-Sentence Hook**: What's the core theme? Make it compelling.
+2. **Key Takeaways**: What are the 3-5 most important insights? Explain each.
+3. **Actionable Advice**: What specific steps, tools, or tactics were mentioned?
+4. **Notable Quotes**: What were 2-5 memorable or insightful quotes (verbatim)?
+5. **Concepts & Definitions**: Any technical terms, books, frameworks, or jargon that need defining?
+6. **Perspectives**: How did the speakers interact? Agreement, debate, complementary views?
+7. **Overview**: A comprehensive 2-3 paragraph summary of the entire discussion.
+8. **Key Topics**: What were the main subjects discussed?
 
-2. Top 3 Key Takeaways
-   The three most critical insights or arguments presented.
-   Format: Bold the concept, then explain it in 1-2 sentences.
+Focus on:
+- Accuracy and nuance over brevity
+- Capturing the tone and dynamics of the conversation
+- Identifying actionable insights
+- Preserving important quotes exactly as spoken
 
-3. Actionable Advice / "How-To"
-   Extract specific steps, tools, tactics, or frameworks mentioned.
-   Use bullet points. If no specific advice was given, summarize the practical implications of the discussion.
-
-4. Notable Quotes
-   Pull 2-3 verbatim quotes that are particularly insightful, controversial, or memorable.
-
-5. Key Concepts & Definitions
-   Briefly define any specific terms, books, mental models, or jargon introduced in the episode.
-
-6. Summary of Perspectives
-   Briefly outline the host's stance vs. the guest's stance (if applicable). Did they agree, disagree, or build upon each other?
-
-Tone: Professional, concise, and objective. Avoid fluff.
-Formatting: Use Markdown (Headers, bolding, bullet points) to make it scannable.
-
-Format your response as JSON with keys:
-- "hook" (string): The one-sentence hook
-- "key_takeaways" (array of objects): Each with "concept" and "explanation"
-- "actionable_advice" (array of strings): Bullet points of actionable advice
-- "quotes" (array of strings): Notable verbatim quotes
-- "concepts" (array of objects): Each with "term" and "definition"
-- "perspectives" (string): Summary of different perspectives
-- "summary" (string): A brief 2-3 paragraph overview for backward compatibility
-- "key_topics" (array of strings): Main topics discussed for backward compatibility
+Write your analysis in clear, well-organized markdown. Use headings, bullet points, and formatting as needed for clarity.
 """
         
-        try:
-            start_time = time.time()
-            response = self.model.generate_content(prompt)
-            processing_time = (time.time() - start_time) * 1000
-            
-            # Parse response (assuming JSON format)
+        # Retry logic with exponential backoff for Stage 1
+        for attempt in range(self.stage1_max_retries):
             try:
-                result = json.loads(response.text)
-            except json.JSONDecodeError:
-                # Fallback if model doesn't return perfect JSON
-                result = {
-                    "summary": response.text,
-                    "key_topics": [],
-                    "insights": [],
-                    "quotes": []
-                }
-            
-            result["processing_time_ms"] = processing_time
-            return result
+                start_time = time.time()
+                response = self.stage1_model.generate_content(prompt)
+                processing_time = (time.time() - start_time) * 1000
+                
+                print(f"✅ Stage 1 complete ({processing_time:.0f}ms)")
+                
+                return RawSummary(content=response.text)
+                
+            except Exception as e:
+                error_str = str(e)
+                
+                # Check if it's a quota error (429)
+                if "429" in error_str or "quota" in error_str.lower():
+                    if attempt < self.stage1_max_retries - 1:
+                        delay = self.stage1_base_delay * (2 ** attempt)
+                        print(f"⚠️  Stage 1 quota error. Retrying in {delay}s... (Attempt {attempt + 1}/{self.stage1_max_retries})")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        print(f"❌ Stage 1 quota error persists after {self.stage1_max_retries} attempts")
+                        raise
+                
+                # For other errors, raise immediately
+                print(f"❌ Stage 1 error: {e}")
+                raise
         
+        # Should not reach here
+        raise Exception("Stage 1: Maximum retries exceeded")
+    
+    def _stage2_extract_structure(
+        self,
+        raw_summary: RawSummary,
+        episode_title: str,
+        podcast_name: str
+    ) -> StructuredSummaryV2:
+        """
+        Stage 2: Extract structured data using Instructor.
+        
+        Instructor wraps the Gemini API and enforces strict Pydantic validation.
+        If the model outputs invalid data, Instructor automatically retries with
+        the validation error, forcing the model to fix it.
+        
+        Args:
+            raw_summary: Output from Stage 1
+            episode_title: Episode title
+            podcast_name: Podcast name
+            
+        Returns:
+            StructuredSummaryV2 with validated structured fields
+        """
+        prompt = f"""Extract structured data from the following podcast summary analysis.
+
+Podcast: {podcast_name}
+Episode: {episode_title}
+
+SUMMARY ANALYSIS:
+{raw_summary.content}
+
+INSTRUCTIONS:
+Map the above analysis into a structured JSON format with these exact fields:
+
+- hook: One compelling sentence (the core theme)
+- key_takeaways: Array of 3-5 objects with "concept" and "explanation"
+- actionable_advice: Array of 3+ specific action items
+- quotes: Array of 2-5 verbatim quotes
+- concepts: Array of objects with "term" and "definition" (if any technical terms were mentioned)
+- perspectives: Text describing how speakers interacted
+- summary: A comprehensive 2-3 paragraph overview
+- key_topics: Array of 3+ main topics discussed
+
+Be precise and thorough. Extract all relevant information from the analysis above.
+"""
+        
+        # Retry logic with exponential backoff for Stage 2
+        for attempt in range(self.stage2_max_retries):
+            try:
+                start_time = time.time()
+                
+                # Instructor handles validation automatically
+                # If Gemini returns invalid JSON, Instructor re-prompts with the error
+                structured_data = self.stage2_client.chat.completions.create(
+                    response_model=StructuredSummaryV2,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    max_retries=2  # Instructor's internal retry for validation errors
+                )
+                
+                processing_time = (time.time() - start_time) * 1000
+                print(f"✅ Stage 2 complete ({processing_time:.0f}ms)")
+                
+                return structured_data
+                
+            except Exception as e:
+                error_str = str(e)
+                
+                # Check if it's a quota error (429)
+                if "429" in error_str or "quota" in error_str.lower():
+                    if attempt < self.stage2_max_retries - 1:
+                        delay = self.stage2_base_delay * (2 ** attempt)
+                        print(f"⚠️  Stage 2 quota error. Retrying in {delay}s... (Attempt {attempt + 1}/{self.stage2_max_retries})")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        print(f"❌ Stage 2 quota error persists after {self.stage2_max_retries} attempts")
+                        raise
+                
+                # For other errors, raise immediately
+                print(f"❌ Stage 2 error: {e}")
+                raise
+        
+        # Should not reach here
+        raise Exception("Stage 2: Maximum retries exceeded")
+    
+    def summarize_transcript(
+        self,
+        transcript_text: str,
+        episode_title: str,
+        podcast_name: str
+    ) -> StructuredSummaryV2:
+        """
+        Orchestrate two-stage summarization pipeline.
+        
+        Stage 1: Generate high-fidelity unstructured summary (The Thinker)
+        Stage 2: Extract validated structured data (The Structurer)
+        
+        Args:
+            transcript_text: Full transcript text
+            episode_title: Episode title
+            podcast_name: Podcast name
+            
+        Returns:
+            StructuredSummaryV2 with validated structured fields and timing metadata
+        """
+        total_start_time = time.time()
+        
+        try:
+            # Stage 1: Generate raw summary (focus on quality)
+            print(f"🧠 Stage 1: Generating raw summary for '{episode_title}'...")
+            stage1_start = time.time()
+            raw_summary = self._stage1_generate_raw_summary(
+                transcript_text=transcript_text,
+                episode_title=episode_title,
+                podcast_name=podcast_name
+            )
+            stage1_time = (time.time() - stage1_start) * 1000
+            
+            # Stage 2: Extract structure (focus on validation)
+            print(f"📋 Stage 2: Extracting structure for '{episode_title}'...")
+            stage2_start = time.time()
+            structured_summary = self._stage2_extract_structure(
+                raw_summary=raw_summary,
+                episode_title=episode_title,
+                podcast_name=podcast_name
+            )
+            stage2_time = (time.time() - stage2_start) * 1000
+            
+            # Add timing metadata
+            total_time = (time.time() - total_start_time) * 1000
+            structured_summary.stage1_processing_time_ms = stage1_time
+            structured_summary.stage2_processing_time_ms = stage2_time
+            structured_summary.total_processing_time_ms = total_time
+            
+            print(f"✅ Two-stage pipeline complete: {total_time:.0f}ms (Stage 1: {stage1_time:.0f}ms, Stage 2: {stage2_time:.0f}ms)")
+            
+            return structured_summary
+            
         except Exception as e:
-            print(f"❌ Gemini API error during summarization: {e}")
-            return {
-                "summary": f"Error generating summary: {str(e)}",
-                "key_topics": [],
-                "insights": [],
-                "quotes": [],
-                "processing_time_ms": 0
-            }
+            print(f"❌ Two-stage pipeline failed: {e}")
+            raise
 
 
 # Singleton instance

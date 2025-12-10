@@ -14,6 +14,7 @@ from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import feedparser
 
 # Add parent directory to path for imports
@@ -69,6 +70,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount shared/output directory for static file serving
+app.mount("/files", StaticFiles(directory=OUTPUT_DIR), name="files")
 
 # Background transcription process
 transcription_process = None
@@ -485,7 +489,20 @@ async def list_episodes(podcast_name: str):
 
 @app.get("/transcripts/{podcast_name}/{episode_name}", response_model=TranscriptResponse)
 async def get_transcript(podcast_name: str, episode_name: str):
-    """Get specific transcript content."""
+    """
+    Get transcript content for a specific episode.
+    Returns the full transcript text for backward compatibility.
+    
+    Note: Clients can also use the static file endpoint:
+    /files/{podcast_name}/{episode_name}.txt
+    """
+    # Verify file exists
+    transcript_file = OUTPUT_DIR / podcast_name / f"{episode_name}.txt"
+    
+    if not transcript_file.exists():
+        raise HTTPException(status_code=404, detail="Transcript not found")
+    
+    # Read the transcript content
     content = read_transcript(podcast_name, episode_name)
     
     if content is None:

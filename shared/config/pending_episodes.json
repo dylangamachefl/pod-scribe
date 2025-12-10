@@ -11,16 +11,6 @@
       "fetched_date": "2025-12-03T14:22:33.238394"
     },
     {
-      "id": "4afe13b4-c361-11f0-bb61-e7ef04560610",
-      "feed_url": "https://feeds.megaphone.fm/hubermanlab",
-      "feed_title": "Huberman Lab",
-      "episode_title": "How to Speak Clearly & With Confidence | Matt Abrahams",
-      "audio_url": "https://traffic.megaphone.fm/SCIM9739579695.mp3?updated=1764727385",
-      "published_date": "2025-11-17T09:00:00",
-      "selected": true,
-      "fetched_date": "2025-12-03T14:22:33.238394"
-    },
-    {
       "id": "4a984ada-bdde-11f0-a728-3fe402d9baf2",
       "feed_url": "https://feeds.megaphone.fm/hubermanlab",
       "feed_title": "Huberman Lab",
@@ -3529,6 +3519,326 @@
       "published_date": "2020-12-21T05:22:00",
       "selected": false,
       "fetched_date": "2025-12-03T14:22:33.243394"
+    },
+    {
+      "id": "756f9f54-d3ed-11f0-9d11-3fe55ee08305",
+      "feed_url": "https://feeds.megaphone.fm/hubermanlab",
+      "feed_title": "Huberman Lab",
+      "episode_title": "Master the Creative Process | Twyla Tharp",
+      "audio_url": "https://traffic.megaphone.fm/SCIM5167372935.mp3?updated=1765174114",
+      "published_date": "2025-12-08T09:00:00",
+      "selected": false,
+      "fetched_date": "2025-12-09T19:37:31.535976"
+    },
+    {
+      "id": "32fcf83e-d0cc-11f0-b4b9-db36e4227c39",
+      "feed_url": "https://feeds.megaphone.fm/hubermanlab",
+      "feed_title": "Huberman Lab",
+      "episode_title": "Essentials: The Science of Making & Breaking Habits",
+      "audio_url": "https://traffic.megaphone.fm/SCIM6067841582.mp3?updated=1765173749",
+      "published_date": "2025-12-04T09:00:00",
+      "selected": false,
+      "fetched_date": "2025-12-09T19:37:31.535989"
+    },
+    {
+      "id": "bf37f7e8-6044-40dd-aa2d-54cbea4d0b6f",
+      "feed_url": "http://feeds.libsyn.com/254861/rss",
+      "feed_title": "All-In with Chamath, Jason, Sacks & Friedberg",
+      "episode_title": "OpenAI's Code Red, Sacks vs New York Times, New Poverty Line?",
+      "audio_url": "https://dts.podtrac.com/redirect.mp3/traffic.libsyn.com/secure/allinchamathjason/ALLIN-E253.mp3?dest-id=1928300",
+      "published_date": "2025-12-06T01:41:00",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:26:26.020225"
+    },
+    {
+      "id": "substack:post:180055059",
+      "feed_url": "https://api.substack.com/feed/podcast/10845.rss",
+      "feed_title": "Lenny's Podcast: Product | Career | Growth",
+      "episode_title": "The 100-person AI lab that became Anthropic and Google's secret weapon | Edwin Chen (Surge AI)",
+      "audio_url": "https://api.substack.com/feed/podcast/180055059/792dc6d9a2c626dad2b3644df0361a68.mp3",
+      "published_date": "2025-12-07T13:31:23",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:26:28.296063"
+    },
+    {
+      "id": "substack:post:180042347",
+      "feed_url": "https://api.substack.com/feed/podcast/10845.rss",
+      "feed_title": "Lenny's Podcast: Product | Career | Growth",
+      "episode_title": "Why LinkedIn is turning PMs into AI-powered \"full stack builders\u201d | Tomer Cohen (LinkedIn CPO)",
+      "audio_url": "https://api.substack.com/feed/podcast/180042347/7cc16981caddc1e6074a8c69542ea32a.mp3",
+      "published_date": "2025-12-04T13:32:07",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:26:28.296076"
+    },
+    {
+      "id": "953f7602-ce6f-11f0-97bf-cfedc5e8bf0e",
+      "feed_url": "https://feeds.megaphone.fm/hubermanlab",
+      "feed_title": "Huberman Lab",
+      "episode_title": "Using Red Light to Improve Metabolism & the Harmful Effects of LEDs | Dr. Glen Jeffery",
+      "audio_url": "https://traffic.megaphone.fm/SCIM4265461474.mp3?updated=1764727031",
+      "published_date": "2025-12-01T09:00:00",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:51.959728"
+    },
+    {
+      "id": "3d2fa03c-cb30-11f0-b596-6fa9f6ec4daf",
+      "feed_url": "https://feeds.megaphone.fm/hubermanlab",
+      "feed_title": "Huberman Lab",
+      "episode_title": "Essentials: Using Hypnosis to Enhance Mental & Physical Health & Performance | Dr. David Spiegel",
+      "audio_url": "https://traffic.megaphone.fm/SCIM2804799179.mp3?updated=1764825768",
+      "published_date": "2025-11-27T09:00:00",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:51.959788"
+    },
+    {
+      "id": "07a83e58-c5c5-11f0-8b1d-ab9734afbced",
+      "feed_url": "https://feeds.megaphone.fm/hubermanlab",
+      "feed_title": "Huberman Lab",
+      "episode_title": "Essentials: Science of Building Strong Social Bonds with Family, Friends & Romantic Partners",
+      "audio_url": "https://traffic.megaphone.fm/SCIM8528625095.mp3?updated=1764726924",
+      "published_date": "2025-11-20T09:00:00",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:51.959809"
+    },
+    {
+      "id": "4afe13b4-c361-11f0-bb61-e7ef04560610",
+      "feed_url": "https://feeds.megaphone.fm/hubermanlab",
+      "feed_title": "Huberman Lab",
+      "episode_title": "How to Speak Clearly & With Confidence | Matt Abrahams",
+      "audio_url": "https://traffic.megaphone.fm/SCIM9739579695.mp3?updated=1764727385",
+      "published_date": "2025-11-17T09:00:00",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:51.959826"
+    },
+    {
+      "id": "e4778e98-c04c-11f0-a39d-83ed08e38562",
+      "feed_url": "https://feeds.megaphone.fm/hubermanlab",
+      "feed_title": "Huberman Lab",
+      "episode_title": "Essentials: Breathing for Mental & Physical Health & Performance | Dr. Jack Feldman",
+      "audio_url": "https://traffic.megaphone.fm/SCIM8210269459.mp3?updated=1764727057",
+      "published_date": "2025-11-13T09:00:00",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:51.959839"
+    },
+    {
+      "id": "49ac961f-7924-4695-97b2-b7ea6ee7e882",
+      "feed_url": "http://feeds.libsyn.com/254861/rss",
+      "feed_title": "All-In with Chamath, Jason, Sacks & Friedberg",
+      "episode_title": "Molly's Game Uncensored: The Truth Behind the World's Most Infamous Poker Game",
+      "audio_url": "https://dts.podtrac.com/redirect.mp3/traffic.libsyn.com/secure/allinchamathjason/ALLIN-VEGAS25_MOLLY_Ch.mp3?dest-id=1928300",
+      "published_date": "2025-11-26T19:58:00",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:54.127067"
+    },
+    {
+      "id": "32f7ebae-eb07-4a3e-bb62-2a516cb9cf67",
+      "feed_url": "http://feeds.libsyn.com/254861/rss",
+      "feed_title": "All-In with Chamath, Jason, Sacks & Friedberg",
+      "episode_title": "Epstein Files Fallout, Nvidia Risks, Burry's Bad Bet, Google's Breakthrough, Tether's Boom",
+      "audio_url": "https://dts.podtrac.com/redirect.mp3/traffic.libsyn.com/secure/allinchamathjason/ALLIN-E252_Ch.mp3?dest-id=1928300",
+      "published_date": "2025-11-22T00:40:00",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:54.127079"
+    },
+    {
+      "id": "31aa58cb-1eba-49dd-b4d5-9994083b2d7e",
+      "feed_url": "http://feeds.libsyn.com/254861/rss",
+      "feed_title": "All-In with Chamath, Jason, Sacks & Friedberg",
+      "episode_title": "Home Affordability Crisis, Palantir's Advantage, Big Short on AI, H-1B Abuse, Solar Storm Hits Earth",
+      "audio_url": "https://dts.podtrac.com/redirect.mp3/traffic.libsyn.com/secure/allinchamathjason/ALLIN-E251_Ch.mp3?dest-id=1928300",
+      "published_date": "2025-11-14T21:03:00",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:54.127088"
+    },
+    {
+      "id": "substack:post:179924094",
+      "feed_url": "https://api.substack.com/feed/podcast/69345.rss",
+      "feed_title": "Dwarkesh Podcast",
+      "episode_title": "Ilya Sutskever \u2013 We're moving from the age of scaling to the age of research",
+      "audio_url": "https://api.substack.com/feed/podcast/179924094/8fff4c8da77eff5a44fad5d13ae599e2.mp3",
+      "published_date": "2025-11-25T17:04:02",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:54.791700"
+    },
+    {
+      "id": "substack:post:178688356",
+      "feed_url": "https://api.substack.com/feed/podcast/69345.rss",
+      "feed_title": "Dwarkesh Podcast",
+      "episode_title": "Satya Nadella \u2014 How Microsoft is preparing for AGI",
+      "audio_url": "https://api.substack.com/feed/podcast/178688356/17d73f3abbe37253ebebe0113754e6d5.mp3",
+      "published_date": "2025-11-12T17:03:08",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:54.791714"
+    },
+    {
+      "id": "substack:post:179503137",
+      "feed_url": "https://api.substack.com/feed/podcast/10845.rss",
+      "feed_title": "Lenny's Podcast: Product | Career | Growth",
+      "episode_title": "What world-class GTM looks like in 2026 | Jeanne DeWitt Grosser (Vercel, Stripe, Google)",
+      "audio_url": "https://api.substack.com/feed/podcast/179503137/0b2b3bdebe62803133bd8432266d8d74.mp3",
+      "published_date": "2025-11-30T12:03:26",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:56.132770"
+    },
+    {
+      "id": "substack:post:178940830",
+      "feed_url": "https://api.substack.com/feed/podcast/10845.rss",
+      "feed_title": "Lenny's Podcast: Product | Career | Growth",
+      "episode_title": "A guide to difficult conversations, building high-trust teams, and designing a life you love | Rachel Lockett",
+      "audio_url": "https://api.substack.com/feed/podcast/178940830/c9d22ccd8119f5d69f2738b91a377fee.mp3",
+      "published_date": "2025-11-23T12:03:19",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:56.132784"
+    },
+    {
+      "id": "substack:post:178320649",
+      "feed_url": "https://api.substack.com/feed/podcast/10845.rss",
+      "feed_title": "Lenny's Podcast: Product | Career | Growth",
+      "episode_title": "Slack founder: Mental models for building products people love ft. Stewart Butterfield",
+      "audio_url": "https://api.substack.com/feed/podcast/178320649/11e2b4db32655937ca882e4ef0f3085d.mp3",
+      "published_date": "2025-11-20T14:03:33",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:56.132793"
+    },
+    {
+      "id": "substack:post:178223233",
+      "feed_url": "https://api.substack.com/feed/podcast/10845.rss",
+      "feed_title": "Lenny's Podcast: Product | Career | Growth",
+      "episode_title": "The Godmother of AI on jobs, robots & why world models are next | Dr. Fei-Fei Li",
+      "audio_url": "https://api.substack.com/feed/podcast/178223233/a1604c36f9d36040e80df5a6452af1a8.mp3",
+      "published_date": "2025-11-16T14:03:30",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:56.132802"
+    },
+    {
+      "id": "substack:post:178015551",
+      "feed_url": "https://api.substack.com/feed/podcast/10845.rss",
+      "feed_title": "Lenny's Podcast: Product | Career | Growth",
+      "episode_title": "\u201cDumbest idea I\u2019ve heard\u201d to $100M ARR: Inside the rise of Gamma | Grant Lee (CEO)",
+      "audio_url": "https://api.substack.com/feed/podcast/178015551/10b63a7a07a0bd5ff4ae41def500e93e.mp3",
+      "published_date": "2025-11-13T13:31:58",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:27:56.132810"
+    },
+    {
+      "id": "yt:video:KyfUysrNaco",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "44 Harsh Truths About The Game Of Life - Naval Ravikant (4K)",
+      "audio_url": "https://www.youtube.com/watch?v=KyfUysrNaco",
+      "published_date": "2025-03-31T15:00:22",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:42:45.650161"
+    },
+    {
+      "id": "yt:video:4pYzYmSdSH4",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "Andrew Ng: State of AI Agents | LangChain Interrupt",
+      "audio_url": "https://www.youtube.com/watch?v=4pYzYmSdSH4",
+      "published_date": "2025-05-28T16:51:43",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:42:45.650175"
+    },
+    {
+      "id": "yt:video:K4vXvaRV0dw",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "Release Notes: Gemini's multimodality",
+      "audio_url": "https://www.youtube.com/watch?v=K4vXvaRV0dw",
+      "published_date": "2025-07-02T23:01:04",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:42:45.650182"
+    },
+    {
+      "id": "yt:video:HfvO5Hcdyt4",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "Catch Up Before ChatGPT-5: Your Complete AI Guide\u2014Timeline, AI Basics, Resources, and Who To Follow",
+      "audio_url": "https://www.youtube.com/watch?v=HfvO5Hcdyt4",
+      "published_date": "2025-06-30T13:00:37",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:42:45.650188"
+    },
+    {
+      "id": "yt:video:z8-0INxN_Hg",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "RAG: The $40B AI Technique 80% of Enterpises Use\u2014Finally Explained",
+      "audio_url": "https://www.youtube.com/watch?v=z8-0INxN_Hg",
+      "published_date": "2025-07-02T13:02:05",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:42:45.650195"
+    },
+    {
+      "id": "yt:video:4GiqzUHD5AA",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "Context Engineering for Agents",
+      "audio_url": "https://www.youtube.com/watch?v=4GiqzUHD5AA",
+      "published_date": "2025-07-02T15:54:01",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:42:45.650201"
+    },
+    {
+      "id": "yt:video:DgQQbtcfnJ8",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "Thinking Beyond Tokens From Brain Inspired Intelligence to Cognitive Foundations for AGI",
+      "audio_url": "https://www.youtube.com/watch?v=DgQQbtcfnJ8",
+      "published_date": "2025-07-03T04:11:38",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:42:45.650207"
+    },
+    {
+      "id": "yt:video:mldfMWbnZTg",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "Context Engineering vs. Prompt Engineering: Guiding LLM Agents",
+      "audio_url": "https://www.youtube.com/watch?v=mldfMWbnZTg",
+      "published_date": "2025-06-20T13:01:37",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:42:45.650213"
+    },
+    {
+      "id": "yt:video:t92sxLG9s10",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "New Gemini's screen Analysis is insane for Automation",
+      "audio_url": "https://www.youtube.com/watch?v=t92sxLG9s10",
+      "published_date": "2025-06-23T20:25:49",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:42:45.650220"
+    },
+    {
+      "id": "yt:video:6FIuL13UkrA",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "Tool World: A Latent Space Based AI Agent Framework",
+      "audio_url": "https://www.youtube.com/watch?v=6FIuL13UkrA",
+      "published_date": "2025-07-06T18:35:54",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:42:45.650226"
+    },
+    {
+      "id": "yt:video:fSHwiyZlh-s",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "Multiversal Latent Space Theory: A New Framework for Modular AI",
+      "audio_url": "https://www.youtube.com/watch?v=fSHwiyZlh-s",
+      "published_date": "2025-07-07T20:24:51",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:42:45.650232"
+    },
+    {
+      "id": "yt:video:djDZHAi75dk",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "3 Ways to Build ACTUALLY Beautiful Websites Using Cursor AI",
+      "audio_url": "https://www.youtube.com/watch?v=djDZHAi75dk",
+      "published_date": "2025-06-18T20:47:19",
+      "selected": false,
+      "fetched_date": "2025-12-10T15:42:45.650238"
     }
   ]
 }

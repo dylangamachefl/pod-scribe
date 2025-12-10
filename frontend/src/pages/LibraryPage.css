@@ -97,12 +97,13 @@
     color: var(--color-text-primary);
 }
 
-.summary-text {
+.summary-card .summary-text {
     color: var(--color-text-secondary);
     line-height: 1.6;
     font-size: 0.9rem;
     display: -webkit-box;
     -webkit-line-clamp: 4;
+    line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }

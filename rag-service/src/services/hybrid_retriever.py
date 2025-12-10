@@ -8,9 +8,10 @@ import pickle
 import json
 
 from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
 from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores import FAISS
-from langchain_classic.retrievers.ensemble import EnsembleRetriever
+from langchain_classic.retrievers import EnsembleRetriever
 
 from config import (
     BM25_WEIGHT,
@@ -160,8 +161,8 @@ class HybridRetrieverService:
         # Update k for retrievers
         self.bm25_retriever.k = k
         
-        # Perform retrieval
-        results = self.ensemble_retriever.get_relevant_documents(query)
+        # Perform retrieval using invoke() instead of get_relevant_documents()
+        results = self.ensemble_retriever.invoke(query)
         
         # Filter by episode if specified
         if episode_filter:
@@ -265,10 +266,11 @@ class HybridRetrieverService:
             return False
 
 
-class FAISSEmbeddingsWrapper:
+class FAISSEmbeddingsWrapper(Embeddings):
     """
     Wrapper for embeddings service to work with FAISS.
     Supports using precomputed embeddings during initial index build.
+    Inherits from langchain_core.embeddings.Embeddings for proper interface compatibility.
     """
     
     def __init__(self, embeddings_service, precomputed_embeddings=None, documents=None):

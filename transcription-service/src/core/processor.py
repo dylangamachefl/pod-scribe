@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 
 import feedparser
+import requests
 
 from config import TranscriptionConfig
 from core.audio import download_audio, transcribe_audio
@@ -20,6 +21,55 @@ from managers.episode_manager import (
     add_episode_to_queue
 )
 from managers.status_monitor import write_status, clear_status, update_progress
+
+
+def ingest_transcript_to_rag(transcript_path: str, episode_title: str, podcast_name: str) -> bool:
+    """
+    Trigger RAG service to ingest a transcript.
+    
+    Args:
+        transcript_path: Absolute path to transcript file
+        episode_title: Title of the episode
+        podcast_name: Name of the podcast
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    # RAG service URL - use localhost for host machine
+    # Since transcription runs on host, use localhost
+    rag_url = "http://localhost:8000/ingest"
+    
+    # Convert Windows path to Docker path format
+    docker_path = str(transcript_path).replace('\\', '/')
+    if docker_path[1] == ':':
+        # Convert C:/path to /app/shared/output/... format
+        # Extract the path after 'shared'
+        parts = docker_path.split('shared')
+        if len(parts) > 1:
+            docker_path = '/app/shared' + parts[1]
+    
+    payload = {
+        "file_path": docker_path
+    }
+    
+    try:
+        response = requests.post(rag_url, json=payload, timeout=60)
+        response.raise_for_status()
+        
+        result = response.json()
+        chunks_created = result.get('chunks_created', 0)
+        print(f"   📊 RAG: Created {chunks_created} chunks")
+        return True
+        
+    except requests.exceptions.ConnectionError:
+        print(f"   ⚠️  RAG service unavailable (not running or not accessible)")
+        return False
+    except requests.exceptions.Timeout:
+        print(f"   ⚠️  RAG ingestion timed out")
+        return False
+    except Exception as e:
+        print(f"   ⚠️  RAG ingestion failed: {e}")
+        return False
 
 
 def load_subscriptions(config: TranscriptionConfig) -> List[Dict]:
@@ -177,6 +227,10 @@ def process_episode(episode_data: Dict, config: TranscriptionConfig,
         
         print(f"💾 Saved transcript: {output_file}")
         update_progress("saving", 1.0)
+        
+        # Trigger RAG ingestion
+        print(f"🔄 Triggering RAG ingestion...")
+        ingest_transcript_to_rag(str(output_file), episode_title, feed_title)
         
         # Update history
         history['processed_episodes'].append(guid)

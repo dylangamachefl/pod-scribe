@@ -13,7 +13,6 @@ import type {
     TranscriptionStartResponse,
     PodcastInfo,
     EpisodeInfo,
-    TranscriptResponse,
     TranscriptionStats,
     TranscriptionHealth,
 } from './types';
@@ -302,7 +301,7 @@ export const mockTranscriptionClient = {
         return episodes;
     },
 
-    async getTranscript(podcastName: string, episodeName: string): Promise<TranscriptResponse> {
+    async getTranscript(podcastName: string, episodeName: string): Promise<{ content: string; podcast_name: string; episode_name: string }> {
         await delay(600);
 
         return {
@@ -310,6 +309,10 @@ export const mockTranscriptionClient = {
             episode_name: episodeName,
             content: MOCK_TRANSCRIPT_CONTENT,
         };
+    },
+
+    getTranscriptUrl(podcastName: string, episodeName: string): string {
+        return `mock://transcripts/${encodeURIComponent(podcastName)}/${encodeURIComponent(episodeName)}.txt`;
     },
 
     // ========================================================================

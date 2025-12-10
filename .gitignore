@@ -6,6 +6,11 @@
 .env.local
 .env.*.local
 
+# Docker Secrets directory (contains sensitive credentials)
+secrets/*
+!secrets/.gitignore
+!secrets/README.md
+
 # =================================================================
 # OUTPUT & GENERATED FILES
 # =================================================================

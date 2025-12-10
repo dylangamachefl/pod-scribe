@@ -7,12 +7,13 @@ import re
 from datetime import datetime
 
 
-def extract_metadata_from_transcript(content: str) -> Dict:
+def extract_metadata_from_transcript(content: str, filename: str = None) -> Dict:
     """
     Extract metadata from transcript file header.
     
     Args:
         content: Full transcript content
+        filename: Optional filename to use as fallback for episode title
         
     Returns:
         Dictionary with episode_title, podcast_name, processed_date, speakers, duration, and audio_url
@@ -28,11 +29,17 @@ def extract_metadata_from_transcript(content: str) -> Dict:
     
     lines = content.split('\n')
     
-    for line in lines[:30]:  # Check first 30 lines for metadata
-        if line.startswith("Episode:"):
-            metadata["episode_title"] = line.replace("Episode:", "").strip()
+    # Extract metadata from header (first 30 lines)
+    for line in lines[:30]:
+        # Handle both "Title:" and "Episode:" prefixes
+        if line.startswith("Title:") or line.startswith("Episode:"):
+            title = line.replace("Title:", "").replace("Episode:", "").strip()
+            if title:
+                metadata["episode_title"] = title
         elif line.startswith("Podcast:"):
-            metadata["podcast_name"] = line.replace("Podcast:", "").strip()
+            podcast = line.replace("Podcast:", "").strip()
+            if podcast:
+                metadata["podcast_name"] = podcast
         elif line.startswith("Processed:"):
             metadata["processed_date"] = line.replace("Processed:", "").strip()
         elif line.startswith("Duration:"):
@@ -44,5 +51,21 @@ def extract_metadata_from_transcript(content: str) -> Dict:
             speakers_str = line.replace("Speakers:", "").strip()
             if speakers_str:
                 metadata["speakers"] = [s.strip() for s in speakers_str.split(",")]
+    
+    # Fallback: Use filename if episode title is still unknown
+    if metadata["episode_title"] == "Unknown Episode" and filename:
+        # Remove .txt extension and use filename as title
+        title_from_filename = filename.replace(".txt", "").strip()
+        if title_from_filename:
+            metadata["episode_title"] = title_from_filename
+    
+    # Extract unique speakers from transcript content if not found in metadata
+    if not metadata["speakers"]:
+        speaker_pattern = re.compile(r'\[SPEAKER_(\d+)\]')
+        speaker_matches = speaker_pattern.findall(content)
+        if speaker_matches:
+            # Get unique speaker IDs and format them
+            unique_speakers = sorted(set(speaker_matches))
+            metadata["speakers"] = [f"Speaker {s}" for s in unique_speakers]
     
     return metadata

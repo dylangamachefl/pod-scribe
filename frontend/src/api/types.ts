@@ -38,7 +38,21 @@ export interface Summary {
     duration?: string;
     audio_url?: string;
     created_at: string;
+    source_file?: string; // Path to original transcript file
+    // Structured summary fields (from Gemini)
+    hook?: string;
+    key_takeaways?: Array<{ concept: string; explanation: string }>;
+    actionable_advice?: string[];
+    quotes?: string[];
+    concepts?: Array<{ term: string; definition: string }>;
+    perspectives?: string;
+
+    // Two-stage pipeline metadata
+    stage1_processing_time_ms?: number;
+    stage2_processing_time_ms?: number;
+    total_processing_time_ms?: number;
 }
+
 
 export interface HealthStatus {
     status: string;

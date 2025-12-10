@@ -164,19 +164,31 @@ def fetch_episodes_from_feed(feed_url: str, feed_title: str = None, days_limit: 
             if episode_id in processed_ids or episode_id in pending_ids:
                 continue
             
-            # Find audio enclosure
+            # Find audio/video URL
             audio_url = None
+            
+            # Method 1: Check for audio enclosures (standard podcast RSS)
             for enclosure in entry.get('enclosures', []):
                 if enclosure.get('type', '').startswith('audio/'):
                     audio_url = enclosure.get('href')
                     break
             
-            # If no audio enclosure, check if it's a YouTube video
+            # Method 2: Check direct link attribute (Atom feeds like YouTube)
+            if not audio_url and hasattr(entry, 'link'):
+                audio_url = entry.link
+            
+            # Method 3: Check links array for alternate link (Atom feeds)
+            if not audio_url and hasattr(entry, 'links'):
+                for link_item in entry.links:
+                    if link_item.get('rel') == 'alternate':
+                        audio_url = link_item.get('href')
+                        break
+            
+            # Method 4: Fallback to dict access
             if not audio_url:
-                link = entry.get('link', '')
-                if 'youtube.com' in link or 'youtu.be' in link:
-                    audio_url = link
-
+                audio_url = entry.get('link', '')
+            
+            # Skip entries without valid URLs
             if not audio_url:
                 continue
             

@@ -16,7 +16,6 @@ import type {
     TranscriptionStartResponse,
     PodcastInfo,
     EpisodeInfo,
-    TranscriptResponse,
     TranscriptionStats,
     TranscriptionHealth,
 } from './types';
@@ -169,11 +168,28 @@ export const transcriptionClient = {
     /**
      * Get specific transcript content
      */
-    async getTranscript(podcastName: string, episodeName: string): Promise<TranscriptResponse> {
-        const response = await axiosInstance.get<TranscriptResponse>(
-            `/transcripts/${encodeURIComponent(podcastName)}/${encodeURIComponent(episodeName)}`
+    /**
+     * Get specific transcript content (raw text)
+     */
+    async getTranscript(podcastName: string, episodeName: string): Promise<{ content: string; podcast_name: string; episode_name: string }> {
+        // Fetch raw text from static file endpoint
+        const response = await axiosInstance.get<string>(
+            `/files/${encodeURIComponent(podcastName)}/${encodeURIComponent(episodeName)}.txt`,
+            { transformResponse: [(data) => data] } // Prevent JSON parsing
         );
-        return response.data;
+
+        return {
+            content: response.data,
+            podcast_name: podcastName,
+            episode_name: episodeName
+        };
+    },
+
+    /**
+     * Get URL for direct download
+     */
+    getTranscriptUrl(podcastName: string, episodeName: string): string {
+        return `${API_BASE_URL}/files/${encodeURIComponent(podcastName)}/${encodeURIComponent(episodeName)}.txt`;
     },
 
     // ========================================================================

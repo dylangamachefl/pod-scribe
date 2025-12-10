@@ -29,6 +29,56 @@ function EpisodeDetailModal({ episode, onClose, onOpenChat, isChatOpen }: Episod
         return () => document.removeEventListener('keydown', handleEscape);
     }, [onClose]);
 
+    // Extract the actual transcript filename from source_file path
+    const getTranscriptFilename = (): string => {
+        if (episode.source_file) {
+            // Extract filename from path (e.g., ".../Huberman Lab/Episode Name.txt" -> "Episode Name")
+            const pathParts = episode.source_file.replace(/\\/g, '/').split('/');
+            const filename = pathParts[pathParts.length - 1]; // Get last part
+            return filename.replace('.txt', ''); // Remove .txt extension
+        }
+        // Fallback to episode title if source_file not available
+        return episode.episode_title;
+    };
+
+    // Format date to human-readable format
+    const formatDate = (dateString: string): string => {
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return dateString; // Return original if invalid
+
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch {
+            return dateString;
+        }
+    };
+
+    // Format duration to readable format
+    const formatDuration = (duration?: string): string => {
+        if (!duration) return 'N/A';
+
+        // If already in readable format (e.g., "1h 23m"), return as is
+        if (duration.includes('h') || duration.includes('m') || duration.includes('s')) {
+            return duration;
+        }
+
+        // Try to parse as seconds
+        const seconds = parseInt(duration);
+        if (isNaN(seconds)) return duration;
+
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+
+        if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        }
+        return `${minutes}m`;
+    };
+
     const loadTranscript = async () => {
         if (transcript) {
             setShowTranscript(!showTranscript);
@@ -37,41 +87,109 @@ function EpisodeDetailModal({ episode, onClose, onOpenChat, isChatOpen }: Episod
 
         try {
             setLoadingTranscript(true);
+            const episodeFilename = getTranscriptFilename();
             const data = await transcriptionApi.getTranscript(
                 episode.podcast_name,
-                episode.episode_title
+                episodeFilename
             );
             setTranscript(data.content);
             setShowTranscript(true);
         } catch (err) {
             console.error('Failed to load transcript:', err);
-            alert('Failed to load transcript');
+            alert(`Failed to load transcript. Episode filename: ${getTranscriptFilename()}`);
         } finally {
             setLoadingTranscript(false);
         }
     };
 
-    const downloadTranscript = async () => {
-        try {
-            const data = await transcriptionApi.getTranscript(
-                episode.podcast_name,
-                episode.episode_title
-            );
-            const blob = new Blob([data.content], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${episode.episode_title}.txt`;
-            a.click();
-            URL.revokeObjectURL(url);
-        } catch (err) {
-            console.error('Download failed:', err);
-            alert('Failed to download transcript');
-        }
+    const downloadTranscript = () => {
+        const episodeFilename = getTranscriptFilename();
+        const url = transcriptionApi.getTranscriptUrl(
+            episode.podcast_name,
+            episodeFilename
+        );
+
+        // Trigger download via temporary anchor tag
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${episode.episode_title}.txt`;
+        a.target = '_blank'; // Open in new tab if download is blocked by browser policy
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     };
 
     const downloadSummary = () => {
-        const summaryContent = `${episode.episode_title}\n${episode.podcast_name}\n\n${episode.summary}\n\nKey Topics:\n${episode.key_topics.map(t => `- ${t}`).join('\n')}\n\nSpeakers: ${episode.speakers.join(', ')}`;
+        // Build comprehensive summary text with all structured fields
+        let summaryContent = `${episode.episode_title}\n`;
+        summaryContent += `${episode.podcast_name}\n`;
+        summaryContent += `\n${'='.repeat(80)}\n\n`;
+
+        // Hook
+        if (episode.hook) {
+            summaryContent += `${episode.hook}\n\n`;
+            summaryContent += `${'='.repeat(80)}\n\n`;
+        }
+
+        // Main Summary
+        summaryContent += `SUMMARY\n\n${episode.summary}\n\n`;
+        summaryContent += `${'='.repeat(80)}\n\n`;
+
+        // Key Takeaways
+        if (episode.key_takeaways && episode.key_takeaways.length > 0) {
+            summaryContent += `KEY TAKEAWAYS\n\n`;
+            episode.key_takeaways.forEach((takeaway, i) => {
+                summaryContent += `${i + 1}. ${takeaway.concept}\n`;
+                summaryContent += `   ${takeaway.explanation}\n\n`;
+            });
+            summaryContent += `${'='.repeat(80)}\n\n`;
+        }
+
+        // Actionable Advice
+        if (episode.actionable_advice && episode.actionable_advice.length > 0) {
+            summaryContent += `ACTIONABLE ADVICE\n\n`;
+            episode.actionable_advice.forEach((advice, i) => {
+                summaryContent += `${i + 1}. ${advice}\n`;
+            });
+            summaryContent += `\n${'='.repeat(80)}\n\n`;
+        }
+
+        // Notable Quotes
+        if (episode.quotes && episode.quotes.length > 0) {
+            summaryContent += `NOTABLE QUOTES\n\n`;
+            episode.quotes.forEach((quote, i) => {
+                summaryContent += `${i + 1}. "${quote}"\n\n`;
+            });
+            summaryContent += `${'='.repeat(80)}\n\n`;
+        }
+
+        // Key Concepts
+        if (episode.concepts && episode.concepts.length > 0) {
+            summaryContent += `KEY CONCEPTS\n\n`;
+            episode.concepts.forEach((concept, i) => {
+                summaryContent += `${i + 1}. ${concept.term}\n`;
+                summaryContent += `   ${concept.definition}\n\n`;
+            });
+            summaryContent += `${'='.repeat(80)}\n\n`;
+        }
+
+        // Different Perspectives
+        if (episode.perspectives) {
+            summaryContent += `DIFFERENT PERSPECTIVES\n\n${episode.perspectives}\n\n`;
+            summaryContent += `${'='.repeat(80)}\n\n`;
+        }
+
+        // Key Topics
+        if (episode.key_topics.length > 0) {
+            summaryContent += `KEY TOPICS\n\n`;
+            summaryContent += episode.key_topics.map(t => `• ${t}`).join('\n');
+            summaryContent += `\n\n${'='.repeat(80)}\n\n`;
+        }
+
+        // Speakers
+        summaryContent += `SPEAKERS\n\n${episode.speakers.join(', ')}`;
+
+        // Create and download
         const blob = new Blob([summaryContent], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -110,8 +228,13 @@ function EpisodeDetailModal({ episode, onClose, onOpenChat, isChatOpen }: Episod
                         <div className="podcast-badge">{episode.podcast_name}</div>
                         <h2 id="modal-title">{episode.episode_title}</h2>
                         <div className="episode-meta">
-                            {episode.duration && <span>⏱️ {episode.duration}</span>}
-                            <span>📅 {episode.created_at}</span>
+                            {episode.duration && <span>⏱️ {formatDuration(episode.duration)}</span>}
+                            <span>📅 {formatDate(episode.created_at)}</span>
+                            {episode.total_processing_time_ms && (
+                                <span className="processing-time" title={`Stage 1: ${(episode.stage1_processing_time_ms || 0) / 1000}s | Stage 2: ${(episode.stage2_processing_time_ms || 0) / 1000}s`}>
+                                    ⚡ {(episode.total_processing_time_ms / 1000).toFixed(1)}s
+                                </span>
+                            )}
                         </div>
                     </div>
                     <button className="close-button" onClick={onClose} aria-label="Close episode details">✕</button>
@@ -138,11 +261,84 @@ function EpisodeDetailModal({ episode, onClose, onOpenChat, isChatOpen }: Episod
                 )}
 
                 <div className="modal-body">
+                    {/* Hook - One-sentence summary */}
+                    {episode.hook && (
+                        <section className="hook-section">
+                            <div className="hook-text">"{episode.hook}"</div>
+                        </section>
+                    )}
+
+                    {/* Main Summary */}
                     <section className="summary-section">
                         <h3>Summary</h3>
                         <p className="summary-text">{episode.summary}</p>
                     </section>
 
+                    {/* Key Takeaways */}
+                    {episode.key_takeaways && episode.key_takeaways.length > 0 && (
+                        <section className="takeaways-section">
+                            <h3>Key Takeaways</h3>
+                            <div className="takeaways-list">
+                                {episode.key_takeaways.map((takeaway, i) => (
+                                    <div key={i} className="takeaway-item">
+                                        <strong>{takeaway.concept}</strong>
+                                        <p>{takeaway.explanation}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Actionable Advice */}
+                    {episode.actionable_advice && episode.actionable_advice.length > 0 && (
+                        <section className="advice-section">
+                            <h3>Actionable Advice</h3>
+                            <ul className="advice-list">
+                                {episode.actionable_advice.map((advice, i) => (
+                                    <li key={i}>{advice}</li>
+                                ))}
+                            </ul>
+                        </section>
+                    )}
+
+                    {/* Notable Quotes */}
+                    {episode.quotes && episode.quotes.length > 0 && (
+                        <section className="quotes-section">
+                            <h3>Notable Quotes</h3>
+                            <div className="quotes-list">
+                                {episode.quotes.map((quote, i) => (
+                                    <blockquote key={i} className="quote-item">
+                                        "{quote}"
+                                    </blockquote>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Key Concepts */}
+                    {episode.concepts && episode.concepts.length > 0 && (
+                        <section className="concepts-section">
+                            <h3>Key Concepts</h3>
+                            <dl className="concepts-list">
+                                {episode.concepts.map((concept, i) => (
+                                    <div key={i} className="concept-item">
+                                        <dt><strong>{concept.term}</strong></dt>
+                                        <dd>{concept.definition}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        </section>
+                    )}
+
+                    {/* Perspectives */}
+                    {episode.perspectives && (
+                        <section className="perspectives-section">
+                            <h3>Different Perspectives</h3>
+                            <p className="perspectives-text">{episode.perspectives}</p>
+                        </section>
+                    )}
+
+                    {/* Key Topics (fallback or supplementary) */}
                     {episode.key_topics.length > 0 && (
                         <section className="topics-section">
                             <h3>Key Topics</h3>

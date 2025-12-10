@@ -58,25 +58,81 @@ function LibraryPage() {
             return;
         }
 
-        // Format summaries with structured markdown
-        const content = selectedSummaries.map(summary => `
-# ${summary.episode_title}
-**Podcast:** ${summary.podcast_name}  
-**Duration:** ${summary.duration || 'N/A'}  
-**Created:** ${summary.created_at}
+        // Format summaries with complete structured markdown
+        const content = selectedSummaries.map(summary => {
+            let markdown = `# ${summary.episode_title}\n`;
+            markdown += `**Podcast:** ${summary.podcast_name}  \n`;
+            markdown += `**Duration:** ${summary.duration || 'N/A'}  \n`;
+            markdown += `**Created:** ${summary.created_at}\n\n`;
+            markdown += `${'='.repeat(80)}\n\n`;
 
-## Summary
-${summary.summary}
+            // Hook
+            if (summary.hook) {
+                markdown += `> ${summary.hook}\n\n`;
+                markdown += `${'='.repeat(80)}\n\n`;
+            }
 
-## Key Topics
-${summary.key_topics.map(topic => `- ${topic}`).join('\n')}
+            // Main Summary
+            markdown += `## Summary\n\n${summary.summary}\n\n`;
+            markdown += `${'='.repeat(80)}\n\n`;
 
-## Speakers
-${summary.speakers.join(', ')}
+            // Key Takeaways
+            if (summary.key_takeaways && summary.key_takeaways.length > 0) {
+                markdown += `## Key Takeaways\n\n`;
+                summary.key_takeaways.forEach((takeaway, i) => {
+                    markdown += `${i + 1}. **${takeaway.concept}**\n`;
+                    markdown += `   ${takeaway.explanation}\n\n`;
+                });
+                markdown += `${'='.repeat(80)}\n\n`;
+            }
 
----
+            // Actionable Advice
+            if (summary.actionable_advice && summary.actionable_advice.length > 0) {
+                markdown += `## Actionable Advice\n\n`;
+                summary.actionable_advice.forEach((advice, i) => {
+                    markdown += `${i + 1}. ${advice}\n`;
+                });
+                markdown += `\n${'='.repeat(80)}\n\n`;
+            }
 
-`).join('\n');
+            // Notable Quotes
+            if (summary.quotes && summary.quotes.length > 0) {
+                markdown += `## Notable Quotes\n\n`;
+                summary.quotes.forEach((quote, i) => {
+                    markdown += `${i + 1}. "${quote}"\n\n`;
+                });
+                markdown += `${'='.repeat(80)}\n\n`;
+            }
+
+            // Key Concepts
+            if (summary.concepts && summary.concepts.length > 0) {
+                markdown += `## Key Concepts\n\n`;
+                summary.concepts.forEach((concept, i) => {
+                    markdown += `${i + 1}. **${concept.term}**\n`;
+                    markdown += `   ${concept.definition}\n\n`;
+                });
+                markdown += `${'='.repeat(80)}\n\n`;
+            }
+
+            // Different Perspectives
+            if (summary.perspectives) {
+                markdown += `## Different Perspectives\n\n${summary.perspectives}\n\n`;
+                markdown += `${'='.repeat(80)}\n\n`;
+            }
+
+            // Key Topics
+            if (summary.key_topics.length > 0) {
+                markdown += `## Key Topics\n\n`;
+                markdown += summary.key_topics.map(t => `- ${t}`).join('\n');
+                markdown += `\n\n${'='.repeat(80)}\n\n`;
+            }
+
+            // Speakers
+            markdown += `## Speakers\n\n${summary.speakers.join(', ')}\n\n`;
+            markdown += `---\n\n`;
+
+            return markdown;
+        }).join('\n');
 
         // Download as markdown file
         const blob = new Blob([content], { type: 'text/markdown' });
@@ -157,7 +213,13 @@ ${summary.speakers.join(', ')}
 
                             <h3 className="episode-title">{summary.episode_title}</h3>
 
-                            <div className="summary-text">{summary.summary}</div>
+                            {/* Show hook if available, otherwise show brief summary */}
+                            {summary.hook && (
+                                <div className="summary-text">💡 {summary.hook}</div>
+                            )}
+                            {!summary.hook && summary.summary && !summary.summary.includes('```json') && (
+                                <div className="summary-text">{summary.summary.substring(0, 200)}...</div>
+                            )}
 
                             {summary.key_topics.length > 0 && (
                                 <div className="topics">
