@@ -37,8 +37,8 @@ services:
       retries: 5
 
   # Transcription Worker (GPU-enabled)
-  # Runs on GPU for Whisper transcription
-  # Uses event-driven architecture - listens for transcription requests via Redis
+  # Runs continuously polling Redis for transcription jobs
+  # Uses Redis queue architecture - API enqueues jobs, worker processes them
   transcription-worker:
     build:
       context: .
@@ -56,6 +56,8 @@ services:
       - COMPUTE_TYPE=int8
       - BATCH_SIZE=4
       - WHISPER_MODEL=large-v2
+      # Python configuration for logging visibility
+      - PYTHONUNBUFFERED=1
     volumes:
       # Shared directories for reading/writing
       - ./shared/config:/app/shared/config
@@ -65,8 +67,10 @@ services:
       - redis
     networks:
       - podcast-network
-    # Don't auto-restart on failure (manual trigger)
-    restart: "no"
+    # Run continuously, restart if crashes
+    restart: unless-stopped
+    # Run daemon mode instead of one-shot CLI
+    command: python src/worker_daemon.py
     deploy:
       resources:
         reservations:

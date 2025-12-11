@@ -24,6 +24,7 @@ class TranscriptionConfig:
     # Service URLs (no hardcoding!)
     rag_service_url: str = "http://localhost:8000"
     summarization_service_url: str = "http://localhost:8002"
+    redis_url: str = "redis://localhost:6379"
     
     # Service configuration
     service_timeout: int = 60  # seconds
@@ -121,6 +122,7 @@ class TranscriptionConfig:
             # Service URLs from environment
             rag_service_url=os.getenv("RAG_SERVICE_URL", "http://localhost:8000"),
             summarization_service_url=os.getenv("SUMMARIZATION_SERVICE_URL", "http://localhost:8002"),
+            redis_url=os.getenv("REDIS_URL", "redis://localhost:6379"),
             # Service configuration
             service_timeout=int(os.getenv("SERVICE_TIMEOUT", "60")),
             service_retry_attempts=int(os.getenv("SERVICE_RETRY_ATTEMPTS", "3")),

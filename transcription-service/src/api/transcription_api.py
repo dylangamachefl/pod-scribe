@@ -8,6 +8,8 @@ import json
 import uuid
 import subprocess
 import threading
+import logging
+import redis
 from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
@@ -27,6 +29,9 @@ from api.models import (
     PodcastInfo, EpisodeInfo, TranscriptResponse,
     StatsResponse, HealthResponse
 )
+# Setup logging
+logger = logging.getLogger(__name__)
+
 from managers.episode_manager import (
     load_pending_episodes,
     save_pending_episodes,
@@ -404,7 +409,15 @@ async def start_transcription(
     request: TranscriptionStartRequest,
     background_tasks: BackgroundTasks
 ):
-    """Start transcription process for selected episodes."""
+    """
+    Enqueue transcription job to Redis queue.
+    
+    The transcription worker daemon polls Redis and processes jobs.
+    This provides immediate response and production-ready architecture.
+    """
+    import redis
+    from datetime import datetime
+    
     # Check if already running (via status file)
     status = read_status()
     if status and status.get('is_running'):
@@ -418,43 +431,39 @@ async def start_transcription(
     if not selected_episodes:
         raise HTTPException(status_code=400, detail="No episodes selected")
     
-    # Trigger host-side listener
-    import requests
-    
-    def trigger_host_listener():
-        try:
-            # Try host.docker.internal first (Docker Desktop)
-            # If that fails, try localhost (for local dev)
-            endpoints = [
-                "http://host.docker.internal:8080/start",
-                "http://localhost:8080/start"
-            ]
-            
-            success = False
-            for endpoint in endpoints:
-                try:
-                    print(f"Attempting to trigger listener at {endpoint}...")
-                    response = requests.post(endpoint, timeout=2)
-                    if response.status_code == 200:
-                        print(f"Successfully triggered listener at {endpoint}")
-                        success = True
-                        break
-                except requests.RequestException:
-                    continue
-            
-            if not success:
-                print("Failed to contact host listener on any known endpoint")
-                
-        except Exception as e:
-            print(f"Error triggering host listener: {e}")
-
-    background_tasks.add_task(trigger_host_listener)
-    
-    return TranscriptionStartResponse(
-        status="started",
-        message=f"Transcription signal sent for {len(selected_episodes)} episode(s)",
-        episodes_count=len(selected_episodes)
-    )
+    try:
+        # Connect to Redis
+        redis_url = os.getenv('REDIS_URL', 'redis://redis:6379')
+        r = redis.from_url(redis_url, decode_responses=True)
+        
+        # Create job payload
+        job = {
+            'timestamp': datetime.now().isoformat(),
+            'episode_count': len(selected_episodes),
+            'episodes': [ep.get('id') for ep in selected_episodes]
+        }
+        
+        # Enqueue job to Redis
+        # Worker daemon is continuously polling this queue
+        r.lpush('transcription_queue', json.dumps(job))
+        
+        logger.info(f"📤 Enqueued transcription job: {len(selected_episodes)} episode(s)")
+        
+        return TranscriptionStartResponse(
+            status="queued",
+            message=f"Transcription queued for {len(selected_episodes)} episode(s). Worker will process shortly.",
+            episodes_count=len(selected_episodes)
+        )
+        
+    except redis.ConnectionError as e:
+        logger.error(f"Redis connection error: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to connect to job queue. Please ensure Redis is running."
+        )
+    except Exception as e:
+        logger.error(f"Error enqueueing job: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to queue job: {str(e)}")
 
 
 # ============================================================================

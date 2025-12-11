@@ -17,4 +17,5 @@ dependencies:
     - yt-dlp
     - pyannote.audio==3.3.2
     - python-dotenv
+    - pydantic
 

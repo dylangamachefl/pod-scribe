@@ -81,6 +81,13 @@ function DashboardPage() {
                 <p>Overview of your podcast transcription activity</p>
             </div>
 
+            {/* Success Message Toast */}
+            {successMessage && (
+                <div className="success-toast">
+                    {successMessage}
+                </div>
+            )}
+
             {/* Statistics Cards */}
             <div className="stats-grid">
                 <div className="stat-card">
