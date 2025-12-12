@@ -2,18 +2,15 @@
 Summarization Event Subscriber
 Listens for EpisodeTranscribed events and generates summaries.
 """
-import sys
 from pathlib import Path
 
-# Add shared directory to path for event imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "shared"))
-
-from events import get_event_bus, EpisodeTranscribed, EpisodeSummarized
+from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed, EpisodeSummarized
 from services.gemini_service import get_gemini_service
 from utils.transcript_parser import extract_metadata_from_transcript
 from config import SUMMARY_OUTPUT_PATH
 import json
 import uuid
+
 
 
 def process_transcription_event(event_data: dict):

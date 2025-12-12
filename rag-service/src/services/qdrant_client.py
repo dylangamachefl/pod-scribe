@@ -74,6 +74,7 @@ class QdrantService:
                 "chunk_index": i,
                 
                 # Episode metadata
+                "episode_id": metadata.get("episode_id", "unknown"),  # For idempotency checks
                 "episode_title": metadata.get("episode_title", "Unknown"),
                 "podcast_name": metadata.get("podcast_name", "Unknown"),
                 "speaker": chunk.get("speaker", "UNKNOWN"),

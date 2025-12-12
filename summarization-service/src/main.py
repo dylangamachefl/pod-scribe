@@ -16,12 +16,10 @@ from config import (
 from models import HealthResponse
 from routers import summaries
 from services.gemini_service import get_gemini_service
-from services.file_watcher import start_file_watcher
 from event_subscriber import start_summarization_event_subscriber
 
 
-# Background threads
-file_watcher_thread = None
+# Background thread
 event_subscriber_thread = None
 
 
@@ -31,7 +29,7 @@ async def lifespan(app: FastAPI):
     Application lifespan manager.
     Initializes services on startup and cleans up on shutdown.
     """
-    global file_watcher_thread, event_subscriber_thread
+    global event_subscriber_thread
     
     # Startup: Initialize services
     print("\n" + "="*60)
@@ -47,7 +45,7 @@ async def lifespan(app: FastAPI):
         print(f"❌ Gemini service initialization failed: {e}")
         raise
     
-    # Start event subscriber in background thread (event-driven)
+    # Start event subscriber in background thread (event-driven architecture)
     print("\n📡 Starting event subscriber...")
     event_subscriber_thread = threading.Thread(
         target=start_summarization_event_subscriber,
@@ -57,22 +55,18 @@ async def lifespan(app: FastAPI):
     event_subscriber_thread.start()
     print("✅ Event subscriber started (listening for EpisodeTranscribed events)")
     
-    # Start file watcher in background thread (backup for events)
-    print("\n👁️  Starting file watcher (backup)...")
-    file_watcher_thread = threading.Thread(target=start_file_watcher, daemon=True)
-    file_watcher_thread.start()
-    print("✅ File watcher started")
-    
     print("\n" + "="*60)
     print("✅ Summarization Service is ready!")
     print(f"   Stage 1 Model (Thinker): {STAGE1_MODEL}")
     print(f"   Stage 2 Model (Structurer): {STAGE2_MODEL}")
+    print(f"   Architecture: Event-Driven Only (no file watching)")
     print("="*60 + "\n")
     
     yield
     
     # Shutdown
     print("\n🛑 Shutting down Summarization Service...")
+
 
 
 # Create FastAPI app
@@ -115,7 +109,7 @@ async def root():
 async def health_check():
     """
     Health check endpoint.
-    Verifies Gemini API is configured.
+    Verifies Gemini API is configured and event subscriber is running.
     """
     try:
         # Check if Gemini service is accessible
@@ -125,7 +119,6 @@ async def health_check():
             status="healthy",
             gemini_api_configured=gemini_service is not None,
             model_name=f"{STAGE1_MODEL} + {STAGE2_MODEL}",
-            file_watcher_active=file_watcher_thread is not None and file_watcher_thread.is_alive(),
             event_subscriber_active=event_subscriber_thread is not None and event_subscriber_thread.is_alive()
         )
     
@@ -134,8 +127,9 @@ async def health_check():
             status="unhealthy",
             gemini_api_configured=False,
             model_name=f"{STAGE1_MODEL} + {STAGE2_MODEL}",
-            file_watcher_active=False
+            event_subscriber_active=False
         )
+
 
 
 if __name__ == "__main__":

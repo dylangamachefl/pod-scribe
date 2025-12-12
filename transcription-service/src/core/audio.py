@@ -1,6 +1,7 @@
 """
 Audio Processing Module
 Functions for downloading and transcribing audio files.
+Includes TranscriptionWorker class for persistent model loading.
 """
 import gc
 from pathlib import Path
@@ -106,9 +107,156 @@ def download_audio(url: str, output_path: Path) -> bool:
         return False
 
 
-def transcribe_audio(audio_path: Path, whisper_model: str, device: str, 
-                     compute_type: str, batch_size: int) -> Optional[Dict]:
-    """Transcribe audio using WhisperX with int8 quantization.
+class TranscriptionWorker:
+    """
+    Persistent worker that maintains loaded WhisperX model.
+    
+    This class loads the model once during initialization and reuses it
+    for multiple transcription requests, eliminating the 5-10 second
+    model loading overhead per request.
+    """
+    
+    def __init__(
+        self, 
+        whisper_model: str, 
+        device: str,
+        compute_type: str,
+        batch_size: int
+    ) -> None:
+        """
+        Load and persist WhisperX model.
+        
+        Args:
+            whisper_model: WhisperX model name (e.g., "large-v2")
+            device: Device to use ("cuda" or "cpu") 
+            compute_type: Compute type for quantization (e.g., "int8")
+            batch_size: Batch size for transcription
+            
+        Raises:
+            RuntimeError: If model loading fails
+            torch.cuda.OutOfMemoryError: If GPU memory insufficient
+        """
+        self.whisper_model = whisper_model
+        self.device = device
+        self.compute_type = compute_type
+        self.batch_size = batch_size
+        self.model = None
+        
+        try:
+            print(f"🎤 Loading Whisper model ({whisper_model}) - one-time initialization...")
+            self.model = whisperx.load_model(
+                whisper_model,
+                device,
+                compute_type=compute_type,
+                language="en"
+            )
+            print(f"✅ Model loaded successfully and ready for reuse")
+            
+        except torch.cuda.OutOfMemoryError as e:
+            raise torch.cuda.OutOfMemoryError(
+                f"Insufficient GPU memory to load {whisper_model}. "
+                f"Try using a smaller model or increase GPU memory."
+            ) from e
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to load WhisperX model {whisper_model}: {e}"
+            ) from e
+    
+    def process(self, audio_path: Path) -> Optional[Dict]:
+        """
+        Transcribe audio using pre-loaded model.
+        
+        Args:
+            audio_path: Path to audio file
+            
+        Returns:
+            Aligned transcript segments dict, or None if failed
+            
+        Raises:
+            FileNotFoundError: If audio file doesn't exist
+            RuntimeError: If transcription fails
+        """
+        if not audio_path.exists():
+            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+        
+        if self.model is None:
+            raise RuntimeError("Model not initialized. Worker may have failed during construction.")
+        
+        try:
+            print(f"🔄 Transcribing: {audio_path.name} (using persistent model)")
+            update_progress("transcribing", 0.3)
+            
+            # Load and transcribe audio
+            audio = whisperx.load_audio(str(audio_path))
+            result = self.model.transcribe(audio, batch_size=self.batch_size)
+            
+            # Align timestamps
+            print("⏱️  Aligning timestamps...")
+            update_progress("transcribing", 0.7)
+            
+            model_a, metadata = whisperx.load_align_model(
+                language_code=result["language"],
+                device=self.device
+            )
+            
+            result = whisperx.align(
+                result["segments"],
+                model_a,
+                metadata,
+                audio,
+                self.device,
+                return_char_alignments=False
+            )
+            
+            # Clean up alignment model (but keep main model!)
+            del model_a
+            del audio
+            gc.collect()
+            
+            print("✅ Transcription complete")
+            update_progress("transcribing", 1.0)
+            return result
+            
+        except FileNotFoundError:
+            raise
+        except torch.cuda.OutOfMemoryError as e:
+            print(f"❌ GPU out of memory during transcription: {e}")
+            # Try to recover memory
+            gc.collect()
+            torch.cuda.empty_cache()
+            return None
+        except RuntimeError as e:
+            print(f"❌ Transcription runtime error: {e}")
+            return None
+        except Exception as e:
+            print(f"❌ Transcription failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def __del__(self):
+        """Clean up model on worker destruction."""
+        if self.model is not None:
+            del self.model
+            gc.collect()
+            torch.cuda.empty_cache()
+            print("🧹 TranscriptionWorker cleaned up")
+
+
+# Legacy function for backward compatibility
+# TODO: Deprecated - use TranscriptionWorker class instead
+def transcribe_audio(
+    audio_path: Path, 
+    whisper_model: str, 
+    device: str, 
+    compute_type: str, 
+    batch_size: int
+) -> Optional[Dict]:
+    """
+    Transcribe audio using WhisperX with int8 quantization.
+    
+    DEPRECATED: This function creates a new model for each call.
+    Use TranscriptionWorker class for better performance.
     
     Args:
         audio_path: Path to audio file
@@ -120,6 +268,9 @@ def transcribe_audio(audio_path: Path, whisper_model: str, device: str,
     Returns:
         Aligned transcript segments dict, or None if failed
     """
+    print("⚠️  Using deprecated transcribe_audio function (creates new model each time)")
+    print("   Consider using TranscriptionWorker class for better performance")
+    
     try:
         print(f"🎤 Loading Whisper model ({whisper_model})...")
         update_progress("transcribing", 0.1)

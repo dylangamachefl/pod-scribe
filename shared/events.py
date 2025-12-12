@@ -2,12 +2,17 @@
 Event Schemas and Redis Pub/Sub Infrastructure
 Provides event-driven communication between services.
 """
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable
 from datetime import datetime
 from pydantic import BaseModel, Field
+from concurrent.futures import ThreadPoolExecutor
 import redis
 import json
 import os
+import time
+import traceback
+import signal
+import sys
 
 
 # =================================================================
@@ -30,6 +35,7 @@ class EpisodeTranscribed(BaseEvent):
     docker_transcript_path: str  # Docker container path
     audio_url: Optional[str] = None
     duration_seconds: Optional[float] = None
+    diarization_failed: bool = False  # True if speaker identification failed
     
     class Config:
         json_schema_extra = {
@@ -41,9 +47,12 @@ class EpisodeTranscribed(BaseEvent):
                 "episode_title": "How to Build Great Software",
                 "podcast_name": "Tech Podcast",
                 "transcript_path": "C:/path/to/transcript.txt",
-                "docker_transcript_path": "/app/shared/output/transcript.txt"
+                "docker_transcript_path": "/app/shared/output/transcript.txt",
+                "diarization_failed": False
             }
         }
+
+
 
 
 class EpisodeSummarized(BaseEvent):
@@ -105,17 +114,24 @@ class EventBus:
     CHANNEL_SUMMARIZED = "episodes:summarized"
     CHANNEL_INGESTED = "episodes:ingested"
     
-    def __init__(self, redis_url: Optional[str] = None):
+    def __init__(self, redis_url: Optional[str] = None, max_workers: int = 4):
         """
         Initialize event bus connection.
         
         Args:
             redis_url: Redis connection URL (defaults to REDIS_URL env var)
+            max_workers: Maximum number of concurrent callback threads
         """
         self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379")
         self.client = None
         self.pubsub = None
+        self.executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="EventBus")
+        self._shutdown = False
         self._connect()
+        
+        # Register graceful shutdown
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
     
     def _connect(self):
         """Establish Redis connection with retry logic."""
@@ -164,54 +180,126 @@ class EventBus:
             print(f"❌ Failed to publish event to {channel}: {e}")
             return False
     
-    def subscribe(self, channel: str, callback):
+    def subscribe(self, channel: str, callback: Callable[[Dict], None]):
         """
         Subscribe to a channel and process events with callback.
-        This is a blocking call that runs in a loop.
+        Automatically reconnects on connection failures with exponential backoff.
+        Callbacks are executed in background threads to prevent blocking.
+        
+        This is a blocking call that runs indefinitely until shutdown.
         
         Args:
             channel: Channel name to subscribe to
             callback: Function to call for each event (receives event dict)
         """
-        if not self.client:
-            print(f"❌ EventBus not connected, cannot subscribe to {channel}")
-            return
+        retry_delay = 1  # Start at 1 second
+        max_retry_delay = 60  # Cap at 60 seconds
         
-        try:
-            # Create pubsub instance
-            self.pubsub = self.client.pubsub()
-            self.pubsub.subscribe(channel)
-            
-            print(f"📥 Subscribed to channel: {channel}")
-            print(f"   Waiting for events...")
-            
-            # Listen for messages (blocking loop)
-            for message in self.pubsub.listen():
-                if message['type'] == 'message':
+        print(f"🔄 Starting resilient subscriber for channel: {channel}")
+        print(f"   Max concurrent workers: {self.executor._max_workers}")
+        
+        while not self._shutdown:
+            try:
+                # Ensure we have a connection
+                if not self.client:
+                    print(f"⚠️  No Redis connection, reconnecting...")
+                    self._connect()
+                    if not self.client:
+                        raise redis.ConnectionError("Failed to establish connection")
+                
+                # Subscribe to channel
+                self.pubsub = self.client.pubsub()
+                self.pubsub.subscribe(channel)
+                
+                print(f"📥 Subscribed to channel: {channel}")
+                print(f"   Waiting for events...")
+                
+                # Reset retry delay on successful connection
+                retry_delay = 1
+                
+                # Listen for messages (blocking loop)
+                for message in self.pubsub.listen():
+                    if self._shutdown:
+                        print(f"\n🛑 Shutdown signal received, stopping subscriber")
+                        break
+                    
+                    if message['type'] == 'message':
+                        # Process event in background thread (non-blocking)
+                        self.executor.submit(self._process_message, message['data'], callback)
+                
+            except redis.ConnectionError as e:
+                print(f"\n❌ Lost connection to Redis: {e}")
+                print(f"   Reconnecting in {retry_delay}s...")
+                time.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, max_retry_delay)  # Exponential backoff
+                
+                # Clean up broken connection
+                if self.pubsub:
                     try:
-                        # Parse event JSON
-                        event_data = json.loads(message['data'])
-                        
-                        # Call callback with event data
-                        callback(event_data)
-                        
-                    except Exception as e:
-                        print(f"❌ Error processing event: {e}")
-                        import traceback
-                        traceback.print_exc()
-                        
+                        self.pubsub.close()
+                    except:
+                        pass
+                    self.pubsub = None
+                
+                self.client = None
+                self._connect()  # Attempt to reconnect
+                
+            except Exception as e:
+                print(f"\n❌ Unexpected subscription error on {channel}: {e}")
+                traceback.print_exc()
+                print(f"   Retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, max_retry_delay)
+        
+        print(f"✅ Subscriber stopped for channel: {channel}")
+    
+    def _process_message(self, message_data: str, callback: Callable[[Dict], None]):
+        """
+        Process a single message in a background thread.
+        
+        Args:
+            message_data: JSON string from Redis
+            callback: Callback function to invoke
+        """
+        try:
+            # Parse event JSON
+            event_data = json.loads(message_data)
+            
+            # Call callback with event data
+            callback(event_data)
+            
         except Exception as e:
-            print(f"❌ Subscription error on {channel}: {e}")
-        finally:
-            if self.pubsub:
-                self.pubsub.close()
+            print(f"❌ Error processing event: {e}")
+            traceback.print_exc()
+    
+    def _signal_handler(self, signum, frame):
+        """Handle shutdown signals gracefully."""
+        print(f"\n⚠️  Received signal {signum}, shutting down EventBus...")
+        self._shutdown = True
+        self.close()
+        sys.exit(0)
     
     def close(self):
-        """Close Redis connections."""
+        """Close Redis connections and shutdown thread pool."""
+        print("🛑 Closing EventBus connections...")
+        self._shutdown = True
+        
+        # Shutdown thread pool
+        print("   Waiting for background tasks to complete...")
+        self.executor.shutdown(wait=True, cancel_futures=False)
+        
+        # Close Redis connections
         if self.pubsub:
-            self.pubsub.close()
+            try:
+                self.pubsub.close()
+            except:
+                pass
         if self.client:
-            self.client.close()
+            try:
+                self.client.close()
+            except:
+                pass
+        
         print("✅ EventBus connections closed")
 
 

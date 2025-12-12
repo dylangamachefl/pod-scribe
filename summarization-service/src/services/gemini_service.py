@@ -4,9 +4,11 @@ Stage 1: Generates high-fidelity unstructured summaries
 Stage 2: Extracts structured data using Instructor for guaranteed validation
 """
 from typing import Dict
+from pathlib import Path
 import google.generativeai as genai
 import instructor
 import time
+import yaml
 
 from config import (
     GEMINI_API_KEY, 
@@ -25,6 +27,20 @@ class GeminiSummarizationService:
     
     def __init__(self):
         """Initialize two-stage Gemini summarization client."""
+        # Load prompts from YAML
+        prompts_path = Path(__file__).parent.parent.parent / "config" / "prompts.yaml"
+        try:
+            with open(prompts_path, 'r', encoding='utf-8') as f:
+                self.prompts = yaml.safe_load(f)
+            print(f"✅ Loaded prompts from {prompts_path.name}")
+        except FileNotFoundError:
+            raise RuntimeError(
+                f"Prompts file not found: {prompts_path}. "
+                "Please ensure config/prompts.yaml exists."
+            )
+        except yaml.YAMLError as e:
+            raise RuntimeError(f"Invalid YAML in prompts file: {e}")
+        
         # Configure API key
         genai.configure(api_key=GEMINI_API_KEY)
         
@@ -68,34 +84,12 @@ class GeminiSummarizationService:
         Returns:
             RawSummary with unstructured content
         """
-        prompt = f"""You are an expert podcast analyst. Your task is to deeply analyze this transcript and create a comprehensive summary.
-
-Podcast: {podcast_name}
-Episode: {episode_title}
-
-TRANSCRIPT:
-{transcript_text[:50000]}
-
-INSTRUCTIONS:
-Write a detailed, nuanced analysis covering:
-
-1. **One-Sentence Hook**: What's the core theme? Make it compelling.
-2. **Key Takeaways**: What are the 3-5 most important insights? Explain each.
-3. **Actionable Advice**: What specific steps, tools, or tactics were mentioned?
-4. **Notable Quotes**: What were 2-5 memorable or insightful quotes (verbatim)?
-5. **Concepts & Definitions**: Any technical terms, books, frameworks, or jargon that need defining?
-6. **Perspectives**: How did the speakers interact? Agreement, debate, complementary views?
-7. **Overview**: A comprehensive 2-3 paragraph summary of the entire discussion.
-8. **Key Topics**: What were the main subjects discussed?
-
-Focus on:
-- Accuracy and nuance over brevity
-- Capturing the tone and dynamics of the conversation
-- Identifying actionable insights
-- Preserving important quotes exactly as spoken
-
-Write your analysis in clear, well-organized markdown. Use headings, bullet points, and formatting as needed for clarity.
-"""
+        # Load prompt template and format with actual values
+        prompt = self.prompts['stage1_prompt_template'].format(
+            podcast_name=podcast_name,
+            episode_title=episode_title,
+            transcript_text=transcript_text[:50000]  # Limit to 50k chars
+        )
         
         # Retry logic with exponential backoff for Stage 1
         for attempt in range(self.stage1_max_retries):
@@ -150,28 +144,12 @@ Write your analysis in clear, well-organized markdown. Use headings, bullet poin
         Returns:
             StructuredSummaryV2 with validated structured fields
         """
-        prompt = f"""Extract structured data from the following podcast summary analysis.
-
-Podcast: {podcast_name}
-Episode: {episode_title}
-
-SUMMARY ANALYSIS:
-{raw_summary.content}
-
-INSTRUCTIONS:
-Map the above analysis into a structured JSON format with these exact fields:
-
-- hook: One compelling sentence (the core theme)
-- key_takeaways: Array of 3-5 objects with "concept" and "explanation"
-- actionable_advice: Array of 3+ specific action items
-- quotes: Array of 2-5 verbatim quotes
-- concepts: Array of objects with "term" and "definition" (if any technical terms were mentioned)
-- perspectives: Text describing how speakers interacted
-- summary: A comprehensive 2-3 paragraph overview
-- key_topics: Array of 3+ main topics discussed
-
-Be precise and thorough. Extract all relevant information from the analysis above.
-"""
+        # Load prompt template and format with actual values
+        prompt = self.prompts['stage2_prompt_template'].format(
+            podcast_name=podcast_name,
+            episode_title=episode_title,
+            raw_summary_content=raw_summary.content
+        )
         
         # Retry logic with exponential backoff for Stage 2
         for attempt in range(self.stage2_max_retries):

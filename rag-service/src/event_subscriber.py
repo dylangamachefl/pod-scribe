@@ -2,13 +2,9 @@
 RAG Event Subscriber
 Listens for EpisodeTranscribed events and processes transcripts for RAG.
 """
-import sys
 from pathlib import Path
 
-# Add shared directory to path for event imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "shared"))
-
-from events import get_event_bus, EpisodeTranscribed
+from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed
 from services.embeddings import get_embedding_service
 from services.qdrant_client import get_qdrant_service
 from services.hybrid_retriever import get_hybrid_retriever_service
@@ -18,6 +14,40 @@ from utils.chunking import (
     chunk_by_speaker_turns
 )
 from langchain_core.documents import Document
+from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+
+
+def _episode_already_ingested(episode_id: str, qdrant_service) -> bool:
+    """
+    Check if episode has already been ingested into Qdrant.
+    
+    Args:
+        episode_id: Unique episode identifier
+        qdrant_service: Qdrant service instance
+        
+    Returns:
+        True if episode exists in Qdrant, False otherwise
+    """
+    try:
+        # Query Qdrant for any chunks with this episode_id
+        results, _ = qdrant_service.client.scroll(
+            collection_name=qdrant_service.collection_name,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="episode_id",
+                        match=MatchValue(value=episode_id)
+                    )
+                ]
+            ),
+            limit=1  # Just need to know if any exist
+        )
+        return len(results) > 0
+    except Exception as e:
+        print(f"⚠️  Warning: Could not check for duplicates: {e}")
+        # If check fails, proceed with ingestion (fail-open)
+        return False
 
 
 def process_transcription_event(event_data: dict):
@@ -37,9 +67,19 @@ def process_transcription_event(event_data: dict):
         print(f"\n{'='*60}")
         print(f"📥 Received EpisodeTranscribed event")
         print(f"   Event ID: {event.event_id}")
+        print(f"   Episode ID: {event.episode_id}")
         print(f"   Episode: {event.episode_title}")
         print(f"   Podcast: {event.podcast_name}")
         print(f"{'='*60}")
+        
+        # === IDEMPOTENCY CHECK ===
+        # Check if this episode has already been ingested
+        qdrant_service = get_qdrant_service()
+        if _episode_already_ingested(event.episode_id, qdrant_service):
+            print(f"⏭️  Episode already ingested, skipping: {event.episode_title}")
+            print(f"   Episode ID: {event.episode_id}")
+            print(f"{'='*60}\n")
+            return
         
         # Use Docker path (we're running in container)
         file_path = Path(event.docker_transcript_path)
@@ -73,7 +113,8 @@ def process_transcription_event(event_data: dict):
         
         print(f"🔢 Generated embeddings for {len(chunks)} chunks")
         
-        # Store in Qdrant
+        # Store in Qdrant with episode_id for idempotency
+        metadata["episode_id"] = event.episode_id
         qdrant_service = get_qdrant_service()
         num_inserted = qdrant_service.insert_chunks(chunks, embeddings, metadata)
         

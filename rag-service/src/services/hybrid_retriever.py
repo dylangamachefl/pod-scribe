@@ -35,7 +35,7 @@ class HybridRetrieverService:
         self.qdrant_service = qdrant_service
         
         self.bm25_retriever: Optional[BM25Retriever] = None
-        self.documents: List[Document] = []
+        self._document_count: int = 0  # Track count without storing full documents
         
         # Ensure indexes directory exists
         INDEXES_PATH.mkdir(parents=True, exist_ok=True)
@@ -60,7 +60,7 @@ class HybridRetrieverService:
             print("ℹ️  BM25 index already loaded, skipping rebuild")
             return {
                 "status": "already_loaded",
-                "documents_indexed": len(self.documents)
+                "documents_indexed": self._document_count
             }
         
         print("Building BM25 index from Qdrant...")
@@ -82,8 +82,9 @@ class HybridRetrieverService:
                 "documents_indexed": 0
             }
         
-        # Convert Qdrant points to LangChain Documents (text only)
-        self.documents = []
+        # Convert Qdrant points to LangChain Documents for BM25 indexing
+        # Note: BM25Retriever stores these internally, we don't need to keep a copy
+        temp_documents = []
         
         for point in points:
             doc = Document(
@@ -98,21 +99,25 @@ class HybridRetrieverService:
                     "point_id": str(point.id)
                 }
             )
-            self.documents.append(doc)
+            temp_documents.append(doc)
         
-        # Build BM25 retriever
-        print(f"Building BM25 index from {len(self.documents)} documents...")
-        self.bm25_retriever = BM25Retriever.from_documents(self.documents)
+        # Build BM25 retriever (it stores documents internally)
+        print(f"Building BM25 index from {len(temp_documents)} documents...")
+        self.bm25_retriever = BM25Retriever.from_documents(temp_documents)
         self.bm25_retriever.k = HYBRID_TOP_K
         
-        print(f"✅ BM25 index built successfully: {len(self.documents)} documents")
+        # Track document count but don't store documents
+        self._document_count = len(temp_documents)
+        
+        print(f"✅ BM25 index built successfully: {self._document_count} documents")
+        print(f"💾 Memory optimization: Removed redundant document storage")
         
         # Save to disk for next startup
         self.save_bm25_index()
         
         return {
             "status": "success",
-            "documents_indexed": len(self.documents)
+            "documents_indexed": self._document_count
         }
     
     def add_documents(self, new_documents: List[Document]) -> None:
@@ -127,19 +132,27 @@ class HybridRetrieverService:
         
         print(f"Adding {len(new_documents)} documents to BM25 index...")
         
-        # Add to documents list
-        self.documents.extend(new_documents)
+        # Get existing documents from BM25 retriever
+        # BM25Retriever stores docs in .docs attribute
+        if self.bm25_retriever and hasattr(self.bm25_retriever, 'docs'):
+            existing_docs = self.bm25_retriever.docs
+        else:
+            existing_docs = []
         
-        # Rebuild BM25 retriever with all documents
-        # BM25Retriever doesn't support incremental updates, so we rebuild
-        self.bm25_retriever = BM25Retriever.from_documents(self.documents)
+        # Combine and rebuild
+        all_docs = existing_docs + new_documents
+        self.bm25_retriever = BM25Retriever.from_documents(all_docs)
         self.bm25_retriever.k = HYBRID_TOP_K
+        
+        # Update count
+        self._document_count = len(all_docs)
         
         # Save updated index
         self.save_bm25_index()
         
-        print(f"✅ BM25 index updated: now {len(self.documents)} documents")
+        print(f"✅ BM25 index updated: now {self._document_count} documents")
     
+
     def search(
         self,
         query: str,
@@ -302,24 +315,25 @@ class HybridRetrieverService:
         
         print(f"Saving BM25 index to {INDEXES_PATH}...")
         
-        # Save BM25 retriever
+        # Save BM25 retriever (contains documents internally)
         bm25_path = INDEXES_PATH / "bm25_retriever.pkl"
         with open(bm25_path, 'wb') as f:
             pickle.dump(self.bm25_retriever, f)
         
-        # Save documents metadata
+        # Extract and save document metadata from BM25 retriever
         docs_metadata_path = INDEXES_PATH / "documents_metadata.json"
-        metadata = [
-            {
-                "content": doc.page_content,
-                "metadata": doc.metadata
-            }
-            for doc in self.documents
-        ]
-        with open(docs_metadata_path, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, indent=2)
+        if hasattr(self.bm25_retriever, 'docs'):
+            metadata = [
+                {
+                    "content": doc.page_content,
+                    "metadata": doc.metadata
+                }
+                for doc in self.bm25_retriever.docs
+            ]
+            with open(docs_metadata_path, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, indent=2)
         
-        print(f"✅ BM25 index saved successfully")
+        print(f"✅ BM25 index saved successfully (document count: {self._document_count})")
     
     def load_bm25_index(self) -> bool:
         """
@@ -330,27 +344,25 @@ class HybridRetrieverService:
         """
         try:
             bm25_path = INDEXES_PATH / "bm25_retriever.pkl"
-            docs_metadata_path = INDEXES_PATH / "documents_metadata.json"
             
-            if not (bm25_path.exists() and docs_metadata_path.exists()):
+            if not bm25_path.exists():
                 print("ℹ️  No saved BM25 index found, will build on first search or explicit rebuild")
                 return False
             
             print(f"Loading BM25 index from {INDEXES_PATH}...")
             
-            # Load BM25 retriever
+            # Load BM25 retriever (contains documents internally)
             with open(bm25_path, 'rb') as f:
                 self.bm25_retriever = pickle.load(f)
             
-            # Load documents metadata
-            with open(docs_metadata_path, 'r', encoding='utf-8') as f:
-                metadata = json.load(f)
-                self.documents = [
-                    Document(page_content=item["content"], metadata=item["metadata"])
-                    for item in metadata
-                ]
+            # Get document count from loaded retriever
+            if hasattr(self.bm25_retriever, 'docs'):
+                self._document_count = len(self.bm25_retriever.docs)
+            else:
+                self._document_count = 0
             
-            print(f"✅ BM25 index loaded: {len(self.documents)} documents")
+            print(f"✅ BM25 index loaded: {self._document_count} documents")
+            print(f"💾 Memory optimization: No redundant document storage")
             return True
             
         except Exception as e:

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
+import uuid
 
 import feedparser
 import requests
@@ -21,6 +22,7 @@ from managers.episode_manager import (
     add_episode_to_queue
 )
 from managers.status_monitor import write_status, clear_status, update_progress
+from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed
 
 
 def publish_transcription_event(
@@ -29,7 +31,8 @@ def publish_transcription_event(
     episode_title: str,
     podcast_name: str,
     config: TranscriptionConfig,
-    audio_url: Optional[str] = None
+    audio_url: Optional[str] = None,
+    diarization_failed: bool = False
 ) -> bool:
     """
     Publish EpisodeTranscribed event to notify downstream services.
@@ -44,17 +47,12 @@ def publish_transcription_event(
         podcast_name: Name of the podcast
         config: Transcription configuration
         audio_url: Optional URL to the audio file
+        diarization_failed: True if speaker diarization failed
         
     Returns:
         True if published successfully, False otherwise
     """
     try:
-        # Import event bus (lazy import to avoid circular dependencies)
-        import sys
-        sys.path.insert(0, str(config.root_dir / "shared"))
-        from events import get_event_bus, EpisodeTranscribed
-        import uuid
-        
         # Get event bus
         event_bus = get_event_bus()
         
@@ -74,7 +72,8 @@ def publish_transcription_event(
             podcast_name=podcast_name,
             transcript_path=str(transcript_path),
             docker_transcript_path=docker_path,
-            audio_url=audio_url
+            audio_url=audio_url,
+            diarization_failed=diarization_failed
         )
         
         # Publish event
@@ -82,19 +81,20 @@ def publish_transcription_event(
         
         if success:
             print(f"   📤 Published EpisodeTranscribed event: {event.event_id}")
+            if diarization_failed:
+                print(f"   ⚠️  Event flagged: diarization_failed=True")
             print(f"   ℹ️  RAG and Summarization services will process asynchronously")
         else:
             print(f"   ⚠️  Failed to publish event (Redis may be unavailable)")
-            print(f"   ℹ️  Services will rely on file watcher as backup")
         
         return success
         
     except Exception as e:
         print(f"   ⚠️  Event publishing failed: {e}")
-        print(f"   ℹ️  Services will rely on file watcher as backup")
         import traceback
         traceback.print_exc()
         return False
+
 
 
 def load_subscriptions(config: TranscriptionConfig) -> List[Dict]:
@@ -224,6 +224,7 @@ def process_episode(episode_data: Dict, config: TranscriptionConfig,
             return False, guid
         
         # Diarize
+        diarization_failed = False
         diarized_result = diarize_transcript(
             temp_audio, 
             transcript_result,
@@ -232,7 +233,9 @@ def process_episode(episode_data: Dict, config: TranscriptionConfig,
         )
         if not diarized_result:
             # Fall back to non-diarized if diarization fails
+            print("⚠️  Diarization failed, falling back to raw transcript (no speaker labels)")
             diarized_result = transcript_result
+            diarization_failed = True
         
         # Format and save
         update_progress("saving", 0.5)
@@ -253,6 +256,8 @@ def process_episode(episode_data: Dict, config: TranscriptionConfig,
                 f.write(f"Title: {episode_title}\n")
                 f.write(f"Podcast: {feed_title}\n")
                 f.write(f"Processed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                if diarization_failed:
+                    f.write(f"Diarization: FAILED (no speaker labels)\n")
                 f.write(f"\n{'='*60}\n\n")
                 f.write(transcript_text)
             
@@ -277,8 +282,10 @@ def process_episode(episode_data: Dict, config: TranscriptionConfig,
             episode_title=episode_title,
             podcast_name=feed_title,
             config=config,
-            audio_url=audio_url if 'audio_url' in locals() else None
+            audio_url=audio_url if 'audio_url' in locals() else None,
+            diarization_failed=diarization_failed
         )
+
         
         # Update history
         history['processed_episodes'].append(guid)

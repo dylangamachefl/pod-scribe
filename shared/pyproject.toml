@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "podcast-transcriber-shared"
+version = "0.1.0"
+description = "Shared models, events, and utilities for podcast transcription system"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0",
+    "redis>=4.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "black>=23.0",
+    "mypy>=1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]
+exclude = ["config.*", "indexes", "logs", "output", "summaries"]
+
+[tool.setuptools.package-data]
+"*" = ["*.json", "*.yaml", "*.yml"]
