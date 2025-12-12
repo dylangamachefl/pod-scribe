@@ -3837,18 +3837,28 @@
       "episode_title": "why the smartest people do nothing for hours every day",
       "audio_url": "https://www.youtube.com/watch?v=WNcfYCLXXD8",
       "published_date": "2025-11-17T17:00:54",
-      "selected": true,
-      "fetched_date": "2025-12-11T15:09:14.239885"
+      "selected": false,
+      "fetched_date": "2025-12-12T14:50:21.207563"
     },
     {
-      "id": "yt:video:ZXHrPfWJcCI",
+      "id": "yt:video:WUqDO1Ge3TA",
       "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
       "feed_title": "Learn",
-      "episode_title": "How To Fix Your Attention Span (Before It's Too Late)",
-      "audio_url": "https://www.youtube.com/watch?v=ZXHrPfWJcCI",
-      "published_date": "2025-11-19T13:43:17",
+      "episode_title": "Can Geometry LoRA REALLY Fix Lazy Diffusion Issues?",
+      "audio_url": "https://www.youtube.com/watch?v=WUqDO1Ge3TA",
+      "published_date": "2025-12-12T03:52:29",
+      "selected": true,
+      "fetched_date": "2025-12-12T15:28:08.174031"
+    },
+    {
+      "id": "yt:video:518QPRWlRW0",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "NeurIPS 2025 in 12 Minutes: The 6 Shifts Most People Will Miss Until It's Too Late",
+      "audio_url": "https://www.youtube.com/watch?v=518QPRWlRW0",
+      "published_date": "2025-12-10T15:00:13",
       "selected": false,
-      "fetched_date": "2025-12-11T15:09:14.239899"
+      "fetched_date": "2025-12-12T15:28:08.174059"
     }
   ]
 }

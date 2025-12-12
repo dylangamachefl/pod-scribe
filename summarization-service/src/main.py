@@ -17,10 +17,12 @@ from models import HealthResponse
 from routers import summaries
 from services.gemini_service import get_gemini_service
 from services.file_watcher import start_file_watcher
+from event_subscriber import start_summarization_event_subscriber
 
 
-# File watcher thread
+# Background threads
 file_watcher_thread = None
+event_subscriber_thread = None
 
 
 @asynccontextmanager
@@ -29,7 +31,7 @@ async def lifespan(app: FastAPI):
     Application lifespan manager.
     Initializes services on startup and cleans up on shutdown.
     """
-    global file_watcher_thread
+    global file_watcher_thread, event_subscriber_thread
     
     # Startup: Initialize services
     print("\n" + "="*60)
@@ -45,8 +47,18 @@ async def lifespan(app: FastAPI):
         print(f"❌ Gemini service initialization failed: {e}")
         raise
     
-    # Start file watcher in background thread
-    print("\n👁️  Starting file watcher...")
+    # Start event subscriber in background thread (event-driven)
+    print("\n📡 Starting event subscriber...")
+    event_subscriber_thread = threading.Thread(
+        target=start_summarization_event_subscriber,
+        daemon=True,
+        name="EventSubscriber"
+    )
+    event_subscriber_thread.start()
+    print("✅ Event subscriber started (listening for EpisodeTranscribed events)")
+    
+    # Start file watcher in background thread (backup for events)
+    print("\n👁️  Starting file watcher (backup)...")
     file_watcher_thread = threading.Thread(target=start_file_watcher, daemon=True)
     file_watcher_thread.start()
     print("✅ File watcher started")
@@ -113,7 +125,8 @@ async def health_check():
             status="healthy",
             gemini_api_configured=gemini_service is not None,
             model_name=f"{STAGE1_MODEL} + {STAGE2_MODEL}",
-            file_watcher_active=file_watcher_thread is not None and file_watcher_thread.is_alive()
+            file_watcher_active=file_watcher_thread is not None and file_watcher_thread.is_alive(),
+            event_subscriber_active=event_subscriber_thread is not None and event_subscriber_thread.is_alive()
         )
     
     except Exception as e:

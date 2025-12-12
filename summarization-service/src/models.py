@@ -50,3 +50,4 @@ class HealthResponse(BaseModel):
     gemini_api_configured: bool
     model_name: str
     file_watcher_active: bool
+    event_subscriber_active: bool = False

@@ -16,8 +16,8 @@ RUN pip install --no-cache-dir redis
 # Make startup script executable
 RUN chmod +x start.sh
 
-# Set PYTHONPATH so imports work correctly
-ENV PYTHONPATH=/app/src
+# Set PYTHONPATH so imports work correctly (including events from /app/shared mounted at runtime)
+ENV PYTHONPATH=/app/src:/app/shared
 
 # Expose port
 EXPOSE 8002

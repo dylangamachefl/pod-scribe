@@ -129,6 +129,7 @@ services:
       - ./shared/output:/app/shared/output:ro  # Read-only access to transcripts
       - ./shared/summaries:/app/shared/summaries  # Read-write for summaries
       - ./shared/logs:/app/shared/logs  # Logs
+      - ./shared/events.py:/app/shared/events.py:ro  # Event bus module
     secrets:
       - gemini_api_key
     environment:
@@ -138,6 +139,7 @@ services:
       - SUMMARIZATION_API_PORT=${SUMMARIZATION_API_PORT:-8002}
       - SUMMARIZATION_FRONTEND_URL=${SUMMARIZATION_FRONTEND_URL:-http://localhost:3000}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}  # Redis for events
+      - PYTHONPATH=/app/src:/app/shared  # Include shared for event bus imports
     depends_on:
       - redis
     networks:

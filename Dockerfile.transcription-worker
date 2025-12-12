@@ -6,6 +6,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Force use of pip-installed CUDA/CUDNN libraries instead of system libraries
 ENV LD_LIBRARY_PATH=/usr/local/lib/python3.11/dist-packages/nvidia/cudnn/lib:$LD_LIBRARY_PATH
 
+# Add shared directory to Python path for event bus imports
+ENV PYTHONPATH=/app/shared:$PYTHONPATH
+
 WORKDIR /app
 
 # Install system dependencies
@@ -38,8 +41,8 @@ RUN pip install --no-cache-dir redis
 COPY transcription-service/src/ ./src/
 COPY shared/ /app/shared/
 
-# Set PYTHONPATH
-ENV PYTHONPATH=/app/src:/app
+# Set PYTHONPATH to include shared for events module
+ENV PYTHONPATH=/app/src:/app:/app/shared
 
 # Set environment variables for CUDA
 ENV CUDA_VISIBLE_DEVICES=0
