@@ -211,7 +211,6 @@ class TranscriptionWorker:
             # Clean up alignment model (but keep main model!)
             del model_a
             del audio
-            gc.collect()
             
             print("✅ Transcription complete")
             update_progress("transcribing", 1.0)
@@ -304,12 +303,9 @@ def transcribe_audio(
         
         # Clean up alignment model
         del model_a
-        gc.collect()
         
         # Clean up transcription model
         del model
-        gc.collect()
-        torch.cuda.empty_cache()
         
         print("✅ Transcription complete")
         update_progress("transcribing", 1.0)

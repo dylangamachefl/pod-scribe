@@ -4,11 +4,12 @@ A modular, production-ready system for automated podcast transcription with spea
 
 ## 🎯 Overview
 
-This monorepo contains three integrated services:
+This monorepo contains four integrated services:
 
 1. **Transcription Service**: Downloads and transcribes podcasts using WhisperX + Pyannote
-2. **RAG Service**: Provides semantic search and Q&A over transcripts using Gemini
-3. **Frontend**: React-based UI for interacting with transcripts (planned)
+2. **RAG Service**: Provides semantic search and Q&A over transcripts using Ollama
+3. **Summarization Service**: Generates structured summaries using Google Gemini
+4. **Frontend**: React-based web UI for managing podcasts and viewing results
 
 ## ✨ Features
 
@@ -17,16 +18,29 @@ This monorepo contains three integrated services:
 - 🤖 **AI-Powered Transcription**: WhisperX with int8 quantization
 - 👥 **Speaker Diarization**: Pyannote Audio for speaker identification
 - 💾 **Smart Deduplication**: Tracks processed episodes
-- 🎨 **Web Dashboard**: Streamlit UI for management
 - ⚡ **GPU Optimized**: 8GB VRAM (RTX 3070 tested)
-- 📋 **Episode Queue**: Manual selection workflow
+- 🐳 **Docker Containerized**: Runs as persistent worker service
+- 📋 **Episode Queue**: Redis-based job queue
 
 ### RAG Service  
-- 🔍 **Semantic Search**: Vector-based transcript search
-- 💬 **AI Q&A**: Ask questions about podcast content
-- 📊 **Auto-Summarization**: Gemini-powered episode summaries
-- 🔄 **Auto-Ingestion**: Watches for new transcripts
-- 🗃️ **Qdrant Vector DB**: Efficient similarity search
+- 🔍 **Semantic Search**: Vector-based transcript search with hybrid retrieval
+- 💬 **AI Q&A**: Ask questions using Ollama (qwen3:rag)
+- 🔄 **Event-Driven Ingestion**: Automatically ingests new transcripts via event bus
+- 🗃️ **Qdrant Vector DB**: Efficient similarity search with 768-dim embeddings
+- 🧬 **BM25 + Vector Hybrid**: Best of both keyword and semantic search
+
+### Summarization Service
+- 📊 **Structured Summaries**: Gemini-powered episode summaries
+- 🎯 **Key Takeaways**: Hooks, actionable advice, quotes, and concepts
+- 🔄 **Event-Driven**: Automatically processes new transcripts
+- 💾 **JSON Storage**: Machine-readable structured output
+
+### Frontend
+- 🎨 **Modern React UI**: Fast, responsive interface
+- 📚 **Library Management**: Browse episodes and summaries
+- 💬 **RAG Chat**: Ask questions about any episode
+- 📊 **Dashboard**: Queue management and transcription status
+- 🔍 **Search & Filter**: Find episodes quickly
 
 ## 🏗️ Architecture
 
@@ -74,10 +88,12 @@ podcast-transcriber/
 ### Prerequisites
 
 - **OS**: Windows 10/11 (Linux/Mac compatible with minor changes)
-- **GPU**: NVIDIA GPU with 8GB+ VRAM (for transcription)
-- **CUDA**: 11.8 or compatible
-- **Conda**: Anaconda or Miniconda
-- **Docker**: For Qdrant (RAG service)
+- **Docker Desktop**: For running all services
+- **Ollama**: For RAG/chat features
+- **GPU** (Optional): NVIDIA GPU with 8GB+ VRAM for GPU-accelerated transcription
+- **API Keys**: 
+  - HuggingFace Token (for speaker diarization)
+  - Google Gemini API Key (for summarization)
 
 ### 1. Clone Repository
 
@@ -86,74 +102,96 @@ git clone https://github.com/yourusername/podcast-transcriber.git
 cd podcast-transcriber
 ```
 
-### 2. Setup Transcription Service
+### 2. Configure Environment
 
 ```bash
-# Create conda environment
-conda env create -f transcription-service/environment.yml
-conda activate podcast_bot
-
-# Configure environment
+# Copy example configuration
 cp .env.example .env
-# Edit .env and add your HUGGINGFACE_TOKEN
+
+# Edit .env and add your API keys:
+# - HUGGINGFACE_TOKEN (required for speaker diarization)
+# - GEMINI_API_KEY (required for summarization)
 ```
 
-### 3. Setup RAG Service (Optional)
+### 3. Setup Ollama
 
 ```bash
-# Start Qdrant vector database
-docker run -p 6333:6333 -v "$(pwd)/qdrant_data:/qdrant/storage" qdrant/qdrant
+# Install Ollama from: https://ollama.ai/download
 
-# Create RAG conda environment
-conda env create -f rag-service/rag-environment.yml
-conda activate rag_env
+# Pull base models
+ollama pull qwen3:8b
+ollama pull nomic-embed-text
 
-# Add GEMINI_API_KEY to .env
+# Create custom RAG model (optimized for 8GB VRAM)
+# Create a file named 'Modelfile' with:
+# FROM qwen3:8b
+# PARAMETER num_ctx 6144
+# PARAMETER temperature 0.6
+# PARAMETER top_k 20
+# PARAMETER top_p 0.95
+
+ollama create qwen3:rag -f Modelfile
 ```
 
-### 4. Launch Dashboard
+### 4. Create Docker Secrets
 
 ```bash
-# Windows
-cd scripts
-./launch_ui.bat
+# Create secrets directory
+mkdir secrets
 
-# Linux/Mac
-streamlit run transcription-service/src/ui/dashboard.py
+# Add your Gemini API key to a file
+echo "your_api_key_here" > secrets/gemini_api_key.txt
 ```
 
-## 📖 Usage
-
-### Transcription Service
-
-#### Via Dashboard (Recommended)
-1. Navigate to **Feed Manager** → Add podcast RSS feeds
-2. Go to **Episode Queue** → Fetch and select episodes
-3. Click **Run Transcription** in Dashboard
-
-#### Via CLI
+### 5. Start the Application
 
 ```bash
-# Manual mode: Process selected episodes from queue
-python transcription-service/src/cli.py
+# Windows: Double-click start_app.bat or run:
+start_app.bat
 
-# Auto mode: Process all new episodes from feeds
-python transcription-service/src/cli.py --auto
-
-# Schedule mode: Fetch and process latest N episodes
-python transcription-service/src/cli.py --schedule --limit-episodes 2
+# This will:
+# - Start all Docker services (Frontend, RAG, API, Summarization, Qdrant, Redis)
+# - Start the host listener for transcription triggers
+# - Open your browser to http://localhost:3000
 ```
 
-### RAG Service
+### 6. Access the Application
+
+- **Web UI**: http://localhost:3000
+- **RAG API**: http://localhost:8000/docs
+- **Transcription API**: http://localhost:8001/docs
+- **Summarization API**: http://localhost:8002/docs
+
+## 📚 Usage
+
+### Adding Podcasts and Queueing Episodes
+
+1. Open the web interface at http://localhost:3000
+2. Navigate to **Feeds** tab
+3. Add RSS feed URLs for your favorite podcasts
+4. Click **Fetch Episodes** to see available episodes
+5. Select episodes and click **Add to Queue**
+
+### Transcribing Episodes
+
+The transcription service runs automatically as a Docker container, processing queued episodes:
 
 ```bash
-# Start RAG server
-cd rag-service
-python -m src.main
+# View transcription worker logs
+docker-compose logs -f transcription-worker
 
-# Access at http://localhost:8000
-# API docs at http://localhost:8000/docs
+# Manually restart the worker if needed
+docker-compose restart transcription-worker
 ```
+
+**Note**: The transcription worker uses your GPU if available. See [GPU_SETUP.md](GPU_SETUP.md) for GPU configuration.
+
+### Using RAG Chat
+
+1. Navigate to **Library** tab
+2. Click on any episode with a transcript
+3. Use the **Chat** feature to ask questions about the content
+4. The RAG service will search the transcript and provide AI-generated answers
 
 ## 🔧 Configuration
 
@@ -201,18 +239,27 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 **Tech Stack:**
 - FastAPI (API server)
 - Qdrant (vector database)
+- Ollama (LLM and embeddings)
+- Hybrid Search (BM25 + Vector)
+
+**See:** [rag-service/README.md](rag-service/README.md)
+
+### Summarization Service
+
+**Tech Stack:**
+- FastAPI (API server)
 - Google Gemini (LLM)
-- Sentence Transformers (embeddings)
+- Event-driven architecture
 
-**See:** [RAG_README.md](RAG_README.md)
+**See:** [summarization-service/README.md](summarization-service/README.md)
 
-## 🎨 Dashboard Features
+## 🎨 Web Interface Features
 
-- **📡 Feed Management**: Add/remove/toggle podcast feeds
-- **📥 Episode Queue**: Fetch, select, and manage episodes
-- **📊 Dashboard**: Real-time processing status and GPU monitoring
-- **📄 Transcript Viewer**: Browse and search transcripts
-- **⚙️ Settings**: Configure paths and automation
+- **📚 Library**: Browse all transcribed episodes with summaries
+- **📊 Dashboard**: View queue status and manage transcription jobs
+- **📡 Feed Management**: Add/remove podcast RSS feeds
+- **💬 RAG Chat**: Ask questions about episode content
+- **🔍 Search & Filter**: Find episodes quickly by title, podcast, or date
 
 ## 🔄 Workflow
 
@@ -232,15 +279,18 @@ graph LR
 
 ## ⚡ Performance
 
-**Transcription (RTX 3070):**
+**Transcription (RTX 3070, Docker):**
 - 10-min episode: ~2-3 minutes
 - 30-min episode: ~6-8 minutes  
 - 60-min episode: ~12-15 minutes
 
-**RAG:**
-- Embedding: ~1-2 seconds
-- Search: <100ms
-- Q&A: 2-5 seconds (Gemini API)
+**RAG (Ollama with qwen3:rag):**
+- Embedding: ~1-2 seconds per episode
+- Hybrid search: ~100-200ms
+- Q&A response: 2-5 seconds
+
+**Summarization (Gemini API):**
+- Summary generation: 5-10 seconds per episode
 
 ## 🧪 Testing
 
@@ -258,10 +308,13 @@ pytest tests/
 
 ## 📚 Documentation
 
-- [Transcription Service README](transcription-service/README.md)
-- [RAG Service README](RAG_README.md)
-- [Refactoring Summary](REFACTORING_SUMMARY.md)
 - [Quick Start Guide](QUICKSTART.md)
+- [Transcription Service README](transcription-service/README.md)
+- [RAG Service README](rag-service/README.md)
+- [Summarization Service README](summarization-service/README.md)
+- [Event Bus Architecture](EVENT_BUS_ARCHITECTURE.md)
+- [GPU Setup Guide](GPU_SETUP.md)
+- [Historical Documentation](docs/history/README.md)
 
 ## 🛠️ Development
 

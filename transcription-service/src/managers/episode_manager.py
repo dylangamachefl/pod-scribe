@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-Episode Queue Manager
-Shared utilities for managing the pending episodes queue.
+Episode Queue Manager - SQLite Version
+Shared utilities for managing the pending episodes queue using SQLite.
 """
 
 import os
 import json
+import sqlite3
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
+from contextlib import contextmanager
 
 import feedparser
 
@@ -24,25 +26,202 @@ else:  # Running on host
     SCRIPT_DIR = Path(__file__).parent.parent.parent.parent  # Go to project root
 
 CONFIG_DIR = SCRIPT_DIR / "shared" / "config"
-PENDING_EPISODES_FILE = CONFIG_DIR / "pending_episodes.json"
+EPISODES_DB_FILE = CONFIG_DIR / "episodes.db"
 HISTORY_FILE = CONFIG_DIR / "history.json"
 
 
+# ============================================================================
+# Database Schema and Initialization
+# ============================================================================
 
-def load_pending_episodes() -> Dict:
-    """Load pending episodes from config."""
-    if not PENDING_EPISODES_FILE.exists():
-        return {"episodes": []}
+DB_SCHEMA = """
+CREATE TABLE IF NOT EXISTS episodes (
+    id TEXT PRIMARY KEY,
+    url TEXT UNIQUE NOT NULL,
+    feed_url TEXT,
+    feed_title TEXT,
+    episode_title TEXT,
+    audio_url TEXT,
+    published_date TEXT,
+    fetched_date TEXT,
+    status TEXT DEFAULT 'PENDING',
+    selected INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    metadata TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_status ON episodes(status);
+CREATE INDEX IF NOT EXISTS idx_selected ON episodes(selected);
+CREATE INDEX IF NOT EXISTS idx_url ON episodes(url);
+"""
+
+
+@contextmanager
+def get_db_connection():
+    """
+    Context manager for database connections.
+    Ensures proper connection management and transaction handling.
+    """
+    conn = sqlite3.connect(str(EPISODES_DB_FILE))
+    conn.row_factory = sqlite3.Row  # Return rows as dict-like objects
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def init_database() -> None:
+    """Initialize the database schema if it doesn't exist."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     
-    with open(PENDING_EPISODES_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    with get_db_connection() as conn:
+        conn.executescript(DB_SCHEMA)
 
 
-def save_pending_episodes(data: Dict):
-    """Save pending episodes to config."""
-    with open(PENDING_EPISODES_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2)
+# Ensure database is initialized on module import
+init_database()
 
+
+# ============================================================================
+# Core Episode Queue Operations
+# ============================================================================
+
+def add_episode_to_queue(episode: Dict) -> bool:
+    """
+    Add a new episode to the pending queue using SQLite.
+    Returns True if added, False if already exists.
+    
+    Uses INSERT OR IGNORE for automatic deduplication by episode ID.
+    """
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Prepare episode data
+            cursor.execute("""
+                INSERT OR IGNORE INTO episodes (
+                    id, url, feed_url, feed_title, episode_title,
+                    audio_url, published_date, fetched_date, status, selected
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0)
+            """, (
+                episode.get('id'),
+                episode.get('url', episode.get('audio_url')),  # Fallback to audio_url for url
+                episode.get('feed_url'),
+                episode.get('feed_title'),
+                episode.get('episode_title'),
+                episode.get('audio_url'),
+                episode.get('published_date'),
+                episode.get('fetched_date'),
+            ))
+            
+            # Return True if actually inserted
+            return cursor.rowcount > 0
+            
+    except sqlite3.IntegrityError:
+        # Unique constraint violation (duplicate URL)
+        return False
+
+
+def remove_episode_from_queue(episode_id: str) -> None:
+    """Remove an episode from the pending queue."""
+    with get_db_connection() as conn:
+        conn.execute("DELETE FROM episodes WHERE id = ?", (episode_id,))
+
+
+def mark_episode_selected(episode_id: str, selected: bool) -> bool:
+    """
+    Mark episode as selected or unselected with atomic transaction.
+    
+    Returns:
+        True if episode was found and updated, False otherwise.
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE episodes SET selected = ? WHERE id = ?",
+            (1 if selected else 0, episode_id)
+        )
+        return cursor.rowcount > 0
+
+
+def get_selected_episodes() -> List[Dict]:
+    """Get all episodes marked as selected."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, url, feed_url, feed_title, episode_title,
+                   audio_url, published_date, fetched_date, status, selected
+            FROM episodes
+            WHERE selected = 1
+            ORDER BY created_at DESC
+        """)
+        
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_all_pending_episodes() -> List[Dict]:
+    """Get all pending episodes regardless of selection status."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, url, feed_url, feed_title, episode_title,
+                   audio_url, published_date, fetched_date, status, selected
+            FROM episodes
+            WHERE status = 'PENDING'
+            ORDER BY created_at DESC
+        """)
+        
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def clear_processed_episodes(episode_ids: List[str]) -> None:
+    """Remove processed episodes from the queue."""
+    if not episode_ids:
+        return
+    
+    with get_db_connection() as conn:
+        placeholders = ','.join('?' * len(episode_ids))
+        conn.execute(
+            f"DELETE FROM episodes WHERE id IN ({placeholders})",
+            episode_ids
+        )
+
+
+def bulk_mark_selected(episode_ids: List[str], selected: bool) -> None:
+    """Mark multiple episodes as selected/unselected."""
+    if not episode_ids:
+        return
+    
+    with get_db_connection() as conn:
+        placeholders = ','.join('?' * len(episode_ids))
+        conn.execute(
+            f"UPDATE episodes SET selected = ? WHERE id IN ({placeholders})",
+            [1 if selected else 0] + episode_ids
+        )
+
+
+def get_episode_by_id(episode_id: str) -> Optional[Dict]:
+    """Get a specific episode by its ID."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, url, feed_url, feed_title, episode_title,
+                   audio_url, published_date, fetched_date, status, selected
+            FROM episodes
+            WHERE id = ?
+        """, (episode_id,))
+        
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+# ============================================================================
+# History Management (Kept for compatibility)
+# ============================================================================
 
 def load_history() -> Dict:
     """Load processing history to avoid duplicates."""
@@ -53,69 +232,9 @@ def load_history() -> Dict:
         return json.load(f)
 
 
-def add_episode_to_queue(episode: Dict) -> bool:
-    """
-    Add a new episode to the pending queue.
-    Returns True if added, False if already exists.
-    """
-    data = load_pending_episodes()
-    
-    # Check if episode already exists
-    episode_id = episode.get('id')
-    if any(ep.get('id') == episode_id for ep in data['episodes']):
-        return False
-    
-    data['episodes'].append(episode)
-    save_pending_episodes(data)
-    return True
-
-
-def remove_episode_from_queue(episode_id: str):
-    """Remove an episode from the pending queue."""
-    data = load_pending_episodes()
-    data['episodes'] = [ep for ep in data['episodes'] if ep.get('id') != episode_id]
-    save_pending_episodes(data)
-
-
-def mark_episode_selected(episode_id: str, selected: bool) -> bool:
-    """Mark episode as selected or unselected.
-    
-    Returns:
-        True if episode was found and updated, False otherwise.
-    """
-    data = load_pending_episodes()
-    
-    found = False
-    for episode in data['episodes']:
-        if episode.get('id') == episode_id:
-            episode['selected'] = selected
-            found = True
-            break
-    
-    if found:
-        save_pending_episodes(data)
-    
-    return found
-
-
-def get_selected_episodes() -> List[Dict]:
-    """Get all episodes marked as selected."""
-    data = load_pending_episodes()
-    return [ep for ep in data['episodes'] if ep.get('selected', False)]
-
-
-def get_all_pending_episodes() -> List[Dict]:
-    """Get all pending episodes regardless of selection status."""
-    data = load_pending_episodes()
-    return data.get('episodes', [])
-
-
-def clear_processed_episodes(episode_ids: List[str]):
-    """Remove processed episodes from the queue."""
-    data = load_pending_episodes()
-    data['episodes'] = [ep for ep in data['episodes'] if ep.get('id') not in episode_ids]
-    save_pending_episodes(data)
-
+# ============================================================================
+# RSS Feed Fetching (Unchanged)
+# ============================================================================
 
 def fetch_episodes_from_feed(feed_url: str, feed_title: str = None, days_limit: Optional[int] = None) -> tuple[List[Dict], str]:
     """
@@ -154,7 +273,12 @@ def fetch_episodes_from_feed(feed_url: str, feed_title: str = None, days_limit: 
         # Load history and pending to avoid duplicates
         history = load_history()
         processed_ids = set(history.get('processed_episodes', []))
-        pending_ids = set(ep.get('id') for ep in get_all_pending_episodes())
+        
+        # Get pending IDs from database
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM episodes")
+            pending_ids = set(row['id'] for row in cursor.fetchall())
         
         episodes = []
         for entry in feed.get('entries', []):
@@ -227,25 +351,3 @@ def fetch_episodes_from_feed(feed_url: str, feed_title: str = None, days_limit: 
     
     except Exception as e:
         return [], f"Error: {str(e)}"
-
-
-def bulk_mark_selected(episode_ids: List[str], selected: bool):
-    """Mark multiple episodes as selected/unselected."""
-    data = load_pending_episodes()
-    
-    for episode in data['episodes']:
-        if episode.get('id') in episode_ids:
-            episode['selected'] = selected
-    
-    save_pending_episodes(data)
-
-
-def get_episode_by_id(episode_id: str) -> Optional[Dict]:
-    """Get a specific episode by its ID."""
-    data = load_pending_episodes()
-    
-    for episode in data['episodes']:
-        if episode.get('id') == episode_id:
-            return episode
-    
-    return None

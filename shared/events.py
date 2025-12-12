@@ -256,17 +256,26 @@ class EventBus:
     def _process_message(self, message_data: str, callback: Callable[[Dict], None]):
         """
         Process a single message in a background thread.
+        Supports both sync and async callbacks.
         
         Args:
             message_data: JSON string from Redis
-            callback: Callback function to invoke
+            callback: Callback function to invoke (sync or async)
         """
         try:
             # Parse event JSON
             event_data = json.loads(message_data)
             
-            # Call callback with event data
-            callback(event_data)
+            # Check if callback is async
+            import asyncio
+            import inspect
+            
+            if inspect.iscoroutinefunction(callback):
+                # Run async callback in executor thread
+                asyncio.run(callback(event_data))
+            else:
+                # Call sync callback directly
+                callback(event_data)
             
         except Exception as e:
             print(f"❌ Error processing event: {e}")

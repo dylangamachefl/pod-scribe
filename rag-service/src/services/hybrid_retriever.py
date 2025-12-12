@@ -8,6 +8,7 @@ from pathlib import Path
 import pickle
 import json
 
+from filelock import FileLock, Timeout
 from langchain_core.documents import Document
 from langchain_community.retrievers import BM25Retriever
 
@@ -308,36 +309,46 @@ class HybridRetrieverService:
         return sorted_results[:k]
     
     def save_bm25_index(self):
-        """Save BM25 index to disk for fast startup."""
+        """Save BM25 index to disk for fast startup with file locking."""
         if not self.bm25_retriever:
             print("⚠️  No BM25 index to save")
             return
         
         print(f"Saving BM25 index to {INDEXES_PATH}...")
         
-        # Save BM25 retriever (contains documents internally)
-        bm25_path = INDEXES_PATH / "bm25_retriever.pkl"
-        with open(bm25_path, 'wb') as f:
-            pickle.dump(self.bm25_retriever, f)
+        # Create lock file
+        lock_path = INDEXES_PATH / "bm25_retriever.pkl.lock"
+        lock = FileLock(lock_path, timeout=10)
         
-        # Extract and save document metadata from BM25 retriever
-        docs_metadata_path = INDEXES_PATH / "documents_metadata.json"
-        if hasattr(self.bm25_retriever, 'docs'):
-            metadata = [
-                {
-                    "content": doc.page_content,
-                    "metadata": doc.metadata
-                }
-                for doc in self.bm25_retriever.docs
-            ]
-            with open(docs_metadata_path, 'w', encoding='utf-8') as f:
-                json.dump(metadata, f, indent=2)
-        
-        print(f"✅ BM25 index saved successfully (document count: {self._document_count})")
+        try:
+            with lock:
+                # Save BM25 retriever (contains documents internally)
+                bm25_path = INDEXES_PATH / "bm25_retriever.pkl"
+                with open(bm25_path, 'wb') as f:
+                    pickle.dump(self.bm25_retriever, f)
+                
+                # Extract and save document metadata from BM25 retriever
+                docs_metadata_path = INDEXES_PATH / "documents_metadata.json"
+                if hasattr(self.bm25_retriever, 'docs'):
+                    metadata = [
+                        {
+                            "content": doc.page_content,
+                            "metadata": doc.metadata
+                        }
+                        for doc in self.bm25_retriever.docs
+                    ]
+                    with open(docs_metadata_path, 'w', encoding='utf-8') as f:
+                        json.dump(metadata, f, indent=2)
+            
+            print(f"✅ BM25 index saved successfully (document count: {self._document_count})")
+        except Timeout:
+            print(f"⚠️  Could not acquire lock to save BM25 index (timeout after 10s)")
+        except Exception as e:
+            print(f"⚠️  Error saving BM25 index: {e}")
     
     def load_bm25_index(self) -> bool:
         """
-        Load BM25 index from disk.
+        Load BM25 index from disk with file locking.
         
         Returns:
             True if loaded successfully, False otherwise
@@ -351,19 +362,28 @@ class HybridRetrieverService:
             
             print(f"Loading BM25 index from {INDEXES_PATH}...")
             
-            # Load BM25 retriever (contains documents internally)
-            with open(bm25_path, 'rb') as f:
-                self.bm25_retriever = pickle.load(f)
+            # Create lock file
+            lock_path = INDEXES_PATH / "bm25_retriever.pkl.lock"
+            lock = FileLock(lock_path, timeout=10)
             
-            # Get document count from loaded retriever
-            if hasattr(self.bm25_retriever, 'docs'):
-                self._document_count = len(self.bm25_retriever.docs)
-            else:
-                self._document_count = 0
-            
-            print(f"✅ BM25 index loaded: {self._document_count} documents")
-            print(f"💾 Memory optimization: No redundant document storage")
-            return True
+            try:
+                with lock:
+                    # Load BM25 retriever (contains documents internally)
+                    with open(bm25_path, 'rb') as f:
+                        self.bm25_retriever = pickle.load(f)
+                
+                # Get document count from loaded retriever
+                if hasattr(self.bm25_retriever, 'docs'):
+                    self._document_count = len(self.bm25_retriever.docs)
+                else:
+                    self._document_count = 0
+                
+                print(f"✅ BM25 index loaded: {self._document_count} documents")
+                print(f"💾 Memory optimization: No redundant document storage")
+                return True
+            except Timeout:
+                print(f"⚠️  Could not acquire lock to load BM25 index (timeout after 10s)")
+                return False
             
         except Exception as e:
             print(f"⚠️  Error loading BM25 index: {str(e)}")

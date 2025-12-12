@@ -7,9 +7,11 @@ Get up and running with the Podcast Transcriber in minutes!
 - **OS**: Windows 10/11
 - **GPU**: NVIDIA GPU with 8GB+ VRAM (Recommended for fast transcription)
 - **Software**:
-  - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Required for core services)
+  - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Required for all services)
   - [Ollama](https://ollama.ai/download) (Required for RAG/chat features)
-  - [Anaconda](https://www.anaconda.com/download) or Miniconda (Required for transcription worker)
+
+> [!NOTE]
+> **Transcription Options**: The transcription service runs in Docker using your GPU. No conda environment needed unless you want to run transcription on the host instead of Docker.
 
 ---
 
@@ -23,13 +25,7 @@ Get up and running with the Podcast Transcriber in minutes!
    cd podcast-transcriber
    ```
 
-2. Create the transcription environment (Required for GPU workers):
-   ```bash
-   conda env create -f transcription-service/environment.yml
-   ```
-   *Note: This takes 10-15 minutes as it downloads CUDA binaries and AI models.*
-
-3. Create custom Ollama RAG model (Required for RAG/chat):
+2. Create custom Ollama RAG model (Required for RAG/chat):
 
    This project uses a custom version of `qwen3:8b` optimized for GPUs with 8GB VRAM (RTX 3070). The context window is tuned to **6144 tokens** to maximize document capacity without running out of memory.
 
@@ -77,12 +73,18 @@ Get up and running with the Podcast Transcriber in minutes!
    copy .env.example .env
    ```
 
-2. Edit `.env` with your API keys:
+2. Create Docker secrets directory:
+   ```bash
+   mkdir secrets
+   echo "your_gemini_api_key_here" > secrets/gemini_api_key.txt
+   ```
+
+3. Edit `.env` with your API keys:
    - **HUGGINGFACE_TOKEN** (Required): Get from [HuggingFace Settings](https://huggingface.co/settings/tokens) - Used for speaker diarization
-   - **GEMINI_API_KEY** (Required): Get from [Google AI Studio](https://makersuite.google.com/app/apikey) - Used for episode summarization
+   - **GEMINI_API_KEY** (Optional): Only if not using Docker secrets - Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
 
 > [!NOTE]
-> The app uses **Ollama** (running locally via Docker) for RAG/chat features and **Gemini API** for creating episode summaries.
+> The app uses **Ollama** (running on your **host machine**, not in Docker) for RAG/chat features and **Gemini API** for creating episode summaries.
 
 ---
 
@@ -109,7 +111,7 @@ This will:
 
 ## 🎙️ How to Transcribe
 
-The transcription process runs separately from the main application to keep your system responsive while using the GPU.
+The transcription service runs automatically in Docker, processing queued episodes using your GPU.
 
 ### 1. Queue Episodes
 - Go to `http://localhost:3000`
@@ -117,24 +119,26 @@ The transcription process runs separately from the main application to keep your
 - Click "Fetch Episodes" to see available episodes
 - Select episodes and add them to your Queue
 
-### 2. Run Transcription Worker
+### 2. Transcription Processing
 
-You have **two options** for running the transcription worker:
+The Docker transcription worker automatically processes queued episodes. You can monitor progress:
 
-**Option A: Trigger from UI (Recommended)**
-- Click the "Start Transcription" button in the Queue page
-- The host listener service (started by `start_app.bat`) will automatically launch the transcription worker in a new window
-- This uses your GPU to process all queued episodes
+```bash
+# View transcription worker logs
+docker-compose logs -f transcription-worker
 
-**Option B: Manual Launch**
-- Run the script directly when you're ready to process episodes:
-  ```bash
-  scripts\run_bot.bat
-  ```
-- Useful for scheduling with Windows Task Scheduler for automated runs
+# Check worker status
+docker-compose ps transcription-worker
+
+# Restart worker if needed
+docker-compose restart transcription-worker
+```
 
 > [!TIP]
-> The transcription worker runs in a separate window so you can monitor progress while continuing to use the UI.
+> The transcription worker runs continuously in the background. It automatically picks up new episodes from the queue.
+
+> [!NOTE]
+> **GPU Configuration**: The Docker transcription-worker uses your NVIDIA GPU if properly configured. See [GPU_SETUP.md](GPU_SETUP.md) for GPU setup with Docker.
 
 ### 3. View Results
 - Refresh the **Library** page to see completed transcripts

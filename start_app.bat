@@ -61,9 +61,8 @@ echo   RAG API Docs:     http://localhost:8000/docs
 echo   Transcribe API:   http://localhost:8001/docs
 echo   Summary API:      http://localhost:8002/docs
 echo.
-echo   [TIP] To run transcription:
-echo         1. Queue episodes in the Web Interface
-echo         2. Run 'scripts\run_bot.bat' manually
+echo   [NOTE] Transcription worker runs automatically in Docker
+echo          View logs: docker-compose logs -f transcription-worker
 echo ========================================================================
 echo.
 pause

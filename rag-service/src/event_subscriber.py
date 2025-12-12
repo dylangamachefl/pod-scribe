@@ -2,6 +2,7 @@
 RAG Event Subscriber
 Listens for EpisodeTranscribed events and processes transcripts for RAG.
 """
+import asyncio
 from pathlib import Path
 
 from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed
@@ -50,9 +51,9 @@ def _episode_already_ingested(episode_id: str, qdrant_service) -> bool:
         return False
 
 
-def process_transcription_event(event_data: dict):
+async def process_transcription_event(event_data: dict):
     """
-    Process an EpisodeTranscribed event.
+    Process an EpisodeTranscribed event asynchronously.
     
     Called when a new transcript is available.
     Chunks the transcript and ingests into Qdrant + BM25 index.
@@ -75,7 +76,14 @@ def process_transcription_event(event_data: dict):
         # === IDEMPOTENCY CHECK ===
         # Check if this episode has already been ingested
         qdrant_service = get_qdrant_service()
-        if _episode_already_ingested(event.episode_id, qdrant_service):
+        
+        # Run blocking check in executor
+        loop = asyncio.get_running_loop()
+        already_ingested = await loop.run_in_executor(
+            None, _episode_already_ingested, event.episode_id, qdrant_service
+        )
+        
+        if already_ingested:
             print(f"⏭️  Episode already ingested, skipping: {event.episode_title}")
             print(f"   Episode ID: {event.episode_id}")
             print(f"{'='*60}\n")
@@ -88,12 +96,17 @@ def process_transcription_event(event_data: dict):
             print(f"❌ Transcript file not found: {file_path}")
             return
         
-        # Read transcript
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+        # Read transcript (blocking I/O - run in executor)
+        def read_transcript():
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return f.read()
         
-        # Extract metadata
-        metadata = extract_metadata_from_transcript(content)
+        content = await loop.run_in_executor(None, read_transcript)
+        
+        # Extract metadata (potentially heavy parsing - run in executor)
+        metadata = await loop.run_in_executor(
+            None, extract_metadata_from_transcript, content
+        )
         metadata["source_file"] = str(file_path)
         metadata["episode_title"] = event.episode_title
         metadata["podcast_name"] = event.podcast_name
@@ -106,21 +119,26 @@ def process_transcription_event(event_data: dict):
         
         print(f"📄 Extracted {len(chunks)} chunks from transcript")
         
-        # Generate embeddings
+        # Generate embeddings (blocking API call - run in executor)
         embedding_service = get_embedding_service()
         chunk_texts = [chunk["text"] for chunk in chunks]
-        embeddings = embedding_service.embed_batch(chunk_texts)
+        
+        embeddings = await loop.run_in_executor(
+            None, embedding_service.embed_batch, chunk_texts
+        )
         
         print(f"🔢 Generated embeddings for {len(chunks)} chunks")
         
-        # Store in Qdrant with episode_id for idempotency
+        # Store in Qdrant with episode_id for idempotency (blocking I/O)
         metadata["episode_id"] = event.episode_id
-        qdrant_service = get_qdrant_service()
-        num_inserted = qdrant_service.insert_chunks(chunks, embeddings, metadata)
+        
+        num_inserted = await loop.run_in_executor(
+            None, qdrant_service.insert_chunks, chunks, embeddings, metadata
+        )
         
         print(f"✅ Inserted {num_inserted} chunks into Qdrant")
         
-        # Update BM25 index incrementally
+        # Update BM25 index incrementally (blocking pickle I/O)
         try:
             # Get or initialize hybrid service
             try:
@@ -147,8 +165,10 @@ def process_transcription_event(event_data: dict):
                 )
                 new_documents.append(doc)
             
-            # Add incrementally to BM25 index
-            hybrid_service.add_documents(new_documents)
+            # Add incrementally to BM25 index (blocking pickle I/O)
+            await loop.run_in_executor(
+                None, hybrid_service.add_documents, new_documents
+            )
             print(f"✅ Updated BM25 index with {len(new_documents)} documents")
             
         except Exception as e:

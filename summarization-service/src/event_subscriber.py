@@ -2,6 +2,7 @@
 Summarization Event Subscriber
 Listens for EpisodeTranscribed events and generates summaries.
 """
+import asyncio
 from pathlib import Path
 
 from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed, EpisodeSummarized
@@ -13,9 +14,9 @@ import uuid
 
 
 
-def process_transcription_event(event_data: dict):
+async def process_transcription_event(event_data: dict):
     """
-    Process an EpisodeTranscribed event.
+    Process an EpisodeTranscribed event asynchronously.
     
     Called when a new transcript is available.
     Generates a structured summary using Gemini.
@@ -47,26 +48,36 @@ def process_transcription_event(event_data: dict):
             print(f"⏭️  Summary already exists, skipping: {summary_file.name}")
             return
         
-        # Read transcript
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+        # Read transcript (blocking I/O - run in executor)
+        loop = asyncio.get_running_loop()
         
-        # Extract metadata
-        metadata = extract_metadata_from_transcript(content, file_path.name)
+        def read_transcript():
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        
+        content = await loop.run_in_executor(None, read_transcript)
+        
+        # Extract metadata (potentially heavy parsing - run in executor)
+        metadata = await loop.run_in_executor(
+            None, extract_metadata_from_transcript, content, file_path.name
+        )
         
         print(f"📄 Episode: {metadata['episode_title']}")
         print(f"🎙️  Podcast: {metadata['podcast_name']}")
         
-        # Generate summary with Gemini
+        # Generate summary with Gemini (heavy API call - run in executor)
         print(f"🤖 Generating summary with Gemini...")
         gemini_service = get_gemini_service()
-        summary_result = gemini_service.summarize_transcript(
+        
+        summary_result = await loop.run_in_executor(
+            None,
+            gemini_service.summarize_transcript,
             content,
             metadata["episode_title"],
             metadata["podcast_name"]
         )
         
-        # Save summary
+        # Save summary (blocking I/O - run in executor)
         complete_summary_data = {
             "episode_title": metadata["episode_title"],
             "podcast_name": metadata["podcast_name"],
@@ -81,8 +92,11 @@ def process_transcription_event(event_data: dict):
             "source_file": str(file_path)
         }
         
-        with open(summary_file, 'w', encoding='utf-8') as f:
-            json.dump(complete_summary_data, f, indent=2)
+        def save_summary():
+            with open(summary_file, 'w', encoding='utf-8') as f:
+                json.dump(complete_summary_data, f, indent=2)
+        
+        await loop.run_in_executor(None, save_summary)
         
         print(f"✅ Summary saved: {summary_file.name}")
         

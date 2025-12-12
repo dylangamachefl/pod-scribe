@@ -36,6 +36,7 @@ dependencies = [
     "langchain-community>=0.0.10",
     "rank-bm25>=0.2.2",
     "faiss-cpu>=1.7.4",  # For hybrid search with FAISS
+    "filelock>=3.13.0",  # For BM25 index concurrency safety
 ]
 
 [project.optional-dependencies]
