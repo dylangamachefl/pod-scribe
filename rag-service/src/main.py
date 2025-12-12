@@ -2,6 +2,7 @@
 RAG Backend - FastAPI Application
 Main entry point for the RAG service API.
 """
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -28,6 +29,12 @@ async def lifespan(app: FastAPI):
     # Pre-load services (singletons)
     print("\n📦 Initializing services...")
     try:
+        # Initialize database
+        from podcast_transcriber_shared.database import init_db
+        await init_db()
+        print("✅ Database initialized")
+        
+        # Initialize other services
         get_embedding_service()
         get_qdrant_service()
         get_ollama_chat_client()
@@ -35,6 +42,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"❌ Service initialization failed: {e}")
         raise
+    
+    # Start event subscriber in background
+    print("\n📡 Starting event subscriber as background task...")
+    from event_subscriber import start_subscriber_async
+    subscriber_task = asyncio.create_task(start_subscriber_async())
+    print("✅ Event subscriber started in background")
     
     print("\n" + "="*60)
     print("✅ RAG Service is ready!")
@@ -44,6 +57,13 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     print("\n🛑 Shutting down RAG Service...")
+    # Cancel subscriber task
+    subscriber_task.cancel()
+    try:
+        await subscriber_task
+    except asyncio.CancelledError:
+        print("✅ Event subscriber stopped")
+
 
 
 # Create FastAPI app

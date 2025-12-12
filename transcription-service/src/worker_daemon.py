@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from config import TranscriptionConfig
 from core.diarization import apply_pytorch_patch
-from core.processor import process_selected_episodes
+from core.processor import process_episode, load_history, save_history
 
 
 # Global flag for graceful shutdown
@@ -78,6 +78,9 @@ def main():
     
     job_count = 0
     
+    # Load processing history
+    history = load_history(config)
+    
     while not shutdown_flag:
         try:
             # Blocking pop with 5 second timeout
@@ -89,15 +92,108 @@ def main():
                 job_count += 1
                 
                 print(f"\n📥 Job #{job_count} received from queue")
-                print(f"📄 Job data: {job_data}")
+                print(f"📄 Raw job data: {job_data}")
                 print("="* 64)
                 
-                # Process the transcription job
-                # The existing function reads selected episodes from the config files
-                process_selected_episodes(config)
+                episode_id = None
+                try:
+                    # Parse the job payload
+                    job_payload = json.loads(job_data)
+                    
+                    print(f"📋 Parsed job payload:")
+                    print(f"   Episode: {job_payload.get('episode_title', 'Unknown')}")
+                    print(f"   Podcast: {job_payload.get('feed_title', 'Unknown')}")
+                    print(f"   Audio URL: {job_payload.get('audio_url', 'N/A')[:50]}...")
+                    print("="* 64)
+                    
+                    # Create episode in database with PROCESSING status
+                    import asyncio
+                    from podcast_transcriber_shared.database import create_episode, update_episode_status, EpisodeStatus
+                    
+                    episode_id = job_payload.get('id', '')
+                    if episode_id:
+                        try:
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            
+                            # Create or update episode to PROCESSING status
+                            episode = loop.run_until_complete(
+                                create_episode(
+                                    episode_id=episode_id,
+                                    url=job_payload.get('audio_url', ''),
+                                    title=job_payload.get('episode_title', 'Unknown'),
+                                    podcast_name=job_payload.get('feed_title', 'Unknown'),
+                                    status=EpisodeStatus.PROCESSING,
+                                    meta_data={"audio_url": job_payload.get('audio_url')}
+                                )
+                            )
+                            loop.close()
+                            print(f"💾 Episode created in DB with status=PROCESSING")
+                        except Exception as e:
+                            # Episode might already exist, try updating status
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(
+                                update_episode_status(episode_id, EpisodeStatus.PROCESSING)
+                            )
+                            loop.close()
+                            print(f"💾 Episode status updated to PROCESSING")
+                    
+                    # Process the specific episode from the payload
+                    # The process_episode function expects episode_data with specific fields
+                    success, episode_id = process_episode(
+                        episode_data=job_payload,
+                        config=config,
+                        history=history,
+                        from_queue=True
+                    )
+                    
+                    if success:
+                        # Save updated history
+                        save_history(config, history)
+                        print("="* 64)
+                        print(f"✅ Job #{job_count} completed successfully\n")
+                    else:
+                        # Update episode status to FAILED if processing failed
+                        if episode_id:
+                            try:
+                                loop = asyncio.new_event_loop()
+                                asyncio.set_event_loop(loop)
+                                loop.run_until_complete(
+                                    update_episode_status(episode_id, EpisodeStatus.FAILED)
+                                )
+                                loop.close()
+                                print(f"💾 Episode status updated to FAILED")
+                            except Exception as e:
+                                print(f"⚠️  Failed to update episode status: {e}")
+                        
+                        print("="* 64)
+                        print(f"⚠️  Job #{job_count} completed with warnings\n")
+                    
+                except json.JSONDecodeError as e:
+                    print(f"❌ Failed to parse job payload as JSON: {e}")
+                    print(f"   Raw data: {job_data}")
+                except Exception as e:
+                    # Update episode status to FAILED on exception
+                    if episode_id:
+                        try:
+                            import asyncio
+                            from podcast_transcriber_shared.database import update_episode_status, EpisodeStatus
+                            
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(
+                                update_episode_status(episode_id, EpisodeStatus.FAILED)
+                            )
+                            loop.close()
+                            print(f"💾 Episode status updated to FAILED")
+                        except Exception as db_e:
+                            print(f"⚠️  Failed to update episode status: {db_e}")
+                    
+                    print(f"❌ Error processing job payload: {e}")
+                    import traceback
+                    traceback.print_exc()
                 
-                print("=" * 64)
-                print(f"✅ Job #{job_count} completed successfully\n")
                 print("🔄 Returning to idle state, waiting for next job...")
                 print("=" * 64)
             
@@ -116,7 +212,7 @@ def main():
             break
             
         except Exception as e:
-            print(f"❌ Error processing job: {e}")
+            print(f"❌ Error in worker loop: {e}")
             import traceback
             traceback.print_exc()
             print("   Waiting 5 seconds before continuing...")

@@ -26,7 +26,7 @@ from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed
 
 
 def publish_transcription_event(
-    transcript_path: Path,
+    transcript_path: str,  # Deprecated, kept for backward compatibility
     episode_id: str,
     episode_title: str,
     podcast_name: str,
@@ -41,7 +41,7 @@ def publish_transcription_event(
     Services (RAG, Summarization) subscribe to this event and process asynchronously.
     
     Args:
-        transcript_path: Absolute path to transcript file
+        transcript_path: Deprecated (file path no longer used)
         episode_id: Unique episode identifier
         episode_title: Title of the episode
         podcast_name: Name of the podcast
@@ -56,22 +56,13 @@ def publish_transcription_event(
         # Get event bus
         event_bus = get_event_bus()
         
-        # Convert to Docker path for container services
-        try:
-            docker_path = config.get_docker_path(transcript_path)
-        except ValueError as e:
-            print(f"   ⚠️  Path conversion error: {e}")
-            return False
-        
-        # Create event
+        # Create event (no file paths, database lookup by episode_id)
         event = EpisodeTranscribed(
             event_id=f"evt_{uuid.uuid4().hex[:12]}",
             service="transcription",
             episode_id=episode_id,
             episode_title=episode_title,
             podcast_name=podcast_name,
-            transcript_path=str(transcript_path),
-            docker_transcript_path=docker_path,
             audio_url=audio_url,
             diarization_failed=diarization_failed
         )
@@ -237,47 +228,53 @@ def process_episode(episode_data: Dict, config: TranscriptionConfig,
             diarized_result = transcript_result
             diarization_failed = True
         
-        # Format and save
+        # Format transcript
         update_progress("saving", 0.5)
         transcript_text = format_transcript(diarized_result)
         
-        # Create output directory for this podcast
-        podcast_dir = config.output_dir / sanitize_filename(feed_title)
-        podcast_dir.mkdir(exist_ok=True)
+        # Save transcript to database
+        import asyncio
+        from podcast_transcriber_shared.database import save_transcript as db_save_transcript
         
-        # Write to temporary file first (atomic write pattern)
-        # This prevents file watcher from reading partially-written files
-        output_file = podcast_dir / f"{safe_filename}.txt"
-        temp_output_file = podcast_dir / f"{safe_filename}.tmp"
+        # Prepare metadata for database
+        metadata = {
+            "title": episode_title,
+            "podcast_name": feed_title,
+            "audio_url": audio_url if 'audio_url' in locals() else None,
+            "diarization_failed": diarization_failed,
+            "processed_date": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
         
         try:
-            # Write complete content to .tmp file
-            with open(temp_output_file, 'w', encoding='utf-8') as f:
-                f.write(f"Title: {episode_title}\n")
-                f.write(f"Podcast: {feed_title}\n")
-                f.write(f"Processed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                if diarization_failed:
-                    f.write(f"Diarization: FAILED (no speaker labels)\n")
-                f.write(f"\n{'='*60}\n\n")
-                f.write(transcript_text)
+            # Save to database using async operation
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            episode = loop.run_until_complete(
+                db_save_transcript(
+                    episode_id=guid,
+                    transcript_text=transcript_text,
+                    metadata=metadata
+                )
+            )
+            loop.close()
             
-            # Atomic rename from .tmp to .txt
-            # This ensures file watcher only sees complete files
-            temp_output_file.replace(output_file)
-            
-            print(f"💾 Saved transcript: {output_file}")
-            update_progress("saving", 1.0)
+            if episode:
+                print(f"💾 Saved transcript to database: {episode_title}")
+                update_progress("saving", 1.0)
+            else:
+                print(f"⚠️  Failed to save transcript: episode not found in database")
+                return False, guid
             
         except Exception as e:
-            # Clean up temp file if something goes wrong
-            if temp_output_file.exists():
-                temp_output_file.unlink()
-            raise
+            print(f"❌ Database save failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return False, guid
         
         # Publish transcription event for downstream services
         print(f"📤 Publishing transcription event...")
         publish_transcription_event(
-            transcript_path=output_file,
+            transcript_path="",  # No longer used
             episode_id=guid,
             episode_title=episode_title,
             podcast_name=feed_title,
@@ -366,14 +363,19 @@ def process_selected_episodes(config: TranscriptionConfig):
 ╚══════════════════════════════════════════════════════════════╝
     """)
     
-    # Check CUDA availability
-    if not torch.cuda.is_available():
-        print("❌ CUDA not available! Please check your GPU drivers.")
-        sys.exit(1)
-    
-    gpu_name = torch.cuda.get_device_name(0)
-    print(f"🎮 GPU: {gpu_name}")
-    print(f"💾 VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB\n")
+    # Check CUDA availability and set device
+    if torch.cuda.is_available():
+        device = "cuda"
+        gpu_name = torch.cuda.get_device_name(0)
+        vram = torch.cuda.get_device_properties(0).total_memory / 1024**3
+        print(f"🎮 GPU: {gpu_name}")
+        print(f"💾 VRAM: {vram:.1f} GB\n")
+    else:
+        device = "cpu"
+        print("⚠️  WARNING: CUDA not available, falling back to CPU")
+        print("   Transcription will be significantly slower on CPU")
+        print("   For GPU support, ensure CUDA drivers are installed\n")
+
     
     # Load selected episodes
     selected = get_selected_episodes()

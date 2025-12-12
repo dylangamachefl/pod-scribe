@@ -35,32 +35,35 @@ async def process_transcription_event(event_data: dict):
         print(f"   Podcast: {event.podcast_name}")
         print(f"{'='*60}")
         
-        # Use Docker path (we're running in container)
-        file_path = Path(event.docker_transcript_path)
-        
-        if not file_path.exists():
-            print(f"❌ Transcript file not found: {file_path}")
-            return
+        # Fetch transcript from database
+        from podcast_transcriber_shared.database import get_episode_by_id, get_summary_by_episode_id, save_summary as db_save_summary
         
         # Check if summary already exists
-        summary_file = SUMMARY_OUTPUT_PATH / f"{file_path.stem}_summary.json"
-        if summary_file.exists():
-            print(f"⏭️  Summary already exists, skipping: {summary_file.name}")
+        existing_summary = await loop.run_in_executor(
+            None,
+            lambda: asyncio.run(get_summary_by_episode_id(event.episode_id))
+        )
+        
+        if existing_summary:
+            print(f"⏭️  Summary already exists, skipping: {event.episode_title}")
             return
         
-        # Read transcript (blocking I/O - run in executor)
-        loop = asyncio.get_running_loop()
-        
-        def read_transcript():
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return f.read()
-        
-        content = await loop.run_in_executor(None, read_transcript)
-        
-        # Extract metadata (potentially heavy parsing - run in executor)
-        metadata = await loop.run_in_executor(
-            None, extract_metadata_from_transcript, content, file_path.name
+        # Fetch episode from database
+        episode = await loop.run_in_executor(
+            None,
+            lambda: asyncio.run(get_episode_by_id(event.episode_id, load_transcript=True))
         )
+        
+        if not episode:
+            print(f"❌ Episode not found in database: {event.episode_id}")
+            return
+        
+        if not episode.transcript_text:
+            print(f"❌ No transcript text for episode: {event.episode_id}")
+            return
+        
+        content = episode.transcript_text
+        metadata = episode.meta_data or {}
         
         print(f"📄 Episode: {metadata['episode_title']}")
         print(f"🎙️  Podcast: {metadata['podcast_name']}")
@@ -79,8 +82,8 @@ async def process_transcription_event(event_data: dict):
         
         # Save summary (blocking I/O - run in executor)
         complete_summary_data = {
-            "episode_title": metadata["episode_title"],
-            "podcast_name": metadata["podcast_name"],
+            "episode_title": metadata.get("episode_title", event.episode_title),
+            "podcast_name": metadata.get("podcast_name", event.podcast_name),
             "processed_date": metadata.get("processed_date"),
             "created_at": metadata.get("processed_date"),
             # Unpack all structured summary fields
@@ -89,16 +92,15 @@ async def process_transcription_event(event_data: dict):
             "speakers": metadata.get("speakers", []),
             "duration": metadata.get("duration"),
             "audio_url": event.audio_url,
-            "source_file": str(file_path)
         }
         
-        def save_summary():
-            with open(summary_file, 'w', encoding='utf-8') as f:
-                json.dump(complete_summary_data, f, indent=2)
+        # Save summary to database
+        summary = await loop.run_in_executor(
+            None,
+            lambda: asyncio.run(db_save_summary(event.episode_id, complete_summary_data))
+        )
         
-        await loop.run_in_executor(None, save_summary)
-        
-        print(f"✅ Summary saved: {summary_file.name}")
+        print(f"✅ Summary saved to database for episode: {event.episode_id}")
         
         # Publish EpisodeSummarized event
         try:

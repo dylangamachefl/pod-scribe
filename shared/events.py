@@ -31,8 +31,6 @@ class EpisodeTranscribed(BaseEvent):
     episode_id: str
     episode_title: str
     podcast_name: str
-    transcript_path: str  # Absolute path on host
-    docker_transcript_path: str  # Docker container path
     audio_url: Optional[str] = None
     duration_seconds: Optional[float] = None
     diarization_failed: bool = False  # True if speaker identification failed
@@ -46,8 +44,6 @@ class EpisodeTranscribed(BaseEvent):
                 "episode_id": "ep_456",
                 "episode_title": "How to Build Great Software",
                 "podcast_name": "Tech Podcast",
-                "transcript_path": "C:/path/to/transcript.txt",
-                "docker_transcript_path": "/app/shared/output/transcript.txt",
                 "diarization_failed": False
             }
         }
@@ -118,6 +114,11 @@ class EventBus:
         """
         Initialize event bus connection.
         
+        NOTE: Signal handlers are NOT registered automatically because EventBus
+        may be initialized in background threads (Python requires signal handlers
+        to be registered only in the main thread). Call register_signal_handlers()
+        explicitly from your main entry point if needed.
+        
         Args:
             redis_url: Redis connection URL (defaults to REDIS_URL env var)
             max_workers: Maximum number of concurrent callback threads
@@ -128,10 +129,6 @@ class EventBus:
         self.executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="EventBus")
         self._shutdown = False
         self._connect()
-        
-        # Register graceful shutdown
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
     
     def _connect(self):
         """Establish Redis connection with retry logic."""
@@ -280,6 +277,27 @@ class EventBus:
         except Exception as e:
             print(f"❌ Error processing event: {e}")
             traceback.print_exc()
+    
+    def register_signal_handlers(self):
+        """
+        Register signal handlers for graceful shutdown.
+        
+        MUST be called from the main thread only. Call this in your main entry point
+        (if __name__ == "__main__":) AFTER creating the EventBus instance.
+        
+        Raises:
+            ValueError: If called from a non-main thread
+        """
+        import threading
+        if threading.current_thread() is not threading.main_thread():
+            raise ValueError(
+                "Signal handlers can only be registered in the main thread. "
+                "Do not call register_signal_handlers() from background threads."
+            )
+        
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        print("✅ Signal handlers registered for graceful shutdown")
     
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals gracefully."""

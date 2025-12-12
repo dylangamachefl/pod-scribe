@@ -69,16 +69,7 @@ def main():
 ║          Podcast Transcription Engine v1.0                  ║
 ║          Auto Mode: Processing All New Episodes              ║
 ╚══════════════════════════════════════════════════════════════╝
-    """)
-        
-        # Check CUDA availability
-        if not torch.cuda.is_available():
-            print("❌ CUDA not available! Please check your GPU drivers.")
-            sys.exit(1)
-        
-        gpu_name = torch.cuda.get_device_name(0)
-        print(f"🎮 GPU: {gpu_name}")
-        print(f"💾 VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB\n")
+     """)\n        \n        # Check CUDA availability and set device\n        if torch.cuda.is_available():\n            gpu_name = torch.cuda.get_device_name(0)\n            vram = torch.cuda.get_device_properties(0).total_memory / 1024**3\n            print(f"🎮 GPU: {gpu_name}")\n            print(f"💾 VRAM: {vram:.1f} GB\n")\n        else:\n            print("⚠️  WARNING: CUDA not available, falling back to CPU")\n            print("   Transcription will be significantly slower on CPU")\n            print("   For GPU support, ensure CUDA drivers are installed\n")
         
         # Load configuration
         subscriptions = load_subscriptions(config)
@@ -113,14 +104,16 @@ def main():
         
         print(f"⚠️  This will automatically fetch and process the latest {limit} episode(s) from each feed\n")
         
-        # Check CUDA availability
-        if not torch.cuda.is_available():
-            print("❌ CUDA not available! Please check your GPU drivers.")
-            sys.exit(1)
-        
-        gpu_name = torch.cuda.get_device_name(0)
-        print(f"🎮 GPU: {gpu_name}")
-        print(f"💾 VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB\n")
+        # Check CUDA availability and set device
+        if torch.cuda.is_available():
+            gpu_name = torch.cuda.get_device_name(0)
+            vram = torch.cuda.get_device_properties(0).total_memory / 1024**3
+            print(f"🎮 GPU: {gpu_name}")
+            print(f"💾 VRAM: {vram:.1f} GB\n")
+        else:
+            print("⚠️  WARNING: CUDA not available, falling back to CPU")
+            print("   Transcription will be significantly slower on CPU")
+            print("   For GPU support, ensure CUDA drivers are installed\n")
         
         # Load subscriptions
         subscriptions = load_subscriptions(config)

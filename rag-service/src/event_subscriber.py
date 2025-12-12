@@ -89,25 +89,27 @@ async def process_transcription_event(event_data: dict):
             print(f"{'='*60}\n")
             return
         
-        # Use Docker path (we're running in container)
-        file_path = Path(event.docker_transcript_path)
+        # Fetch transcript from database
+        from podcast_transcriber_shared.database import get_episode_by_id
         
-        if not file_path.exists():
-            print(f"❌ Transcript file not found: {file_path}")
+        episode = await loop.run_in_executor(
+            None, 
+            lambda: asyncio.run(get_episode_by_id(event.episode_id, load_transcript=True))
+        )
+        
+        if not episode:
+            print(f"❌ Episode not found in database: {event.episode_id}")
             return
         
-        # Read transcript (blocking I/O - run in executor)
-        def read_transcript():
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return f.read()
+        if not episode.transcript_text:
+            print(f"❌ No transcript text for episode: {event.episode_id}")
+            return
         
-        content = await loop.run_in_executor(None, read_transcript)
+        content = episode.transcript_text
         
-        # Extract metadata (potentially heavy parsing - run in executor)
-        metadata = await loop.run_in_executor(
-            None, extract_metadata_from_transcript, content
-        )
-        metadata["source_file"] = str(file_path)
+        # Extract metadata from DB fields
+        metadata = episode.meta_data or {}
+        metadata["source_file"] = f"db://episodes/{event.episode_id}"  # Virtual path for reference
         metadata["episode_title"] = event.episode_title
         metadata["podcast_name"] = event.podcast_name
         
@@ -201,6 +203,18 @@ def start_rag_event_subscriber():
         channel=event_bus.CHANNEL_TRANSCRIBED,
         callback=process_transcription_event
     )
+
+
+async def start_subscriber_async():
+    """
+    Async wrapper for the event subscriber.
+    
+    Runs the blocking subscriber in a thread executor so it can be
+    started as a background task from FastAPI lifespan without blocking
+    the API server.
+    """
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, start_rag_event_subscriber)
 
 
 if __name__ == "__main__":

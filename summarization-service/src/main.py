@@ -37,12 +37,19 @@ async def lifespan(app: FastAPI):
     print("="*60)
     
     # Pre-load Gemini service
-    print("\n📦 Initializing Gemini service...")
+    print("\n📦 Initializing services...")
     try:
+        # Initialize database
+        from podcast_transcriber_shared.database import init_db
+        import asyncio
+        asyncio.run(init_db())
+        print("✅ Database initialized")
+        
+        # Initialize Gemini service
         get_gemini_service()
         print("✅ Gemini service initialized")
     except Exception as e:
-        print(f"❌ Gemini service initialization failed: {e}")
+        print(f"❌ Service initialization failed: {e}")
         raise
     
     # Start event subscriber in background thread (event-driven architecture)

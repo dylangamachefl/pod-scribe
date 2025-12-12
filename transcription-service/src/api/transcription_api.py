@@ -76,8 +76,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount shared/output directory for static file serving
-app.mount("/files", StaticFiles(directory=OUTPUT_DIR), name="files")
+# Static file serving removed - all transcripts served from database
 
 # Background transcription process
 transcription_process = None
@@ -127,42 +126,56 @@ def validate_rss_feed(url: str) -> tuple[bool, str]:
         return False, str(e)
 
 
-def get_available_podcasts() -> List[dict]:
-    """Get list of podcasts with transcripts."""
-    if not OUTPUT_DIR.exists():
-        return []
+async def get_available_podcasts() -> List[dict]:
+    """Get list of podcasts with transcripts from database."""
+    from podcast_transcriber_shared.database import get_session_maker, Episode, EpisodeStatus
+    from sqlalchemy import select, func
     
-    podcasts = []
-    for d in OUTPUT_DIR.iterdir():
-        if d.is_dir():
-            episode_count = len(list(d.glob("*.txt")))
-            podcasts.append({
-                "name": d.name,
-                "episode_count": episode_count
-            })
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        # Group by podcast_name and count completed episodes
+        query = select(
+            Episode.podcast_name,
+            func.count(Episode.id).label('episode_count')
+        ).where(
+            Episode.status == EpisodeStatus.COMPLETED
+        ).group_by(Episode.podcast_name)
+        
+        result = await session.execute(query)
+        podcasts = [
+            {"name": row.podcast_name, "episode_count": row.episode_count}
+            for row in result
+        ]
     
     return sorted(podcasts, key=lambda x: x["name"])
 
 
-def get_podcast_episodes(podcast_name: str) -> List[str]:
-    """Get list of episodes for a podcast."""
-    podcast_dir = OUTPUT_DIR / podcast_name
-    if not podcast_dir.exists():
-        return []
+async def get_podcast_episodes(podcast_name: str) -> List[dict]:
+    """Get list of episodes for a podcast from database."""
+    from podcast_transcriber_shared.database import list_episodes, EpisodeStatus
     
-    episodes = [f.stem for f in podcast_dir.glob("*.txt")]
-    return sorted(episodes, reverse=True)  # Newest first
+    episodes = await list_episodes(
+        podcast_name=podcast_name,
+        status=EpisodeStatus.COMPLETED,
+        limit=100
+    )
+    
+    return [
+        {
+            "id": ep.id,
+            "name": ep.title,
+            "created_at": ep.created_at.isoformat() if ep.created_at else None
+        }
+        for ep in episodes
+    ]
 
 
-def read_transcript(podcast_name: str, episode_name: str) -> Optional[str]:
-    """Read transcript file."""
-    transcript_file = OUTPUT_DIR / podcast_name / f"{episode_name}.txt"
+async def read_transcript(episode_id: str) -> Optional[str]:
+    """Read transcript from database."""
+    from podcast_transcriber_shared.database import get_episode_by_id
     
-    if not transcript_file.exists():
-        return None
-    
-    with open(transcript_file, 'r', encoding='utf-8') as f:
-        return f.read()
+    episode = await get_episode_by_id(episode_id, load_transcript=True)
+    return episode.transcript_text if episode else None
 
 
 # ============================================================================
@@ -473,53 +486,41 @@ async def start_transcription(
 @app.get("/transcripts", response_model=List[PodcastInfo])
 async def list_podcasts():
     """List all available podcasts."""
-    podcasts = get_available_podcasts()
+    podcasts = await get_available_podcasts()
     return [PodcastInfo(**p) for p in podcasts]
 
 
 @app.get("/transcripts/{podcast_name}", response_model=List[EpisodeInfo])
 async def list_episodes(podcast_name: str):
     """List episodes for a podcast."""
-    episodes = get_podcast_episodes(podcast_name)
+    episodes = await get_podcast_episodes(podcast_name)
     
     if not episodes:
         raise HTTPException(status_code=404, detail="Podcast not found or has no episodes")
     
-    podcast_dir = OUTPUT_DIR / podcast_name
-    
     return [
         EpisodeInfo(
-            name=ep,
-            file_path=str(podcast_dir / f"{ep}.txt")
+            name=ep["name"],
+            file_path=ep["id"]  # Use episode_id as file_path for backward compatibility
         )
         for ep in episodes
     ]
 
 
-@app.get("/transcripts/{podcast_name}/{episode_name}", response_model=TranscriptResponse)
-async def get_transcript(podcast_name: str, episode_name: str):
+@app.get("/transcripts/{podcast_name}/{episode_id}", response_model=TranscriptResponse)
+async def get_transcript(podcast_name: str, episode_id: str):
     """
-    Get transcript content for a specific episode.
-    Returns the full transcript text for backward compatibility.
-    
-    Note: Clients can also use the static file endpoint:
-    /files/{podcast_name}/{episode_name}.txt
+    Get transcript content for a specific episode from database.
     """
-    # Verify file exists
-    transcript_file = OUTPUT_DIR / podcast_name / f"{episode_name}.txt"
-    
-    if not transcript_file.exists():
-        raise HTTPException(status_code=404, detail="Transcript not found")
-    
-    # Read the transcript content
-    content = read_transcript(podcast_name, episode_name)
+    # Read transcript from database
+    content = await read_transcript(episode_id)
     
     if content is None:
         raise HTTPException(status_code=404, detail="Transcript not found")
     
     return TranscriptResponse(
         podcast_name=podcast_name,
-        episode_name=episode_name,
+        episode_name=episode_id,
         content=content
     )
 

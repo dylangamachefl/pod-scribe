@@ -28,5 +28,5 @@ ENV PYTHONPATH=/app/src
 # Expose port
 EXPOSE 8000
 
-# Run both API and event subscriber via startup script
-CMD ["./start.sh"]
+# Run FastAPI application (event subscriber starts automatically in lifespan)
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
