@@ -13,12 +13,13 @@ The worker will:
 3. Process jobs using the existing transcription pipeline
 4. Return to idle state when done
 """
-import redis
+import asyncio
 import json
 import time
 import signal
 import sys
 from pathlib import Path
+import redis.asyncio as redis
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -26,22 +27,21 @@ sys.path.insert(0, str(Path(__file__).parent))
 from config import TranscriptionConfig
 from core.diarization import apply_pytorch_patch
 from core.processor import process_episode, load_history, save_history
+from podcast_transcriber_shared.database import create_episode, update_episode_status, EpisodeStatus
 
 
 # Global flag for graceful shutdown
-shutdown_flag = False
+shutdown_event = asyncio.Event()
 
 
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully."""
-    global shutdown_flag
     print("\n🛑 Received shutdown signal, finishing current job...")
-    shutdown_flag = True
+    shutdown_event.set()
 
 
-def main():
+async def main():
     """Main worker daemon loop."""
-    global shutdown_flag
     
     # Apply PyTorch patch for Pyannote compatibility
     apply_pytorch_patch()
@@ -49,9 +49,17 @@ def main():
     # Load configuration
     config = TranscriptionConfig.from_env()
     
-    # Setup signal handlers for graceful shutdown
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    # Setup signal handlers for graceful shutdown (must be done in main thread)
+    # asyncio.run handles the loop, so we can't use signal.signal with async callback directly easily
+    # but we can set the event.
+    loop = asyncio.get_running_loop()
+    try:
+        loop.add_signal_handler(signal.SIGINT, lambda: shutdown_event.set())
+        loop.add_signal_handler(signal.SIGTERM, lambda: shutdown_event.set())
+    except NotImplementedError:
+        # Windows doesn't support add_signal_handler
+        signal.signal(signal.SIGINT, lambda s, f: shutdown_event.set())
+        signal.signal(signal.SIGTERM, lambda s, f: shutdown_event.set())
     
     print("\n")
     print("╔══════════════════════════════════════════════════════════════╗")
@@ -63,7 +71,7 @@ def main():
     try:
         # Connect to Redis
         r = redis.from_url(config.redis_url, decode_responses=True)
-        r.ping()  # Test connection
+        await r.ping()  # Test connection
         print("✅ Redis connection established")
     except Exception as e:
         print(f"❌ Failed to connect to Redis: {e}")
@@ -81,11 +89,11 @@ def main():
     # Load processing history
     history = load_history(config)
     
-    while not shutdown_flag:
+    while not shutdown_event.is_set():
         try:
-            # Blocking pop with 5 second timeout
-            # This waits up to 5 seconds for a job, then returns None if queue is empty
-            result = r.blpop('transcription_queue', timeout=5)
+            # Non-blocking pop with timeout using async redis
+            # blpop returns a tuple (key, value) or None if timeout
+            result = await r.blpop('transcription_queue', timeout=5)
             
             if result:
                 _, job_data = result
@@ -106,46 +114,38 @@ def main():
                     print(f"   Audio URL: {job_payload.get('audio_url', 'N/A')[:50]}...")
                     print("="* 64)
                     
-                    # Create episode in database with PROCESSING status
-                    import asyncio
-                    from podcast_transcriber_shared.database import create_episode, update_episode_status, EpisodeStatus
-                    
                     episode_id = job_payload.get('id', '')
                     if episode_id:
                         try:
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            
                             # Create or update episode to PROCESSING status
-                            episode = loop.run_until_complete(
-                                create_episode(
-                                    episode_id=episode_id,
-                                    url=job_payload.get('audio_url', ''),
-                                    title=job_payload.get('episode_title', 'Unknown'),
-                                    podcast_name=job_payload.get('feed_title', 'Unknown'),
-                                    status=EpisodeStatus.PROCESSING,
-                                    meta_data={"audio_url": job_payload.get('audio_url')}
-                                )
+                            await create_episode(
+                                episode_id=episode_id,
+                                url=job_payload.get('audio_url', ''),
+                                title=job_payload.get('episode_title', 'Unknown'),
+                                podcast_name=job_payload.get('feed_title', 'Unknown'),
+                                status=EpisodeStatus.PROCESSING,
+                                meta_data={"audio_url": job_payload.get('audio_url')}
                             )
-                            loop.close()
                             print(f"💾 Episode created in DB with status=PROCESSING")
                         except Exception as e:
                             # Episode might already exist, try updating status
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            loop.run_until_complete(
-                                update_episode_status(episode_id, EpisodeStatus.PROCESSING)
-                            )
-                            loop.close()
-                            print(f"💾 Episode status updated to PROCESSING")
-                    
+                            try:
+                                await update_episode_status(episode_id, EpisodeStatus.PROCESSING)
+                                print(f"💾 Episode status updated to PROCESSING")
+                            except Exception as db_e:
+                                print(f"⚠️  Failed to update episode status: {db_e}")
+
                     # Process the specific episode from the payload
                     # The process_episode function expects episode_data with specific fields
-                    success, episode_id = process_episode(
-                        episode_data=job_payload,
-                        config=config,
-                        history=history,
-                        from_queue=True
+                    # process_episode is synchronous and CPU-bound (ML), so we run it in executor
+                    success, episode_id = await loop.run_in_executor(
+                        None,
+                        lambda: process_episode(
+                            episode_data=job_payload,
+                            config=config,
+                            history=history,
+                            from_queue=True
+                        )
                     )
                     
                     if success:
@@ -157,12 +157,7 @@ def main():
                         # Update episode status to FAILED if processing failed
                         if episode_id:
                             try:
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
-                                loop.run_until_complete(
-                                    update_episode_status(episode_id, EpisodeStatus.FAILED)
-                                )
-                                loop.close()
+                                await update_episode_status(episode_id, EpisodeStatus.FAILED)
                                 print(f"💾 Episode status updated to FAILED")
                             except Exception as e:
                                 print(f"⚠️  Failed to update episode status: {e}")
@@ -177,15 +172,7 @@ def main():
                     # Update episode status to FAILED on exception
                     if episode_id:
                         try:
-                            import asyncio
-                            from podcast_transcriber_shared.database import update_episode_status, EpisodeStatus
-                            
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            loop.run_until_complete(
-                                update_episode_status(episode_id, EpisodeStatus.FAILED)
-                            )
-                            loop.close()
+                            await update_episode_status(episode_id, EpisodeStatus.FAILED)
                             print(f"💾 Episode status updated to FAILED")
                         except Exception as db_e:
                             print(f"⚠️  Failed to update episode status: {db_e}")
@@ -200,23 +187,26 @@ def main():
         except redis.ConnectionError as e:
             print(f"❌ Redis connection error: {e}")
             print("   Retrying in 10 seconds...")
-            time.sleep(10)
+            await asyncio.sleep(10)
             try:
-                r.ping()
+                await r.ping()
                 print("✅ Reconnected to Redis")
             except:
                 pass
                 
-        except KeyboardInterrupt:
-            print("\n🛑 Keyboard interrupt received")
-            break
-            
+        except asyncio.CancelledError:
+             print("\n🛑 Task cancelled")
+             break
+
         except Exception as e:
             print(f"❌ Error in worker loop: {e}")
             import traceback
             traceback.print_exc()
             print("   Waiting 5 seconds before continuing...")
-            time.sleep(5)
+            await asyncio.sleep(5)
+
+    # Clean up Redis connection
+    await r.close()
     
     print("\n╔══════════════════════════════════════════════════════════════╗")
     print("║          Worker Daemon Shut Down                            ║")
@@ -225,4 +215,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
