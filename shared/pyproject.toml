@@ -25,8 +25,8 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["*"]
-exclude = ["config.*", "indexes", "logs", "output", "summaries"]
+include = ["podcast_transcriber_shared*"]
+exclude = ["config*", "indexes", "logs", "output", "summaries"]
 
 [tool.setuptools.package-data]
-"*" = ["*.json", "*.yaml", "*.yml"]
+"podcast_transcriber_shared" = ["py.typed"]
