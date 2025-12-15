@@ -159,7 +159,6 @@ services:
     volumes:
       # Mount shared directories for events module and logs
       - ./shared/logs:/app/shared/logs  # Logs
-      - ./shared/events.py:/app/shared/events.py:ro  # Event bus module
       - ./shared:/app/shared  # Shared library for event bus and database
     secrets:
       - gemini_api_key
