@@ -98,32 +98,49 @@ async def main():
                 _, job_data = result
                 job_count += 1
                 
-                print(f"\n📥 Job #{job_count} received")
+                print(f"\n📥 Job #{job_count} received from queue")
                 
                 episode_id = None
                 try:
                     job_payload = json.loads(job_data)
-                    episode_id = job_payload.get('id', '')
-
-                    # Update DB status to PROCESSING (Async)
-                    if episode_id:
-                        try:
-                            await create_episode(
-                                episode_id=episode_id,
-                                url=job_payload.get('audio_url', ''),
-                                title=job_payload.get('episode_title', 'Unknown'),
-                                podcast_name=job_payload.get('feed_title', 'Unknown'),
-                                status=EpisodeStatus.PROCESSING,
-                                meta_data={"audio_url": job_payload.get('audio_url')}
-                            )
-                        except:
-                            await update_episode_status(episode_id, EpisodeStatus.PROCESSING)
+                    
+                    # Parse episode_id from simplified job payload
+                    # New format: {"episode_id": "yt:video:123", "timestamp": "..."}
+                    episode_id = job_payload.get('episode_id')
+                    
+                    if not episode_id:
+                        print(f"⚠️  Job contains no episode_id, skipping")
+                        continue
+                    
+                    print(f"📋 Processing episode: {episode_id}")
+                    
+                    # Fetch full episode data from PostgreSQL (not SQLite)
+                    from podcast_transcriber_shared.database import get_episode_by_id
+                    episode = await get_episode_by_id(episode_id, load_transcript=False)
+                    
+                    if not episode:
+                        print(f"⚠️  Episode {episode_id} not found in database, skipping")
+                        continue
+                    
+                    print(f"✅ Retrieved episode from PostgreSQL: {episode.title}")
+                    
+                    # Convert Episode object to dict for process_episode_async
+                    episode_data = {
+                        'id': episode.id,
+                        'episode_title': episode.title,
+                        'feed_title': episode.podcast_name,
+                        'audio_url': episode.meta_data.get('audio_url') if episode.meta_data else None,
+                        'published_date': episode.meta_data.get('published_date') if episode.meta_data else None,
+                    }
+                    
+                    # Update status to PROCESSING
+                    await update_episode_status(episode_id, EpisodeStatus.PROCESSING)
+                    print(f"🔄 Updated status to PROCESSING")
 
                     # Process Episode (Async)
-                    # This now uses the persistent worker and handles heavy lifting in executor
-                    # but DB/Events are awaited directly in the async flow.
+                    # Worker's process_episode_async will save transcript to PostgreSQL
                     success, episode_id = await process_episode_async(
-                        episode_data=job_payload,
+                        episode_data=episode_data,
                         config=config,
                         history=history,
                         worker=worker,
@@ -132,11 +149,12 @@ async def main():
                     
                     if success:
                         save_history(config, history)
-                        print(f"✅ Job #{job_count} completed successfully")
+                        print(f"✅ Episode completed successfully: {episode_id}")
                     else:
-                        if episode_id:
-                            await update_episode_status(episode_id, EpisodeStatus.FAILED)
-                        print(f"⚠️  Job #{job_count} failed")
+                        await update_episode_status(episode_id, EpisodeStatus.FAILED)
+                        print(f"⚠️  Episode processing failed: {episode_id}")
+                    
+                    print(f"✅ Job #{job_count} completed successfully")
                     
                 except json.JSONDecodeError:
                     print(f"❌ Invalid JSON in job data")

@@ -128,7 +128,7 @@ def validate_rss_feed(url: str) -> tuple[bool, str]:
 
 async def get_available_podcasts() -> List[dict]:
     """Get list of podcasts with transcripts from database."""
-    from podcast_transcriber_shared.database import get_session_maker, Episode, EpisodeStatus
+    from shared.database import get_session_maker, Episode, EpisodeStatus
     from sqlalchemy import select, func
     
     session_maker = get_session_maker()
@@ -152,7 +152,7 @@ async def get_available_podcasts() -> List[dict]:
 
 async def get_podcast_episodes(podcast_name: str) -> List[dict]:
     """Get list of episodes for a podcast from database."""
-    from podcast_transcriber_shared.database import list_episodes, EpisodeStatus
+    from shared.database import list_episodes, EpisodeStatus
     
     episodes = await list_episodes(
         podcast_name=podcast_name,
@@ -172,7 +172,7 @@ async def get_podcast_episodes(podcast_name: str) -> List[dict]:
 
 async def read_transcript(episode_id: str) -> Optional[str]:
     """Read transcript from database."""
-    from podcast_transcriber_shared.database import get_episode_by_id
+    from shared.database import get_episode_by_id
     
     episode = await get_episode_by_id(episode_id, load_transcript=True)
     return episode.transcript_text if episode else None
@@ -423,20 +423,21 @@ async def start_transcription(
     background_tasks: BackgroundTasks
 ):
     """
-    Enqueue transcription job to Redis queue.
+    Create episodes in PostgreSQL and enqueue transcription jobs to Redis queue.
     
     The transcription worker daemon polls Redis and processes jobs.
     This provides immediate response and production-ready architecture.
     """
     import redis
     from datetime import datetime
+    from shared.database import create_episode, EpisodeStatus
     
     # Check if already running (via status file)
     status = read_status()
     if status and status.get('is_running'):
         raise HTTPException(status_code=400, detail="Transcription already in progress")
     
-    # Get selected episodes
+    # Get selected episodes from SQLite queue
     pending_data = load_pending_episodes()
     episodes = pending_data.get('episodes', [])
     selected_episodes = [ep for ep in episodes if ep.get('selected', False)]
@@ -449,23 +450,55 @@ async def start_transcription(
         redis_url = os.getenv('REDIS_URL', 'redis://redis:6379')
         r = redis.from_url(redis_url, decode_responses=True)
         
-        # Create job payload
-        job = {
-            'timestamp': datetime.now().isoformat(),
-            'episode_count': len(selected_episodes),
-            'episodes': [ep.get('id') for ep in selected_episodes]
-        }
+        # Create episodes in PostgreSQL and enqueue to Redis
+        enqueued_count = 0
+        for ep in selected_episodes:
+            episode_id = ep.get('id')
+            
+            try:
+                # Create episode in PostgreSQL with PENDING status
+                await create_episode(
+                    episode_id=episode_id,
+                    url=ep.get('audio_url', ''),
+                    title=ep.get('episode_title', 'Unknown'),
+                    podcast_name=ep.get('feed_title', 'Unknown'),
+                    status=EpisodeStatus.PENDING,
+                    meta_data={
+                        "audio_url": ep.get('audio_url'),
+                        "published_date": ep.get('published_date'),
+                        "feed_url": ep.get('feed_url')
+                    }
+                )
+                
+                # Create simplified job payload (just episode_id)
+                job = {
+                    'episode_id': episode_id,
+                    'timestamp': datetime.now().isoformat()
+                }
+                
+                # Enqueue job to Redis
+                r.lpush('transcription_queue', json.dumps(job))
+                enqueued_count += 1
+                
+                logger.info(f"📤 Created episode {episode_id} in PostgreSQL and enqueued to Redis")
+                
+            except Exception as e:
+                logger.error(f"Failed to create/enqueue episode {episode_id}: {e}")
+                # Continue with other episodes even if one fails
+                continue
         
-        # Enqueue job to Redis
-        # Worker daemon is continuously polling this queue
-        r.lpush('transcription_queue', json.dumps(job))
+        if enqueued_count == 0:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to enqueue any episodes. Check logs for details."
+            )
         
-        logger.info(f"📤 Enqueued transcription job: {len(selected_episodes)} episode(s)")
+        logger.info(f"📤 Enqueued {enqueued_count} transcription job(s)")
         
         return TranscriptionStartResponse(
             status="queued",
-            message=f"Transcription queued for {len(selected_episodes)} episode(s). Worker will process shortly.",
-            episodes_count=len(selected_episodes)
+            message=f"Transcription queued for {enqueued_count} episode(s). Worker will process shortly.",
+            episodes_count=enqueued_count
         )
         
     except redis.ConnectionError as e:

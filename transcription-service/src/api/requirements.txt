@@ -8,3 +8,8 @@ python-multipart==0.0.6
 requests==2.31.0
 aiofiles==23.2.1
 redis>=5.0.0
+
+# Database dependencies for PostgreSQL integration
+sqlalchemy==2.0.23
+asyncpg==0.29.0
+psycopg2-binary==2.9.9

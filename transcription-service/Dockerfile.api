@@ -11,13 +11,14 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY src/api/requirements.txt .
+COPY transcription-service/src/api/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
-COPY src/ ./src/
+# Copy source code and shared library
+COPY transcription-service/src/ ./src/
+COPY shared/ ./shared/
 
 # Expose API port
 EXPOSE 8001
