@@ -108,6 +108,13 @@ async def main():
                     # New format: {"episode_id": "yt:video:123", "timestamp": "..."}
                     episode_id = job_payload.get('episode_id')
                     
+                    # Backward compatibility for legacy format: {"episodes": ["yt:video:123"], ...}
+                    if not episode_id and 'episodes' in job_payload:
+                        episodes = job_payload.get('episodes', [])
+                        if episodes and isinstance(episodes, list) and len(episodes) > 0:
+                            episode_id = episodes[0]
+                            print(f"⚠️  Legacy job format detected. Extracted episode_id: {episode_id}")
+
                     if not episode_id:
                         print(f"⚠️  Job contains no episode_id, skipping")
                         continue

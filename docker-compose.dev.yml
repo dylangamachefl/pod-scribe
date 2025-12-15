@@ -10,3 +10,8 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+
+  # Transcription API - Mount source code for live updates
+  transcription-api:
+    volumes:
+      - ./transcription-service/src:/app/src
