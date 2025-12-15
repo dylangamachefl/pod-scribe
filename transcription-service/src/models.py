@@ -43,7 +43,8 @@ class TranscriptMetadata(BaseModel):
     episode_title: str
     podcast_name: str
     processed_date: datetime = Field(default_factory=datetime.now)
-    transcript_path: str
+    # transcript_path is deprecated, using Optional for compatibility but usually None/Empty now
+    transcript_path: Optional[str] = Field(None, description="DEPRECATED: Path to transcript file (now stored in DB)")
     audio_url: Optional[str] = None
     duration: Optional[int] = None
     speakers: Optional[List[str]] = None
@@ -54,7 +55,7 @@ class TranscriptMetadata(BaseModel):
                 "episode_title": "Episode 1",
                 "podcast_name": "My Podcast",
                 "processed_date": "2025-12-10T12:00:00",
-                "transcript_path": "/app/shared/output/episode1.txt",
+                "transcript_path": "",
                 "audio_url": "https://example.com/audio.mp3"
             }
         }
@@ -66,7 +67,7 @@ class ProcessingResult(BaseModel):
     success: bool
     episode_id: str
     episode_title: str
-    transcript_path: Optional[str] = None
+    transcript_path: Optional[str] = Field(None, description="DEPRECATED: Path to transcript file")
     error_message: Optional[str] = None
     rag_ingested: bool = Field(default=False, description="Successfully ingested to RAG")
     summary_created: bool = Field(default=False, description="Summary created")
@@ -78,7 +79,6 @@ class ProcessingResult(BaseModel):
                 "success": True,
                 "episode_id": "ep-123",
                 "episode_title": "Episode 1",
-                "transcript_path": "/app/shared/output/episode1.txt",
                 "rag_ingested": True,
                 "summary_created": False,
                 "processing_time_seconds": 245.5

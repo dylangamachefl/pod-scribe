@@ -9,20 +9,11 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 import uuid
 
-import feedparser
-import requests
-
 from config import TranscriptionConfig
 from core.audio import download_audio, TranscriptionWorker
 from core.diarization import diarize_transcript
 from core.formatting import sanitize_filename, format_transcript
-from managers.episode_manager import (
-    get_selected_episodes,
-    clear_processed_episodes,
-    fetch_episodes_from_feed,
-    add_episode_to_queue
-)
-from managers.status_monitor import write_status, clear_status, update_progress
+from managers.status_monitor import update_progress
 from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed
 from podcast_transcriber_shared.database import save_transcript as db_save_transcript
 
@@ -89,23 +80,12 @@ async def publish_transcription_event(
         return False
 
 
-def load_subscriptions(config: TranscriptionConfig) -> List[Dict]:
-    """Load RSS feed subscriptions from config."""
-    if not config.subscriptions_file.exists():
-        print(f"⚠️  No subscriptions found at {config.subscriptions_file}")
-        return []
-    
-    with open(config.subscriptions_file, 'r', encoding='utf-8') as f:
-        subscriptions = json.load(f)
-    
-    # Filter active subscriptions
-    active_subs = [sub for sub in subscriptions if sub.get('active', True)]
-    print(f"📡 Loaded {len(active_subs)} active subscription(s)")
-    return active_subs
-
-
 def load_history(config: TranscriptionConfig) -> Dict:
-    """Load processing history to avoid duplicates."""
+    """
+    Load processing history to avoid duplicates.
+    DEPRECATED: Should move to database-only checks.
+    Keeping for now to avoid breaking worker_daemon.py immediately if it uses it.
+    """
     if not config.history_file.exists():
         return {"processed_episodes": []}
     
@@ -114,7 +94,10 @@ def load_history(config: TranscriptionConfig) -> Dict:
 
 
 def save_history(config: TranscriptionConfig, history: Dict):
-    """Save updated processing history."""
+    """
+    Save updated processing history.
+    DEPRECATED: Should move to database-only checks.
+    """
     with open(config.history_file, 'w', encoding='utf-8') as f:
         json.dump(history, f, indent=2)
 
@@ -242,8 +225,8 @@ async def process_episode_async(
             if 'youtube.com' in link or 'youtu.be' in link:
                 audio_url = link
     
-    # Check if already processed
-    if guid in history['processed_episodes']:
+    # Check if already processed (Legacy check)
+    if history and guid in history.get('processed_episodes', []):
         print(f"⏭️  Skipping (already processed): {episode_title}")
         return False, guid
     
@@ -305,122 +288,9 @@ async def process_episode_async(
         diarization_failed=diarization_failed
     )
 
-    # Update history
-    history['processed_episodes'].append(guid)
-    save_history(config, history)
+    # Update legacy history if provided
+    if history:
+        history.setdefault('processed_episodes', []).append(guid)
+        save_history(config, history)
     
     return True, guid
-
-#
-# Legacy wrappers for CLI compatibility
-#
-def process_episode(episode_data: Dict, config: TranscriptionConfig,
-                   history: Dict, from_queue: bool = False) -> Tuple[bool, str]:
-    """
-    Legacy synchronous wrapper for process_episode_async.
-    Used by CLI which isn't fully async yet.
-    """
-    # Create a temporary worker for this single run (inefficient but compatible)
-    print("⚠️  Using legacy process_episode wrapper (inefficient)")
-
-    worker = TranscriptionWorker(
-        whisper_model=config.whisper_model,
-        device=config.device,
-        compute_type=config.compute_type,
-        batch_size=config.batch_size
-    )
-
-    try:
-        return asyncio.run(process_episode_async(
-            episode_data, config, history, worker, from_queue
-        ))
-    finally:
-        del worker
-
-
-def process_feed(subscription: Dict, config: TranscriptionConfig, history: Dict):
-    """Process all new episodes from a podcast feed (Legacy CLI)."""
-    url = subscription.get('url')
-    title = subscription.get('title', 'Unknown Podcast')
-    
-    print(f"\n📡 Checking feed: {title}")
-    
-    try:
-        feed = feedparser.parse(url)
-        entries = feed.get('entries', [])
-
-        if not entries:
-            return
-
-        if title == 'Unknown Podcast' and feed.feed.get('title'):
-            title = feed.feed.get('title')
-        
-        # Instantiate worker once for the whole feed
-        worker = TranscriptionWorker(
-            whisper_model=config.whisper_model,
-            device=config.device,
-            compute_type=config.compute_type,
-            batch_size=config.batch_size
-        )
-        
-        try:
-            processed_count = 0
-            for entry in entries:
-                entry['feed_title'] = title
-                # Run async process in sync wrapper
-                success, _ = asyncio.run(process_episode_async(
-                    entry, config, history, worker, from_queue=False
-                ))
-                if success:
-                    processed_count += 1
-
-            print(f"✅ Processed {processed_count} new episode(s) from {title}")
-        finally:
-            del worker
-
-    except Exception as e:
-        print(f"❌ Feed processing failed: {e}")
-
-
-def process_selected_episodes(config: TranscriptionConfig):
-    """Process only selected episodes from the pending queue (Legacy CLI)."""
-    selected = get_selected_episodes()
-    if not selected:
-        print("⚠️  No episodes selected for transcription.")
-        return
-    
-    history = load_history(config)
-    
-    # Instantiate worker once
-    worker = TranscriptionWorker(
-        whisper_model=config.whisper_model,
-        device=config.device,
-        compute_type=config.compute_type,
-        batch_size=config.batch_size
-    )
-    
-    try:
-        processed_count = 0
-        for episode in selected:
-            write_status(
-                is_running=True,
-                current_episode=episode.get('episode_title', 'Unknown'),
-                current_podcast=episode.get('feed_title', 'Unknown'),
-                stage="processing",
-                progress=0.0,
-                episodes_completed=processed_count,
-                episodes_total=len(selected)
-            )
-
-            success, _ = asyncio.run(process_episode_async(
-                episode, config, history, worker, from_queue=True
-            ))
-
-            if success:
-                processed_count += 1
-                clear_processed_episodes([episode.get('id', '')])
-        
-        clear_status()
-
-    finally:
-        del worker
