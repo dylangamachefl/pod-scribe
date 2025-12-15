@@ -90,12 +90,10 @@ async def process_transcription_event(event_data: dict):
             return
         
         # Fetch transcript from database
+        # Database operations are async, so we just await them directly!
         from podcast_transcriber_shared.database import get_episode_by_id
         
-        episode = await loop.run_in_executor(
-            None, 
-            lambda: asyncio.run(get_episode_by_id(event.episode_id, load_transcript=True))
-        )
+        episode = await get_episode_by_id(event.episode_id, load_transcript=True)
         
         if not episode:
             print(f"❌ Episode not found in database: {event.episode_id}")
