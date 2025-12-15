@@ -8,6 +8,7 @@ function DashboardPage() {
     const [status, setStatus] = useState<TranscriptionStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     const loadData = async () => {
         try {
