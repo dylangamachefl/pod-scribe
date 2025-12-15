@@ -2,14 +2,14 @@
   "is_running": false,
   "current_episode": "",
   "current_podcast": "",
-  "stage": "idle",
-  "progress": 0.0,
-  "gpu_name": "NVIDIA GeForce RTX 3070",
+  "stage": "saving",
+  "progress": 1.0,
+  "gpu_name": "N/A",
   "gpu_usage": 0,
-  "vram_used_gb": 0.02,
-  "vram_total_gb": 8.0,
+  "vram_used_gb": 0.0,
+  "vram_total_gb": 0.0,
   "start_time": null,
   "episodes_completed": 0,
   "episodes_total": 0,
-  "last_updated": "2025-12-11T08:06:25.817599"
+  "last_updated": "2025-12-15T16:14:28.252454"
 }

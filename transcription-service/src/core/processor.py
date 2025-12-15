@@ -3,6 +3,7 @@ Episode Processing Module
 High-level orchestration of the transcription pipeline.
 """
 import json
+import asyncio
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
@@ -12,7 +13,7 @@ import feedparser
 import requests
 
 from config import TranscriptionConfig
-from core.audio import download_audio, transcribe_audio
+from core.audio import download_audio, TranscriptionWorker
 from core.diarization import diarize_transcript
 from core.formatting import sanitize_filename, format_transcript
 from managers.episode_manager import (
@@ -23,9 +24,10 @@ from managers.episode_manager import (
 )
 from managers.status_monitor import write_status, clear_status, update_progress
 from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed
+from podcast_transcriber_shared.database import save_transcript as db_save_transcript
 
 
-def publish_transcription_event(
+async def publish_transcription_event(
     transcript_path: str,  # Deprecated, kept for backward compatibility
     episode_id: str,
     episode_title: str,
@@ -68,7 +70,7 @@ def publish_transcription_event(
         )
         
         # Publish event
-        success = event_bus.publish(event_bus.CHANNEL_TRANSCRIBED, event)
+        success = await event_bus.publish(event_bus.CHANNEL_TRANSCRIBED, event)
         
         if success:
             print(f"   📤 Published EpisodeTranscribed event: {event.event_id}")
@@ -87,16 +89,8 @@ def publish_transcription_event(
         return False
 
 
-
 def load_subscriptions(config: TranscriptionConfig) -> List[Dict]:
-    """Load RSS feed subscriptions from config.
-    
-    Args:
-        config: Transcription configuration
-        
-    Returns:
-        List of active subscription dicts
-    """
+    """Load RSS feed subscriptions from config."""
     if not config.subscriptions_file.exists():
         print(f"⚠️  No subscriptions found at {config.subscriptions_file}")
         return []
@@ -111,14 +105,7 @@ def load_subscriptions(config: TranscriptionConfig) -> List[Dict]:
 
 
 def load_history(config: TranscriptionConfig) -> Dict:
-    """Load processing history to avoid duplicates.
-    
-    Args:
-        config: Transcription configuration
-        
-    Returns:
-        History dict with processed_episodes list
-    """
+    """Load processing history to avoid duplicates."""
     if not config.history_file.exists():
         return {"processed_episodes": []}
     
@@ -127,25 +114,106 @@ def load_history(config: TranscriptionConfig) -> Dict:
 
 
 def save_history(config: TranscriptionConfig, history: Dict):
-    """Save updated processing history.
-    
-    Args:
-        config: Transcription configuration
-        history: History dict to save
-    """
+    """Save updated processing history."""
     with open(config.history_file, 'w', encoding='utf-8') as f:
         json.dump(history, f, indent=2)
 
 
-def process_episode(episode_data: Dict, config: TranscriptionConfig, 
-                   history: Dict, from_queue: bool = False) -> Tuple[bool, str]:
-    """Process a single podcast episode.
+def transcribe_episode_task(
+    episode_title: str,
+    audio_url: str,
+    config: TranscriptionConfig,
+    worker: TranscriptionWorker
+) -> Tuple[Optional[str], bool]:
+    """
+    Blocking task for download, transcription, and diarization.
+    This function should be run in a thread executor.
     
     Args:
-        episode_data: Episode data (either from RSS feed entry or from pending queue)
+        episode_title: Title of the episode
+        audio_url: URL to audio file
+        config: Transcription configuration
+        worker: Initialized TranscriptionWorker instance
+
+    Returns:
+        (transcript_text, diarization_failed) or (None, False) on failure
+    """
+    print(f"\n{'='*60}")
+    print(f"📻 Processing: {episode_title}")
+    print(f"{'='*60}")
+
+    update_progress("preparing", 0.0)
+
+    # Determine file extension
+    extension = '.mp3'
+    if '.m4a' in audio_url.lower():
+        extension = '.m4a'
+
+    # Download audio
+    safe_filename = sanitize_filename(episode_title)
+    temp_audio = config.temp_dir / f"{safe_filename}{extension}"
+
+    if not download_audio(audio_url, temp_audio):
+        return None, False
+
+    try:
+        # Transcribe using persistent worker
+        transcript_result = worker.process(temp_audio)
+
+        if not transcript_result:
+            return None, False
+
+        # Diarize
+        diarization_failed = False
+        diarized_result = diarize_transcript(
+            temp_audio,
+            transcript_result,
+            config.huggingface_token,
+            config.device
+        )
+        if not diarized_result:
+            # Fall back to non-diarized if diarization fails
+            print("⚠️  Diarization failed, falling back to raw transcript (no speaker labels)")
+            diarized_result = transcript_result
+            diarization_failed = True
+
+        # Format transcript
+        update_progress("saving", 0.5)
+        transcript_text = format_transcript(diarized_result)
+
+        # Clean up temp file
+        if temp_audio.exists():
+            temp_audio.unlink()
+
+        return transcript_text, diarization_failed
+
+    except Exception as e:
+        print(f"❌ Processing task failed: {e}")
+        # Clean up temp file on error
+        if temp_audio.exists():
+            try:
+                temp_audio.unlink()
+            except:
+                pass
+        return None, False
+
+
+async def process_episode_async(
+    episode_data: Dict,
+    config: TranscriptionConfig,
+    history: Dict,
+    worker: TranscriptionWorker,
+    from_queue: bool = False
+) -> Tuple[bool, str]:
+    """
+    Process a single podcast episode asynchronously.
+    
+    Args:
+        episode_data: Episode data
         config: Transcription configuration
         history: Processing history dict
-        from_queue: True if processing from pending queue, False if from RSS feed
+        worker: Initialized TranscriptionWorker instance
+        from_queue: True if processing from pending queue
     
     Returns:
         (success: bool, episode_id: str)
@@ -183,257 +251,176 @@ def process_episode(episode_data: Dict, config: TranscriptionConfig,
         print(f"⚠️  No audio found for: {episode_title}")
         return False, guid
     
-    print(f"\n{'='*60}")
-    print(f"📻 Processing: {episode_title}")
-    print(f"{'='*60}")
+    # Run the heavy lifting in a thread pool
+    loop = asyncio.get_running_loop()
     
-    # Update status with current episode
-    update_progress("preparing", 0.0)
+    # Execute the blocking transcription task
+    transcript_text, diarization_failed = await loop.run_in_executor(
+        None,
+        lambda: transcribe_episode_task(episode_title, audio_url, config, worker)
+    )
     
-    # Determine file extension
-    extension = '.mp3'
-    if '.m4a' in audio_url.lower():
-        extension = '.m4a'
-    
-    # Download audio
-    safe_filename = sanitize_filename(episode_title)
-    temp_audio = config.temp_dir / f"{safe_filename}{extension}"
-    
-    if not download_audio(audio_url, temp_audio):
+    if not transcript_text:
+        # Transcription failed
         return False, guid
+
+    # Save transcript to database (Async directly)
+    metadata = {
+        "title": episode_title,
+        "podcast_name": feed_title,
+        "audio_url": audio_url,
+        "diarization_failed": diarization_failed,
+        "processed_date": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
     
     try:
-        # Transcribe
-        transcript_result = transcribe_audio(
-            temp_audio, 
-            config.whisper_model,
-            config.device,
-            config.compute_type,
-            config.batch_size
-        )
-        if not transcript_result:
-            return False, guid
-        
-        # Diarize
-        diarization_failed = False
-        diarized_result = diarize_transcript(
-            temp_audio, 
-            transcript_result,
-            config.huggingface_token,
-            config.device
-        )
-        if not diarized_result:
-            # Fall back to non-diarized if diarization fails
-            print("⚠️  Diarization failed, falling back to raw transcript (no speaker labels)")
-            diarized_result = transcript_result
-            diarization_failed = True
-        
-        # Format transcript
-        update_progress("saving", 0.5)
-        transcript_text = format_transcript(diarized_result)
-        
-        # Save transcript to database
-        import asyncio
-        from podcast_transcriber_shared.database import save_transcript as db_save_transcript
-        
-        # Prepare metadata for database
-        metadata = {
-            "title": episode_title,
-            "podcast_name": feed_title,
-            "audio_url": audio_url if 'audio_url' in locals() else None,
-            "diarization_failed": diarization_failed,
-            "processed_date": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
-        
-        try:
-            # Save to database using async operation
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            episode = loop.run_until_complete(
-                db_save_transcript(
-                    episode_id=guid,
-                    transcript_text=transcript_text,
-                    metadata=metadata
-                )
-            )
-            loop.close()
-            
-            if episode:
-                print(f"💾 Saved transcript to database: {episode_title}")
-                update_progress("saving", 1.0)
-            else:
-                print(f"⚠️  Failed to save transcript: episode not found in database")
-                return False, guid
-            
-        except Exception as e:
-            print(f"❌ Database save failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return False, guid
-        
-        # Publish transcription event for downstream services
-        print(f"📤 Publishing transcription event...")
-        publish_transcription_event(
-            transcript_path="",  # No longer used
+        episode = await db_save_transcript(
             episode_id=guid,
-            episode_title=episode_title,
-            podcast_name=feed_title,
-            config=config,
-            audio_url=audio_url if 'audio_url' in locals() else None,
-            diarization_failed=diarization_failed
+            transcript_text=transcript_text,
+            metadata=metadata
         )
-
         
-        # Update history
-        history['processed_episodes'].append(guid)
-        save_history(config, history)
+        if episode:
+            print(f"💾 Saved transcript to database: {episode_title}")
+            update_progress("saving", 1.0)
+        else:
+            print(f"⚠️  Failed to save transcript: episode not found in database")
+            return False, guid
         
-        # Clean up temp file
-        temp_audio.unlink()
-        
-        return True, guid
-    
     except Exception as e:
-        print(f"❌ Processing failed: {e}")
-        # Clean up temp file on error
-        if temp_audio.exists():
-            temp_audio.unlink()
+        print(f"❌ Database save failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False, guid
+
+    # Publish transcription event (Async directly)
+    print(f"📤 Publishing transcription event...")
+    await publish_transcription_event(
+        transcript_path="",  # No longer used
+        episode_id=guid,
+        episode_title=episode_title,
+        podcast_name=feed_title,
+        config=config,
+        audio_url=audio_url,
+        diarization_failed=diarization_failed
+    )
+
+    # Update history
+    history['processed_episodes'].append(guid)
+    save_history(config, history)
+    
+    return True, guid
+
+#
+# Legacy wrappers for CLI compatibility
+#
+def process_episode(episode_data: Dict, config: TranscriptionConfig,
+                   history: Dict, from_queue: bool = False) -> Tuple[bool, str]:
+    """
+    Legacy synchronous wrapper for process_episode_async.
+    Used by CLI which isn't fully async yet.
+    """
+    # Create a temporary worker for this single run (inefficient but compatible)
+    print("⚠️  Using legacy process_episode wrapper (inefficient)")
+
+    worker = TranscriptionWorker(
+        whisper_model=config.whisper_model,
+        device=config.device,
+        compute_type=config.compute_type,
+        batch_size=config.batch_size
+    )
+
+    try:
+        return asyncio.run(process_episode_async(
+            episode_data, config, history, worker, from_queue
+        ))
+    finally:
+        del worker
 
 
 def process_feed(subscription: Dict, config: TranscriptionConfig, history: Dict):
-    """Process all new episodes from a podcast feed.
-    
-    Args:
-        subscription: Subscription dict with url and title
-        config: Transcription configuration
-        history: Processing history dict
-    """
+    """Process all new episodes from a podcast feed (Legacy CLI)."""
     url = subscription.get('url')
     title = subscription.get('title', 'Unknown Podcast')
     
     print(f"\n📡 Checking feed: {title}")
-    print(f"   URL: {url}")
     
     try:
         feed = feedparser.parse(url)
-        
-        if feed.bozo:
-            print(f"⚠️  Feed parse warning: {feed.bozo_exception}")
-        
         entries = feed.get('entries', [])
+
         if not entries:
-            print(f"⚠️  No episodes found in feed")
             return
-        
-        print(f"📋 Found {len(entries)} episode(s) in feed")
-        
-        # Use feed title if not specified in subscription
+
         if title == 'Unknown Podcast' and feed.feed.get('title'):
             title = feed.feed.get('title')
         
-        # Process each episode
-        processed_count = 0
-        for entry in entries:
-            # Add feed_title to entry for process_episode
-            entry['feed_title'] = title
-            success, _ = process_episode(entry, config, history, from_queue=False)
-            if success:
-                processed_count += 1
+        # Instantiate worker once for the whole feed
+        worker = TranscriptionWorker(
+            whisper_model=config.whisper_model,
+            device=config.device,
+            compute_type=config.compute_type,
+            batch_size=config.batch_size
+        )
         
-        print(f"✅ Processed {processed_count} new episode(s) from {title}")
-    
+        try:
+            processed_count = 0
+            for entry in entries:
+                entry['feed_title'] = title
+                # Run async process in sync wrapper
+                success, _ = asyncio.run(process_episode_async(
+                    entry, config, history, worker, from_queue=False
+                ))
+                if success:
+                    processed_count += 1
+
+            print(f"✅ Processed {processed_count} new episode(s) from {title}")
+        finally:
+            del worker
+
     except Exception as e:
         print(f"❌ Feed processing failed: {e}")
 
 
 def process_selected_episodes(config: TranscriptionConfig):
-    """Process only selected episodes from the pending queue.
-    
-    Args:
-        config: Transcription configuration
-    """
-    import torch
-    import sys
-    
-    print(f"""
-╔══════════════════════════════════════════════════════════════╗
-║          Podcast Transcription Engine v1.0                  ║
-║          Processing Selected Episodes                        ║
-╚══════════════════════════════════════════════════════════════╝
-    """)
-    
-    # Check CUDA availability and set device
-    if torch.cuda.is_available():
-        device = "cuda"
-        gpu_name = torch.cuda.get_device_name(0)
-        vram = torch.cuda.get_device_properties(0).total_memory / 1024**3
-        print(f"🎮 GPU: {gpu_name}")
-        print(f"💾 VRAM: {vram:.1f} GB\n")
-    else:
-        device = "cpu"
-        print("⚠️  WARNING: CUDA not available, falling back to CPU")
-        print("   Transcription will be significantly slower on CPU")
-        print("   For GPU support, ensure CUDA drivers are installed\n")
-
-    
-    # Load selected episodes
+    """Process only selected episodes from the pending queue (Legacy CLI)."""
     selected = get_selected_episodes()
-    
     if not selected:
         print("⚠️  No episodes selected for transcription.")
-        print("   Use the web dashboard to select episodes from the queue.")
-        print("   Open the frontend at http://localhost:3000 and go to the Queue page")
         return
-    
-    print(f"📋 Found {len(selected)} selected episode(s) to process\n")
     
     history = load_history(config)
     
-    # Initialize status
-    write_status(
-        is_running=True,
-        current_episode="Starting...",
-        current_podcast="",
-        stage="preparing",
-        progress=0.0,
-        episodes_completed=0,
-        episodes_total=len(selected)
+    # Instantiate worker once
+    worker = TranscriptionWorker(
+        whisper_model=config.whisper_model,
+        device=config.device,
+        compute_type=config.compute_type,
+        batch_size=config.batch_size
     )
     
-    # Process each selected episode
-    start_time = datetime.now()
-    processed_count = 0
-    processed_ids = []
-    
-    for idx, episode in enumerate(selected):
-        # Update status for current episode
-        write_status(
-            is_running=True,
-            current_episode=episode.get('episode_title', 'Unknown'),
-            current_podcast=episode.get('feed_title', 'Unknown'),
-            stage="processing",
-            progress=0.0,
-            episodes_completed=processed_count,
-            episodes_total=len(selected)
-        )
+    try:
+        processed_count = 0
+        for episode in selected:
+            write_status(
+                is_running=True,
+                current_episode=episode.get('episode_title', 'Unknown'),
+                current_podcast=episode.get('feed_title', 'Unknown'),
+                stage="processing",
+                progress=0.0,
+                episodes_completed=processed_count,
+                episodes_total=len(selected)
+            )
+
+            success, _ = asyncio.run(process_episode_async(
+                episode, config, history, worker, from_queue=True
+            ))
+
+            if success:
+                processed_count += 1
+                clear_processed_episodes([episode.get('id', '')])
         
-        success, episode_id = process_episode(episode, config, history, from_queue=True)
-        if success:
-            processed_count += 1
-            processed_ids.append(episode_id)
-    
-    # Remove processed episodes from queue
-    if processed_ids:
-        clear_processed_episodes(processed_ids)
-        print(f"\n🧹 Removed {len(processed_ids)} processed episode(s) from queue")
-    
-    # Clear status when complete
-    clear_status()
-    
-    duration = (datetime.now() - start_time).total_seconds()
-    print(f"\n{'='*60}")
-    print(f"✅ Processing complete!")
-    print(f"📊 Processed {processed_count}/{len(selected)} episode(s)")
-    print(f"⏱️  Total time: {duration/60:.1f} minutes")
-    print(f"{'='*60}\n")
+        clear_status()
+
+    finally:
+        del worker
