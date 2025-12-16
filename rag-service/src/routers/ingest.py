@@ -13,7 +13,7 @@ from utils.chunking import (
     chunk_by_speaker_turns
 )
 from services.embeddings import get_embedding_service
-from services.qdrant_client import get_qdrant_service
+from services.qdrant_service import get_qdrant_service
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed
 from services.embeddings import get_embedding_service
-from services.qdrant_client import get_qdrant_service
+from services.qdrant_service import get_qdrant_service
 from services.hybrid_retriever import get_hybrid_retriever_service
 from utils.chunking import (
     extract_metadata_from_transcript,

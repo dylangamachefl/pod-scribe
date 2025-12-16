@@ -8,7 +8,7 @@ url = "http://localhost:8000/chat"
 headers = {"Content-Type": "application/json"}
 data = {
     "question": "hi",
-    "episode_title": "PydanticAI: the AI Agent Framework Winner"
+    "episode_title": "One Layer Is Enough: Adapting Encoders for Image Gen"
 }
 
 print("Testing RAG chat for PydanticAI episode...")

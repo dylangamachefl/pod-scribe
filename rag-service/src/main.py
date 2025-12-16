@@ -11,7 +11,7 @@ from config import RAG_FRONTEND_URL
 from models import HealthResponse
 from routers import chat, ingest, downloads
 from services.embeddings import get_embedding_service
-from services.qdrant_client import get_qdrant_service
+from services.qdrant_service import get_qdrant_service
 from services.ollama_client import get_ollama_chat_client
 
 

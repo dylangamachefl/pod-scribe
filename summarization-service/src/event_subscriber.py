@@ -112,7 +112,7 @@ async def process_transcription_event(event_data: dict):
                 summary_path=virtual_summary_path,
                 summary_data=complete_summary_data
             )
-            event_bus.publish(event_bus.CHANNEL_SUMMARIZED, summarized_event)
+            await event_bus.publish(event_bus.CHANNEL_SUMMARIZED, summarized_event)
             print(f"📤 Published EpisodeSummarized event")
         except Exception as e:
             print(f"⚠️  Failed to publish EpisodeSummarized event: {e}")

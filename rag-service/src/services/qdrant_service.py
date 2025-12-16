@@ -130,12 +130,12 @@ class QdrantService:
                 ]
             )
         
-        results = self.client.search(
+        results = self.client.query_points(
             collection_name=self.collection_name,
-            query_vector=query_vector,
+            query=query_vector,
             limit=limit,
             query_filter=search_filter
-        )
+        ).points
         
         # Format results
         formatted_results = []

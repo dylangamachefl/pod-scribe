@@ -8,7 +8,7 @@ import time
 from models import ChatRequest, ChatResponse, SourceCitation
 from services.ollama_client import get_ollama_chat_client
 from services.embeddings import get_embedding_service
-from services.qdrant_client import get_qdrant_service
+from services.qdrant_service import get_qdrant_service
 from services.hybrid_retriever import get_hybrid_retriever_service
 
 router = APIRouter(prefix="/chat", tags=["chat"])

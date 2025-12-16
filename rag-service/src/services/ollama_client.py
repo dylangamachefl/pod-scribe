@@ -84,7 +84,7 @@ Please provide a comprehensive answer based on the excerpts above. Reference spe
                     "prompt": prompt,
                     "stream": False
                 },
-                timeout=60
+                timeout=120
             )
             response.raise_for_status()
             

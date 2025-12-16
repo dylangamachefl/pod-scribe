@@ -11,6 +11,8 @@ from models import SummarizeRequest, SummaryResponse
 from config import SUMMARY_OUTPUT_PATH
 from services.gemini_service import get_gemini_service
 from utils.transcript_parser import extract_metadata_from_transcript
+from podcast_transcriber_shared.database import get_session_maker, Summary
+from sqlalchemy import select
 
 router = APIRouter(prefix="/summaries", tags=["summaries"])
 
@@ -60,61 +62,55 @@ async def generate_summary(request: SummarizeRequest):
 @router.get("", response_model=List[SummaryResponse])
 async def list_summaries():
     """
-    List all available episode summaries.
+    List all available episode summaries from the database.
     """
     try:
-        summaries = []
-        
-        if not SUMMARY_OUTPUT_PATH.exists():
-            return summaries
-        
-        for summary_file in SUMMARY_OUTPUT_PATH.glob("*_summary.json"):
-            with open(summary_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                
-                # Data is now properly structured - directly create response model
-                # Handle both old format (with nested JSON) and new format
+        session_maker = get_session_maker()
+        async with session_maker() as session:
+            # Query summaries from DB, newest first
+            query = select(Summary).order_by(Summary.created_at.desc())
+            result = await session.execute(query)
+            db_summaries = result.scalars().all()
+            
+            response = []
+            for s in db_summaries:
                 try:
-                    summaries.append(SummaryResponse(**data))
+                    # Content is already a dict matching SummaryResponse structure
+                    response.append(SummaryResponse(**s.content))
                 except Exception as e:
-                    print(f"⚠️ Error loading summary {summary_file.name}: {e}")
-                    # Skip malformed summaries
+                    print(f"⚠️ Error parsing summary {s.id}: {e}")
                     continue
-        
-        # Sort by created_at (most recent first)
-        summaries.sort(key=lambda x: x.created_at or "", reverse=True)
-        
-        return summaries
+            
+            return response
     
     except Exception as e:
+        print(f"❌ Error listing summaries: {e}")
         raise HTTPException(status_code=500, detail=f"Error listing summaries: {str(e)}")
 
 
 @router.get("/{episode_title}", response_model=SummaryResponse)
 async def get_summary(episode_title: str):
     """
-    Get summary for a specific episode by title.
+    Get summary for a specific episode by title from database.
     """
     try:
-        # Search for matching summary file
-        for summary_file in SUMMARY_OUTPUT_PATH.glob("*_summary.json"):
-            with open(summary_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+        session_maker = get_session_maker()
+        async with session_maker() as session:
+            # Search within the JSONB content for episode_title
+            # Note: Postgres JSONB operator ->> returns text
+            query = select(Summary).where(
+                Summary.content["episode_title"].astext == episode_title
+            )
+            result = await session.execute(query)
+            summary = result.scalar_one_or_none()
+            
+            if not summary:
+                raise HTTPException(status_code=404, detail=f"Summary not found for episode: {episode_title}")
                 
-                if data.get("episode_title") == episode_title:
-                    # Data is now properly structured - directly create response model
-                    try:
-                        return SummaryResponse(**data)
-                    except Exception as e:
-                        print(f"⚠️ Error parsing summary for {episode_title}: {e}")
-                        raise HTTPException(
-                            status_code=500, 
-                            detail=f"Error parsing summary data: {str(e)}"
-                        )
-        
-        raise HTTPException(status_code=404, detail=f"Summary not found for episode: {episode_title}")
-    
+            return SummaryResponse(**summary.content)
+            
     except HTTPException:
         raise
     except Exception as e:
+        print(f"❌ Error retrieving summary: {e}")
         raise HTTPException(status_code=500, detail=f"Error retrieving summary: {str(e)}")
