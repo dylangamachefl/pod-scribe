@@ -5,6 +5,7 @@ WORKDIR /app
 # Copy dependencies
 COPY summarization-service/pyproject.toml ./
 COPY summarization-service/src/ ./src/
+COPY summarization-service/config/ ./config/
 COPY summarization-service/start.sh ./
 
 # Install dependencies

@@ -8,7 +8,6 @@ function DashboardPage() {
     const [status, setStatus] = useState<TranscriptionStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     const loadData = async () => {
         try {
@@ -81,13 +80,6 @@ function DashboardPage() {
                 <h1>📊 Dashboard</h1>
                 <p>Overview of your podcast transcription activity</p>
             </div>
-
-            {/* Success Message Toast */}
-            {successMessage && (
-                <div className="success-toast">
-                    {successMessage}
-                </div>
-            )}
 
             {/* Statistics Cards */}
             <div className="stats-grid">

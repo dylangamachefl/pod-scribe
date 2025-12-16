@@ -248,7 +248,9 @@ secrets:
 
 networks:
   # Internal network for service communication
+  # Explicit name prevents Docker Compose from prepending project name
   podcast-network:
+    name: podcast-network
     driver: bridge
 
 # =================================================================

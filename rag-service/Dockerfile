@@ -13,8 +13,12 @@ COPY rag-service/pyproject.toml ./
 COPY rag-service/src/ ./src/
 COPY rag-service/start.sh ./
 
-# Install dependencies
-RUN pip install --no-cache-dir -e .
+# Copy shared package for installation
+COPY shared/ /tmp/shared/
+
+# Install dependencies and shared package
+RUN pip install --no-cache-dir -e . && \
+    pip install --no-cache-dir -e /tmp/shared
 
 # Install Redis client for events
 RUN pip install --no-cache-dir redis
