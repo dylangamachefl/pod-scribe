@@ -119,6 +119,7 @@ export interface TranscriptionStatus {
     vram_used_gb: number;
     vram_total_gb: number;
     start_time?: string;
+    recent_logs?: string[];
 }
 
 export interface TranscriptionStartRequest {

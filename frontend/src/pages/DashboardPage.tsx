@@ -215,6 +215,32 @@ function DashboardPage() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Live Activity Feed */}
+                        <div className="live-activity-card">
+                            <div className="live-activity-header">
+                                <h3>
+                                    <span className="pulse-dot"></span>
+                                    Live Activity
+                                </h3>
+                                <span className="live-activity-source">redis:transcription_queue</span>
+                            </div>
+                            <div className="live-activity-content">
+                                {status.recent_logs && status.recent_logs.length > 0 ? (
+                                    status.recent_logs.map((log, i) => (
+                                        <div key={i} className="log-entry">
+                                            <span className="log-prefix">{i === 0 ? '>' : ' '}</span>
+                                            {log}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="log-entry" style={{ color: '#64748b' }}>
+                                        <span className="log-prefix">#</span>
+                                        Waiting for activity...
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

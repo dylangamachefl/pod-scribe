@@ -14,6 +14,15 @@ import signal
 import sys
 from pathlib import Path
 import redis.asyncio as redis
+import warnings
+
+# Suppress specific torchaudio deprecation warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="torchaudio._backend")
+warnings.filterwarnings("ignore", message=".*AudioMetaData has been deprecated.*")
+warnings.filterwarnings("ignore", message=".*torchaudio.load_with_torchcodec.*")
+warnings.filterwarnings("ignore", message=".*torchaudio._backend.utils.info has been deprecated.*")
+warnings.filterwarnings("ignore", message=".*torchaudio._backend.list_audio_backends has been deprecated.*")
+
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -23,6 +32,7 @@ from core.diarization import apply_pytorch_patch
 from core.processor import process_episode_async, load_history, save_history
 from core.audio import TranscriptionWorker
 from podcast_transcriber_shared.database import create_episode, update_episode_status, EpisodeStatus
+from managers.status_monitor import write_status, clear_status
 
 
 # Global flag for graceful shutdown
@@ -84,6 +94,7 @@ async def main():
     
     print(f"\n🔄 Worker started in daemon mode")
     print(f"📋 Polling queue: 'transcription_queue'")
+    clear_status()
     print("=" * 64)
     
     job_count = 0
@@ -99,6 +110,7 @@ async def main():
                 job_count += 1
                 
                 print(f"\n📥 Job #{job_count} received from queue")
+                write_status(is_running=True, stage="preparing", log_message=f"Job #{job_count} received from queue")
                 
                 episode_id = None
                 try:
@@ -120,6 +132,12 @@ async def main():
                         continue
                     
                     print(f"📋 Processing episode: {episode_id}")
+                    write_status(
+                        is_running=True, 
+                        current_episode=episode_id,
+                        stage="preparing", 
+                        log_message=f"Processing Request: {episode_id}"
+                    )
                     
                     # Fetch full episode data from PostgreSQL (not SQLite)
                     from podcast_transcriber_shared.database import get_episode_by_id
@@ -130,6 +148,13 @@ async def main():
                         continue
                     
                     print(f"✅ Retrieved episode from PostgreSQL: {episode.title}")
+                    write_status(
+                        is_running=True,
+                        current_episode=episode.title,
+                        current_podcast=episode.podcast_name,
+                        stage="preparing",
+                        log_message=f"Found Metadata: {episode.title}"
+                    )
                     
                     # Convert Episode object to dict for process_episode_async
                     episode_data = {
@@ -162,6 +187,7 @@ async def main():
                         print(f"⚠️  Episode processing failed: {episode_id}")
                     
                     print(f"✅ Job #{job_count} completed successfully")
+                    clear_status()
                     
                 except json.JSONDecodeError:
                     print(f"❌ Invalid JSON in job data")

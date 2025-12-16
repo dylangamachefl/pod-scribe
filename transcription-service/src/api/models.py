@@ -63,6 +63,7 @@ class TranscriptionStatus(BaseModel):
     vram_used_gb: float = 0.0
     vram_total_gb: float = 0.0
     start_time: Optional[str] = None
+    recent_logs: List[str] = []
 
 
 class TranscriptionStartRequest(BaseModel):
