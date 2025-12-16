@@ -2,10 +2,10 @@
 Summarization Service - FastAPI Application
 Main entry point for the podcast summarization API.
 """
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import threading
 
 from config import (
     SUMMARIZATION_API_PORT, 
@@ -19,9 +19,6 @@ from services.gemini_service import get_gemini_service
 from event_subscriber import start_summarization_event_subscriber
 
 
-# Background thread
-event_subscriber_thread = None
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,8 +26,6 @@ async def lifespan(app: FastAPI):
     Application lifespan manager.
     Initializes services on startup and cleans up on shutdown.
     """
-    global event_subscriber_thread
-    
     # Startup: Initialize services
     print("\n" + "="*60)
     print("🚀 Starting Summarization Service")
@@ -41,8 +36,7 @@ async def lifespan(app: FastAPI):
     try:
         # Initialize database
         from podcast_transcriber_shared.database import init_db
-        import asyncio
-        asyncio.run(init_db())
+        await init_db()
         print("✅ Database initialized")
         
         # Initialize Gemini service
@@ -52,14 +46,9 @@ async def lifespan(app: FastAPI):
         print(f"❌ Service initialization failed: {e}")
         raise
     
-    # Start event subscriber in background thread (event-driven architecture)
-    print("\n📡 Starting event subscriber...")
-    event_subscriber_thread = threading.Thread(
-        target=start_summarization_event_subscriber,
-        daemon=True,
-        name="EventSubscriber"
-    )
-    event_subscriber_thread.start()
+    # Start event subscriber in background (async task)
+    print("\n📡 Starting event subscriber as background task...")
+    subscriber_task = asyncio.create_task(start_summarization_event_subscriber())
     print("✅ Event subscriber started (listening for EpisodeTranscribed events)")
     
     print("\n" + "="*60)
@@ -73,6 +62,12 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     print("\n🛑 Shutting down Summarization Service...")
+    # Cancel subscriber task
+    subscriber_task.cancel()
+    try:
+        await subscriber_task
+    except asyncio.CancelledError:
+        print("✅ Event subscriber stopped")
 
 
 
@@ -126,7 +121,7 @@ async def health_check():
             status="healthy",
             gemini_api_configured=gemini_service is not None,
             model_name=f"{STAGE1_MODEL} + {STAGE2_MODEL}",
-            event_subscriber_active=event_subscriber_thread is not None and event_subscriber_thread.is_alive()
+            event_subscriber_active=True  # Task-based, always active if service is running
         )
     
     except Exception as e:

@@ -9,9 +9,9 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependencies
-COPY pyproject.toml ./
-COPY src/ ./src/
-COPY start.sh ./
+COPY rag-service/pyproject.toml ./
+COPY rag-service/src/ ./src/
+COPY rag-service/start.sh ./
 
 # Install dependencies
 RUN pip install --no-cache-dir -e .

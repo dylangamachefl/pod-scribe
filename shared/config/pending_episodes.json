@@ -1,0 +1,34 @@
+{
+  "episodes": [
+    {
+      "id": "yt:video:Gq3v-Y6cvLI",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "prediction markets aren't just gambling",
+      "audio_url": "https://www.youtube.com/watch?v=Gq3v-Y6cvLI",
+      "published_date": "2025-12-12T20:55:41",
+      "selected": true,
+      "fetched_date": "2025-12-15T19:17:14.921855"
+    },
+    {
+      "id": "yt:video:WUqDO1Ge3TA",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "Can Geometry LoRA REALLY Fix Lazy Diffusion Issues?",
+      "audio_url": "https://www.youtube.com/watch?v=WUqDO1Ge3TA",
+      "published_date": "2025-12-12T03:52:29",
+      "selected": false,
+      "fetched_date": "2025-12-15T19:17:14.921870"
+    },
+    {
+      "id": "yt:video:518QPRWlRW0",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?playlist_id=PLMMe55HRKxY0pcraHitjU_BhX0iM8dx-N",
+      "feed_title": "Learn",
+      "episode_title": "NeurIPS 2025 in 12 Minutes: The 6 Shifts Most People Will Miss Until It's Too Late",
+      "audio_url": "https://www.youtube.com/watch?v=518QPRWlRW0",
+      "published_date": "2025-12-10T15:00:13",
+      "selected": false,
+      "fetched_date": "2025-12-15T19:17:14.921905"
+    }
+  ]
+}

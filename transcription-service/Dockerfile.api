@@ -20,6 +20,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY transcription-service/src/ ./src/
 COPY shared/ ./shared/
 
+# Add shared library to Python path
+ENV PYTHONPATH="/app/shared:${PYTHONPATH}"
+
 # Expose API port
 EXPOSE 8001
 

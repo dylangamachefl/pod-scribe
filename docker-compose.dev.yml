@@ -1,17 +1,20 @@
 # docker-compose.dev.yml
 # Development override for docker-compose.yml
 # Use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# DISABLED: Volume mounts were causing stale file caching issues
+# User confirmed dev container setup not needed for this project
 
-version: '3.8'
-
-services:
-  # Frontend - Enable live-reload for development
-  frontend:
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-
-  # Transcription API - Mount source code for live updates
-  transcription-api:
-    volumes:
-      - ./transcription-service/src:/app/src
+# version: '3.8'
+#
+# services:
+#   # Frontend - Enable live-reload for development
+#   frontend:
+#     volumes:
+#       - ./frontend:/app
+#       - /app/node_modules
+#
+#   # Transcription API - Mount source code for live updates
+#   transcription-api:
+#     volumes:
+#       - ./transcription-service/src:/app/src

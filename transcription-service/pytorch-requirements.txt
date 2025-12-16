@@ -16,3 +16,7 @@ yt-dlp>=2023.0.0  # For audio downloads
 pydub>=0.25.0  # For audio processing
 pydantic  # For data models
 python-dotenv  # For environment config
+
+# Database dependencies for PostgreSQL access
+asyncpg
+sqlalchemy[asyncio]

@@ -45,8 +45,8 @@ async def lifespan(app: FastAPI):
     
     # Start event subscriber in background
     print("\n📡 Starting event subscriber as background task...")
-    from event_subscriber import start_subscriber_async
-    subscriber_task = asyncio.create_task(start_subscriber_async())
+    from event_subscriber import start_rag_event_subscriber
+    subscriber_task = asyncio.create_task(start_rag_event_subscriber())
     print("✅ Event subscriber started in background")
     
     print("\n" + "="*60)

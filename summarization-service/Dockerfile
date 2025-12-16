@@ -3,9 +3,9 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copy dependencies
-COPY pyproject.toml ./
-COPY src/ ./src/
-COPY start.sh ./
+COPY summarization-service/pyproject.toml ./
+COPY summarization-service/src/ ./src/
+COPY summarization-service/start.sh ./
 
 # Install dependencies
 RUN pip install --no-cache-dir -e .

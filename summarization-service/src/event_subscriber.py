@@ -127,8 +127,8 @@ async def process_transcription_event(event_data: dict):
         traceback.print_exc()
 
 
-def start_summarization_event_subscriber():
-    """Start the summarization event subscriber (blocking)."""
+async def start_summarization_event_subscriber():
+    """Start the summarization event subscriber (async)."""
     print("\n" + "="*60)
     print("🚀 Starting Summarization Event Subscriber")
     print("="*60)
@@ -139,18 +139,23 @@ def start_summarization_event_subscriber():
     # Get event bus and subscribe
     event_bus = get_event_bus()
     
-    # This is a blocking call
-    event_bus.subscribe(
+    # This is now an awaitable call that runs indefinitely
+    await event_bus.subscribe(
         channel=event_bus.CHANNEL_TRANSCRIBED,
         callback=process_transcription_event
     )
 
 
 if __name__ == "__main__":
+    import asyncio
+    
     # Initialize services before subscribing
     print("📦 Initializing Summarization services...")
     get_gemini_service()
     print("✅ Services initialized\n")
     
-    # Start subscriber (blocking)
-    start_summarization_event_subscriber()
+    # Run async subscriber
+    try:
+        asyncio.run(start_summarization_event_subscriber())
+    except KeyboardInterrupt:
+        pass

@@ -12,11 +12,13 @@ import logging
 import redis
 from pathlib import Path
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from sqlalchemy import select
 import feedparser
 
 # Add parent directory to path for imports
@@ -32,15 +34,17 @@ from api.models import (
 # Setup logging
 logger = logging.getLogger(__name__)
 
-from managers.episode_manager import (
-    load_pending_episodes,
-    save_pending_episodes,
-    mark_episode_selected,
-    fetch_episodes_from_feed,
-    add_episode_to_queue,
-    bulk_mark_selected,
-    clear_processed_episodes
+# PostgreSQL database imports
+from podcast_transcriber_shared.database import (
+    create_episode,
+    list_episodes,
+    get_episode_by_id,
+    update_episode_status,
+    EpisodeStatus
 )
+
+# RSS feed parsing utility
+from utils.rss_utils import fetch_episodes_from_rss
 from managers.status_monitor import read_status
 
 # Get absolute paths
@@ -128,7 +132,7 @@ def validate_rss_feed(url: str) -> tuple[bool, str]:
 
 async def get_available_podcasts() -> List[dict]:
     """Get list of podcasts with transcripts from database."""
-    from shared.database import get_session_maker, Episode, EpisodeStatus
+    from podcast_transcriber_shared.database import get_session_maker, Episode, EpisodeStatus
     from sqlalchemy import select, func
     
     session_maker = get_session_maker()
@@ -152,7 +156,7 @@ async def get_available_podcasts() -> List[dict]:
 
 async def get_podcast_episodes(podcast_name: str) -> List[dict]:
     """Get list of episodes for a podcast from database."""
-    from shared.database import list_episodes, EpisodeStatus
+    from podcast_transcriber_shared.database import list_episodes, EpisodeStatus
     
     episodes = await list_episodes(
         podcast_name=podcast_name,
@@ -172,7 +176,7 @@ async def get_podcast_episodes(podcast_name: str) -> List[dict]:
 
 async def read_transcript(episode_id: str) -> Optional[str]:
     """Read transcript from database."""
-    from shared.database import get_episode_by_id
+    from podcast_transcriber_shared.database import get_episode_by_id
     
     episode = await get_episode_by_id(episode_id, load_transcript=True)
     return episode.transcript_text if episode else None
@@ -207,18 +211,22 @@ async def health_check():
 async def get_stats():
     """Get overall statistics."""
     subscriptions = load_subscriptions()
-    history = load_history()
-    podcasts = get_available_podcasts()
-    pending_data = load_pending_episodes()
-    pending_episodes = pending_data.get('episodes', [])
+    podcasts = await get_available_podcasts()
+    
+    # Get pending and completed episode counts from PostgreSQL
+    pending_episodes = await list_episodes(status=EpisodeStatus.PENDING)
+    completed_episodes = await list_episodes(status=EpisodeStatus.COMPLETED)
+    
+    # Count selected episodes (stored in meta_data)
+    selected_count = sum(1 for ep in pending_episodes if ep.meta_data and ep.meta_data.get('selected'))
     
     return StatsResponse(
         active_feeds=sum(1 for s in subscriptions if s.get('active', True)),
         total_feeds=len(subscriptions),
         total_podcasts=len(podcasts),
-        total_episodes_processed=len(history.get('processed_episodes', [])),
+        total_episodes_processed=len(completed_episodes),
         pending_episodes=len(pending_episodes),
-        selected_episodes=sum(1 for ep in pending_episodes if ep.get('selected', False))
+        selected_episodes=selected_count
     )
 
 
@@ -324,17 +332,28 @@ async def delete_feed(feed_id: str):
 
 @app.get("/episodes/queue", response_model=List[Episode])
 async def get_episode_queue():
-    """Get all pending episodes."""
-    pending_data = load_pending_episodes()
-    episodes = pending_data.get('episodes', [])
+    """Get all pending episodes from PostgreSQL."""
+    episodes = await list_episodes(status=EpisodeStatus.PENDING)
     
-    return [Episode(**ep) for ep in episodes]
+    return [
+        Episode(
+            id=ep.id,
+            feed_url=ep.meta_data.get('feed_url', ''),
+            feed_title=ep.podcast_name,
+            episode_title=ep.title,
+            audio_url=ep.meta_data.get('audio_url', ep.url),
+            published_date=ep.meta_data.get('published_date', ''),
+            selected=ep.meta_data.get('selected', False) if ep.meta_data else False,
+            fetched_date=ep.created_at.isoformat() if ep.created_at else ''
+        )
+        for ep in episodes
+    ]
 
 
 @app.post("/episodes/fetch")
 async def fetch_episodes(request: EpisodeFetchRequest = None):
     """
-    Fetch new episodes from active feeds.
+    Fetch new episodes from active feeds and store in PostgreSQL.
     
     Args:
         request: Optional request body with 'days' parameter to specify
@@ -349,17 +368,44 @@ async def fetch_episodes(request: EpisodeFetchRequest = None):
     # Get days limit from request or use None to apply default from env
     days_limit = request.days if request else None
     
+    # Get existing episode IDs to avoid duplicates
+    existing_episodes = await list_episodes()
+    existing_ids = {ep.id for ep in existing_episodes}
+    
     total_new = 0
     for sub in active_subs:
-        episodes, feed_title = fetch_episodes_from_feed(
+        # Fetch episodes from RSS feed
+        episodes, feed_title = fetch_episodes_from_rss(
             sub.get('url'),
             sub.get('title'),
             days_limit=days_limit
         )
         
+        # Create episodes in PostgreSQL (skip duplicates)
         for episode in episodes:
-            if add_episode_to_queue(episode):
+            episode_id = episode.get('id')
+            if episode_id in existing_ids:
+                continue  # Skip duplicates
+                
+            try:
+                await create_episode(
+                    episode_id=episode_id,
+                    url=episode.get('audio_url', ''),
+                    title=episode.get('episode_title', 'Unknown'),
+                    podcast_name=episode.get('feed_title', 'Unknown'),
+                    status=EpisodeStatus.PENDING,
+                    meta_data={
+                        'feed_url': episode.get('feed_url'),
+                        'audio_url': episode.get('audio_url'),
+                        'published_date': episode.get('published_date'),
+                        'selected': False
+                    }
+                )
                 total_new += 1
+                existing_ids.add(episode_id)  # Track to avoid duplicates in same batch
+            except Exception as e:
+                logger.error(f"Failed to create episode {episode_id}: {e}")
+                continue
     
     return {
         "status": "completed",
@@ -370,19 +416,43 @@ async def fetch_episodes(request: EpisodeFetchRequest = None):
 
 @app.put("/episodes/{episode_id}/select")
 async def select_episode(episode_id: str, selection: EpisodeSelect):
-    """Mark episode as selected/unselected."""
-    success = mark_episode_selected(episode_id, selection.selected)
-    
-    if not success:
+    """Mark episode as selected/unselected in PostgreSQL metadata."""
+    # Get episode without loading transcript
+    episode = await get_episode_by_id(episode_id, load_transcript=False)
+    if not episode:
         raise HTTPException(status_code=404, detail="Episode not found")
+    
+    # Update metadata with selected status
+    updated_meta = episode.meta_data.copy() if episode.meta_data else {}
+    updated_meta['selected'] = selection.selected
+    
+    # Update episode directly using database session
+    from podcast_transcriber_shared.database import get_session_maker
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        from podcast_transcriber_shared.database import Episode as EpisodeModel
+        result = await session.execute(
+            select(EpisodeModel).where(EpisodeModel.id == episode_id)
+        )
+        db_episode = result.scalar_one_or_none()
+        if db_episode:
+            db_episode.meta_data = updated_meta
+            await session.commit()
     
     return {"status": "updated", "episode_id": episode_id, "selected": selection.selected}
 
 
 @app.post("/episodes/bulk-select")
 async def bulk_select_episodes(request: BulkSelectRequest):
-    """Bulk select/deselect episodes."""
-    bulk_mark_selected(request.episode_ids, request.selected)
+    """Bulk select/deselect episodes in PostgreSQL."""
+    from podcast_transcriber_shared.database import save_transcript
+    
+    for episode_id in request.episode_ids:
+        episode = await get_episode_by_id(episode_id, load_transcript=False)
+        if episode:
+            updated_meta = episode.meta_data or {}
+            updated_meta['selected'] = request.selected
+            await save_transcript(episode_id, episode.transcript_text or '', metadata=updated_meta)
     
     return {
         "status": "updated",
@@ -393,8 +463,18 @@ async def bulk_select_episodes(request: BulkSelectRequest):
 
 @app.delete("/episodes/processed")
 async def clear_processed():
-    """Clear processed episodes from queue."""
-    count = clear_processed_episodes()
+    """Delete completed episodes from PostgreSQL."""
+    from podcast_transcriber_shared.database import get_session_maker
+    from sqlalchemy import delete
+    from podcast_transcriber_shared.database import Episode as EpisodeModel
+    
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        result = await session.execute(
+            delete(EpisodeModel).where(EpisodeModel.status == EpisodeStatus.COMPLETED)
+        )
+        await session.commit()
+        count = result.rowcount
     
     return {
         "status": "cleared",
@@ -430,17 +510,20 @@ async def start_transcription(
     """
     import redis
     from datetime import datetime
-    from shared.database import create_episode, EpisodeStatus
+    from podcast_transcriber_shared.database import create_episode, EpisodeStatus
     
     # Check if already running (via status file)
     status = read_status()
     if status and status.get('is_running'):
         raise HTTPException(status_code=400, detail="Transcription already in progress")
     
-    # Get selected episodes from SQLite queue
-    pending_data = load_pending_episodes()
-    episodes = pending_data.get('episodes', [])
-    selected_episodes = [ep for ep in episodes if ep.get('selected', False)]
+    # Get selected episodes from PostgreSQL
+    all_pending = await list_episodes(status=EpisodeStatus.PENDING)
+    selected_episodes = [
+        {'id': ep.id, 'audio_url': ep.meta_data.get('audio_url', ep.url),
+         'episode_title': ep.title, 'feed_title': ep.podcast_name}
+        for ep in all_pending if ep.meta_data and ep.meta_data.get('selected')
+    ]
     
     if not selected_episodes:
         raise HTTPException(status_code=400, detail="No episodes selected")
@@ -456,19 +539,8 @@ async def start_transcription(
             episode_id = ep.get('id')
             
             try:
-                # Create episode in PostgreSQL with PENDING status
-                await create_episode(
-                    episode_id=episode_id,
-                    url=ep.get('audio_url', ''),
-                    title=ep.get('episode_title', 'Unknown'),
-                    podcast_name=ep.get('feed_title', 'Unknown'),
-                    status=EpisodeStatus.PENDING,
-                    meta_data={
-                        "audio_url": ep.get('audio_url'),
-                        "published_date": ep.get('published_date'),
-                        "feed_url": ep.get('feed_url')
-                    }
-                )
+                # Episode already exists in PostgreSQL (created during fetch)
+                # Just enqueue to Redis - worker will update status to PROCESSING
                 
                 # Create simplified job payload (just episode_id)
                 job = {
@@ -480,7 +552,7 @@ async def start_transcription(
                 r.lpush('transcription_queue', json.dumps(job))
                 enqueued_count += 1
                 
-                logger.info(f"📤 Created episode {episode_id} in PostgreSQL and enqueued to Redis")
+                logger.info(f"📤 Enqueued episode {episode_id} to transcription queue")
                 
             except Exception as e:
                 logger.error(f"Failed to create/enqueue episode {episode_id}: {e}")
@@ -524,7 +596,7 @@ async def list_podcasts():
 
 
 @app.get("/transcripts/{podcast_name}", response_model=List[EpisodeInfo])
-async def list_episodes(podcast_name: str):
+async def list_podcast_episodes(podcast_name: str):
     """List episodes for a podcast."""
     episodes = await get_podcast_episodes(podcast_name)
     
