@@ -130,8 +130,7 @@ class EventBus:
             self.client = redis.from_url(
                 self.redis_url,
                 decode_responses=True,
-                socket_connect_timeout=5,
-                socket_timeout=5
+                health_check_interval=30
             )
             # Test connection
             await self.client.ping()

@@ -132,7 +132,8 @@ services:
       - RAG_FRONTEND_URL=${RAG_FRONTEND_URL:-http://localhost:3000}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}  # Redis for events
       - DATABASE_URL=${DATABASE_URL}  # PostgreSQL for transcripts
-      - PYTHONPATH=/app/src:/app  # Include /app for shared.events imports
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app/shared:/app/src:/app  # Include /app/shared FIRST to override installed package
     depends_on:
       postgres:
         condition: service_healthy
@@ -169,6 +170,7 @@ services:
       - SUMMARIZATION_FRONTEND_URL=${SUMMARIZATION_FRONTEND_URL:-http://localhost:3000}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}  # Redis for events
       - DATABASE_URL=${DATABASE_URL}  # PostgreSQL for summaries
+      - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app/src:/app/shared  # Include shared for event bus imports
     depends_on:
       postgres:
@@ -178,6 +180,7 @@ services:
     networks:
       - podcast-network
     restart: unless-stopped
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8002
 
   # Transcription API (FastAPI Backend)
   # Provides REST API for managing podcast feeds and transcription queue
