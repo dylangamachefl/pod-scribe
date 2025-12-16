@@ -48,7 +48,7 @@ class Episode(Base):
     
     # Processing status
     status = Column(
-        SQLEnum(EpisodeStatus, name="episode_status"),
+        SQLEnum(EpisodeStatus, name="episode_status", native_enum=False),
         nullable=False,
         default=EpisodeStatus.PENDING,
         index=True
