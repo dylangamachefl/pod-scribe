@@ -330,6 +330,48 @@ async def delete_feed(feed_id: str):
 # Episode Queue Endpoints
 # ============================================================================
 
+@app.get("/episodes", response_model=List[Episode])
+async def list_all_episodes(
+    status: Optional[str] = None,
+    feed_title: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    Get episodes with optional filtering.
+    """
+    from podcast_transcriber_shared.database import list_episodes, EpisodeStatus
+    
+    # Convert string status to enum if provided
+    status_enum = None
+    if status:
+        try:
+            status_enum = EpisodeStatus(status)
+        except ValueError:
+            pass # Ignore invalid status or handle error
+            
+    episodes = await list_episodes(
+        status=status_enum,
+        podcast_name=feed_title,
+        limit=limit
+    )
+    
+    return [
+        Episode(
+            id=ep.id,
+            feed_url=ep.meta_data.get('feed_url', '') if ep.meta_data else '',
+            feed_title=ep.podcast_name,
+            episode_title=ep.title,
+            audio_url=ep.meta_data.get('audio_url', ep.url) if ep.meta_data else ep.url,
+            published_date=ep.meta_data.get('published_date', '') if ep.meta_data else '',
+            selected=ep.meta_data.get('selected', False) if ep.meta_data else False,
+            fetched_date=ep.created_at.isoformat() if ep.created_at else '',
+            status=ep.status.value
+        )
+        for ep in episodes
+    ]
+
+
 @app.get("/episodes/queue", response_model=List[Episode])
 async def get_episode_queue():
     """Get all pending episodes from PostgreSQL."""
@@ -338,13 +380,14 @@ async def get_episode_queue():
     return [
         Episode(
             id=ep.id,
-            feed_url=ep.meta_data.get('feed_url', ''),
+            feed_url=ep.meta_data.get('feed_url', '') if ep.meta_data else '',
             feed_title=ep.podcast_name,
             episode_title=ep.title,
-            audio_url=ep.meta_data.get('audio_url', ep.url),
-            published_date=ep.meta_data.get('published_date', ''),
+            audio_url=ep.meta_data.get('audio_url', ep.url) if ep.meta_data else ep.url,
+            published_date=ep.meta_data.get('published_date', '') if ep.meta_data else '',
             selected=ep.meta_data.get('selected', False) if ep.meta_data else False,
-            fetched_date=ep.created_at.isoformat() if ep.created_at else ''
+            fetched_date=ep.created_at.isoformat() if ep.created_at else '',
+            status=ep.status.value
         )
         for ep in episodes
     ]
@@ -357,7 +400,7 @@ async def fetch_episodes(request: EpisodeFetchRequest = None):
     
     Args:
         request: Optional request body with 'days' parameter to specify
-                how many days back to fetch episodes (default: from env EPISODE_DEFAULT_DAYS)
+                how many days back to fetch episodes (default: all episodes from feed)
     """
     subscriptions = load_subscriptions()
     active_subs = [sub for sub in subscriptions if sub.get('active', True)]
@@ -410,7 +453,7 @@ async def fetch_episodes(request: EpisodeFetchRequest = None):
     return {
         "status": "completed",
         "new_episodes": total_new,
-        "days_filter": days_limit if days_limit is not None else int(os.getenv('EPISODE_DEFAULT_DAYS', '7'))
+        "days_filter": days_limit if days_limit is not None else "all"
     }
 
 

@@ -1,12 +1,14 @@
 /**
  * API Type Definitions
+ * These interfaces define the data structures exchanged between the frontend and backend.
+ * The designer should use these to understand what data is available for display.
  */
 
 export interface SourceCitation {
     podcast_name: string;
     episode_title: string;
     speaker: string;
-    timestamp: string;
+    timestamp: string; // e.g., "00:12:34"
     text_snippet: string;
     relevance_score: number;
 }
@@ -95,8 +97,6 @@ export interface Episode {
     audio_url: string;
     selected: boolean;
     status: string;
-    fetched_date?: string;
-    feed_url?: string;
 }
 
 export interface EpisodeSelect {
@@ -164,4 +164,3 @@ export interface TranscriptionHealth {
     api_version: string;
     transcription_service_available: boolean;
 }
-

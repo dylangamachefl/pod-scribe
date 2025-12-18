@@ -1,98 +1,48 @@
-import { useState } from 'react'
-import './App.css'
-import DashboardPage from './pages/DashboardPage'
-import FeedManagerPage from './pages/FeedManagerPage'
-import EpisodeQueuePage from './pages/EpisodeQueuePage'
-import LibraryPage from './pages/LibraryPage'
-
-type PageType = 'dashboard' | 'queue' | 'feeds' | 'library';
+import { useState } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { Sidebar } from './components/Sidebar';
+import { ChatDrawer } from './components/ChatDrawer';
+import InboxPage from './pages/InboxPage';
+import SmartLibraryPage from './pages/SmartLibraryPage';
+import EpisodeExecBrief from './pages/EpisodeExecBrief';
+import './App.css';
 
 function App() {
-    const [currentPage, setCurrentPage] = useState<PageType>('dashboard')
-    const [isTransitioning, setIsTransitioning] = useState(false)
-
-    const changePage = (newPage: PageType) => {
-        if (newPage === currentPage) return
-
-        setIsTransitioning(true)
-        setTimeout(() => {
-            setCurrentPage(newPage)
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-            setIsTransitioning(false)
-        }, 150)
-    }
-
-    const renderPage = () => {
-        switch (currentPage) {
-            case 'dashboard':
-                return <DashboardPage />;
-            case 'queue':
-                return <EpisodeQueuePage />;
-            case 'feeds':
-                return <FeedManagerPage />;
-            case 'library':
-                return <LibraryPage />;
-            default:
-                return <DashboardPage />;
-        }
-    };
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
     return (
-        <div className="app">
-            <nav className="navbar glass">
-                <div className="navbar-content">
-                    <h1 className="logo">
-                        <span className="logo-icon">🎙️</span>
-                        Podcast Manager
-                    </h1>
+        <div className="app-container">
+            <Sidebar />
 
-                    <div className="nav-tabs">
-                        <button
-                            className={`nav-tab ${currentPage === 'dashboard' ? 'active' : ''}`}
-                            onClick={() => changePage('dashboard')}
-                            title="Dashboard"
-                            aria-label="Navigate to Dashboard"
-                            aria-current={currentPage === 'dashboard' ? 'page' : undefined}
-                        >
-                            📊 Dashboard
-                        </button>
-                        <button
-                            className={`nav-tab ${currentPage === 'queue' ? 'active' : ''}`}
-                            onClick={() => changePage('queue')}
-                            title="Episode Queue"
-                            aria-label="Navigate to Episode Queue"
-                            aria-current={currentPage === 'queue' ? 'page' : undefined}
-                        >
-                            📥 Queue
-                        </button>
-                        <button
-                            className={`nav-tab ${currentPage === 'feeds' ? 'active' : ''}`}
-                            onClick={() => changePage('feeds')}
-                            title="Feed Manager"
-                            aria-label="Navigate to Feed Manager"
-                            aria-current={currentPage === 'feeds' ? 'page' : undefined}
-                        >
-                            📡 Feeds
-                        </button>
-                        <button
-                            className={`nav-tab ${currentPage === 'library' ? 'active' : ''}`}
-                            onClick={() => changePage('library')}
-                            title="Library"
-                            aria-label="Navigate to Library"
-                            aria-current={currentPage === 'library' ? 'page' : undefined}
-                        >
-                            📚 Library
-                        </button>
+            <main className="main-content">
+                <header className="top-header glass">
+                    <div className="header-search">
+                        {/* Global Search could go here */}
                     </div>
-                </div>
-            </nav>
+                    <button className="chat-trigger-btn" onClick={() => setIsChatOpen(true)}>
+                        <span>Ask AI Assistant</span>
+                        <span className="kbd-shortcut">⌘K</span>
+                    </button>
+                </header>
 
-            <main className={`main-content ${isTransitioning ? 'transitioning' : ''}`}>
-                {renderPage()}
+                <div className="content-scroll-area">
+                    <Routes>
+                        <Route path="/" element={<Navigate to="/inbox" replace />} />
+                        <Route path="/inbox" element={<InboxPage />} />
+                        <Route path="/library" element={<SmartLibraryPage />} />
+                        <Route path="/brief/:id" element={<EpisodeExecBrief />} />
+                        <Route path="/favorites" element={<SmartLibraryPage />} />
+                        <Route path="*" element={<div>Page Not Found</div>} />
+                    </Routes>
+                </div>
             </main>
+
+            <ChatDrawer
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+            />
         </div>
-    )
+    );
 }
 
-export default App
-
+export default App;

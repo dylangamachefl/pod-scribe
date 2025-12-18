@@ -79,6 +79,14 @@ export const transcriptionClient = {
     },
 
     /**
+     * Get all episodes with optional filtering
+     */
+    async getAllEpisodes(params?: { status?: string; feed_title?: string }): Promise<Episode[]> {
+        const response = await axiosInstance.get<Episode[]>('/episodes', { params });
+        return response.data;
+    },
+
+    /**
      * Fetch new episodes from active feeds
      */
     async fetchEpisodes(days?: number): Promise<{ status: string; new_episodes: number }> {

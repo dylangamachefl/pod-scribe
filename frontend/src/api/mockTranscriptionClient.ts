@@ -160,6 +160,18 @@ export const mockTranscriptionClient = {
         return [...mockEpisodes];
     },
 
+    async getAllEpisodes(params?: { status?: string; feed_title?: string }): Promise<Episode[]> {
+        await delay(500);
+        let episodes = [...mockEpisodes];
+        if (params?.status) {
+            episodes = episodes.filter(e => e.status === params.status);
+        }
+        if (params?.feed_title) {
+            episodes = episodes.filter(e => e.feed_title === params.feed_title);
+        }
+        return episodes;
+    },
+
     async fetchEpisodes(): Promise<{ status: string; new_episodes: number }> {
         await delay(1500); // Simulate RSS fetch delay
 

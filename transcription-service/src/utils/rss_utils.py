@@ -34,8 +34,9 @@ def fetch_episodes_from_rss(
     """
     try:
         # Get default days limit from environment if not specified
+        # Default to 0 (fetch all episodes) for complete feed history
         if days_limit is None:
-            days_limit = int(os.getenv('EPISODE_DEFAULT_DAYS', '7'))
+            days_limit = int(os.getenv('EPISODE_DEFAULT_DAYS', '0'))
         
         # Parse feed
         feed = feedparser.parse(feed_url)
@@ -49,10 +50,13 @@ def fetch_episodes_from_rss(
         elif not feed_title:
             feed_title = 'Unknown Podcast'
         
+        print(f"[RSS] Fetching from {feed_title}: found {len(feed.entries)} entries in feed")
+        
         # Calculate cutoff date for filtering (if days_limit > 0)
         cutoff_date = None
         if days_limit and days_limit > 0:
             cutoff_date = datetime.now() - timedelta(days=days_limit)
+            print(f"[RSS] Applying {days_limit}-day filter (cutoff: {cutoff_date})")
         
         episodes = []
         for entry in feed.get('entries', []):
@@ -118,6 +122,7 @@ def fetch_episodes_from_rss(
             
             episodes.append(episode)
         
+        print(f"[RSS] {feed_title}: Returning {len(episodes)} episodes (filtered from {len(feed.entries)} total)")
         return episodes, feed_title
     
     except Exception as e:
