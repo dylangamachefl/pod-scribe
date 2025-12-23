@@ -4,6 +4,8 @@ import { Episode, TranscriptionStatus } from '../api/types';
 import { ActionBar } from '../components/ActionBar';
 import { FeedList } from '../components/FeedList';
 import { LiveStatusBanner } from '../components/LiveStatusBanner';
+import { ChevronDown } from 'lucide-react';
+import './InboxPage.css';
 
 export default function InboxPage() {
     const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -33,15 +35,10 @@ export default function InboxPage() {
             // Extract unique feeds
             const feeds = Array.from(new Set(data.map(e => e.feed_title).filter(Boolean))).sort();
             setUniqueFeeds(feeds);
-            // Filter for "New Arrivals" (fetched in last 24 hours)
-            const twentyFourHoursAgo = new Date();
-            twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+            // Filter for "New Arrivals" (unseen episodes)
             let filteredData = data;
             if (viewMode === 'inbox') {
-                filteredData = data.filter(ep => {
-                    if (!ep.fetched_date) return false;
-                    return new Date(ep.fetched_date) >= twentyFourHoursAgo;
-                });
+                filteredData = data.filter(ep => !ep.is_seen);
             }
             setEpisodes(filteredData);
             const currentStatus = await transcriptionApi.getTranscriptionStatus();
@@ -97,10 +94,22 @@ export default function InboxPage() {
     const handleTranscribe = async () => {
         try {
             await transcriptionApi.startTranscription({ episode_ids: selectedIds });
+            // Auto mark as seen when transcribing
+            await transcriptionApi.bulkSeenEpisodes(selectedIds, true);
             setSelectedIds([]); // Clear selection after start
-            await loadData(); // Reload status
+            await loadData(); // Reload status and data
         } catch (error) {
             console.error('Transcription start failed:', error);
+        }
+    };
+
+    const handleMarkAsSeen = async () => {
+        try {
+            await transcriptionApi.bulkSeenEpisodes(selectedIds, true);
+            setSelectedIds([]);
+            await loadData();
+        } catch (error) {
+            console.error('Failed to mark episodes as seen:', error);
         }
     };
 
@@ -114,51 +123,58 @@ export default function InboxPage() {
                 selectedCount={selectedIds.length}
                 onSync={handleSync}
                 onTranscribe={handleTranscribe}
+                onMarkSeen={handleMarkAsSeen}
                 isSyncing={isSyncing}
             />
 
             <LiveStatusBanner status={status} />
 
             {/* Filter & Sort Controls */}
-            <div className="flex items-center gap-4 px-8 py-4 border-b border-slate-700/50 bg-slate-900/40 backdrop-blur-sm sticky top-0 z-10 text-sm">
-                <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg p-1 border border-slate-700/50">
+            <div className="filter-bar">
+                <div className="view-mode-toggle">
                     <button
-                        className={`px-3 py-1.5 rounded-md transition-colors ${viewMode === 'inbox' ? 'bg-indigo-500/20 text-indigo-300 font-medium' : 'text-slate-400 hover:text-slate-200'}`}
+                        className={`view-toggle-btn ${viewMode === 'inbox' ? 'active' : ''}`}
                         onClick={() => setViewMode('inbox')}
                     >
                         New Arrivals
                     </button>
                     <button
-                        className={`px-3 py-1.5 rounded-md transition-colors ${viewMode === 'all' ? 'bg-indigo-500/20 text-indigo-300 font-medium' : 'text-slate-400 hover:text-slate-200'}`}
+                        className={`view-toggle-btn ${viewMode === 'all' ? 'active' : ''}`}
                         onClick={() => setViewMode('all')}
                     >
                         All Episodes
                     </button>
                 </div>
 
-                <div className="h-4 w-px bg-slate-700 mx-2" />
+                <div className="filter-separator" />
 
-                <select
-                    className="bg-slate-800/50 text-slate-300 border border-slate-700/50 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    value={feedFilter}
-                    onChange={(e) => setFeedFilter(e.target.value)}
-                >
-                    <option value="all">All Podcasts</option>
-                    {uniqueFeeds.map(feed => (
-                        <option key={feed} value={feed}>{feed}</option>
-                    ))}
-                </select>
+                <div className="styled-select-wrapper">
+                    <select
+                        className="styled-select"
+                        value={feedFilter}
+                        onChange={(e) => setFeedFilter(e.target.value)}
+                    >
+                        <option value="all">All Podcasts</option>
+                        {uniqueFeeds.map(feed => (
+                            <option key={feed} value={feed}>{feed}</option>
+                        ))}
+                    </select>
+                    <ChevronDown size={14} className="select-icon" />
+                </div>
 
-                <select
-                    className="bg-slate-800/50 text-slate-300 border border-slate-700/50 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value as any)}
-                >
-                    <option value="date_desc">Newest First</option>
-                    <option value="date_asc">Oldest First</option>
-                </select>
+                <div className="styled-select-wrapper">
+                    <select
+                        className="styled-select"
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value as any)}
+                    >
+                        <option value="date_desc">Newest First</option>
+                        <option value="date_asc">Oldest First</option>
+                    </select>
+                    <ChevronDown size={14} className="select-icon" />
+                </div>
 
-                <div className="ml-auto text-slate-400">
+                <div className="episode-counter">
                     {filteredEpisodes.length} episodes
                 </div>
             </div>

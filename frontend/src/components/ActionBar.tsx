@@ -1,14 +1,15 @@
-import { RefreshCw, Bolt } from 'lucide-react';
+import { RefreshCw, Bolt, CheckCircle } from 'lucide-react';
 import './ActionBar.css';
 
 interface ActionBarProps {
     selectedCount: number;
     onSync: () => void;
     onTranscribe: () => void;
+    onMarkSeen: () => void;
     isSyncing: boolean;
 }
 
-export function ActionBar({ selectedCount, onSync, onTranscribe, isSyncing }: ActionBarProps) {
+export function ActionBar({ selectedCount, onSync, onTranscribe, onMarkSeen, isSyncing }: ActionBarProps) {
     return (
         <div className="action-bar header-glass">
             <div className="actions-left">
@@ -23,6 +24,15 @@ export function ActionBar({ selectedCount, onSync, onTranscribe, isSyncing }: Ac
                 >
                     <RefreshCw size={18} className={isSyncing ? 'spin' : ''} />
                     <span>{isSyncing ? 'Syncing...' : 'Sync Feeds'}</span>
+                </button>
+
+                <button
+                    className="btn secondary"
+                    disabled={selectedCount === 0}
+                    onClick={onMarkSeen}
+                >
+                    <CheckCircle size={18} />
+                    <span>Mark as Seen</span>
                 </button>
 
                 <button

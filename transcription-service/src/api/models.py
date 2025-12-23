@@ -32,6 +32,7 @@ class Episode(BaseModel):
     duration: Optional[str] = None
     audio_url: str
     selected: bool = False
+    is_seen: bool = False
     status: str = "pending"  # pending, processing, completed, failed
 
 
@@ -47,6 +48,12 @@ class BulkSelectRequest(BaseModel):
 class EpisodeFetchRequest(BaseModel):
     """Request model for fetching episodes from feeds."""
     days: Optional[int] = None  # Number of days to look back, None = use default from env
+
+
+class BulkSeenRequest(BaseModel):
+    """Request model for marking episodes as seen/unseen."""
+    episode_ids: List[str]
+    seen: bool = True
 
 
 # Transcription Models

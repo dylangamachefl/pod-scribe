@@ -11,6 +11,7 @@ import type {
     Episode,
     EpisodeSelect,
     BulkSelectRequest,
+    BulkSeenRequest,
     TranscriptionStatus,
     TranscriptionStartRequest,
     TranscriptionStartResponse,
@@ -114,6 +115,16 @@ export const transcriptionClient = {
             episode_ids: episodeIds,
             selected,
         } as BulkSelectRequest);
+    },
+
+    /**
+     * Bulk mark episodes as seen/unseen
+     */
+    async bulkSeenEpisodes(episodeIds: string[], seen: boolean): Promise<void> {
+        await axiosInstance.post('/episodes/bulk-seen', {
+            episode_ids: episodeIds,
+            seen,
+        } as BulkSeenRequest);
     },
 
     /**

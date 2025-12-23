@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from api.models import (
     Feed, FeedCreate, FeedUpdate,
-    Episode, EpisodeSelect, BulkSelectRequest, EpisodeFetchRequest,
+    Episode, EpisodeSelect, BulkSelectRequest, BulkSeenRequest, EpisodeFetchRequest,
     TranscriptionStatus, TranscriptionStartRequest, TranscriptionStartResponse,
     PodcastInfo, EpisodeInfo, TranscriptResponse,
     StatsResponse, HealthResponse
@@ -40,6 +40,7 @@ from podcast_transcriber_shared.database import (
     list_episodes,
     get_episode_by_id,
     update_episode_status,
+    mark_episodes_as_seen,
     EpisodeStatus
 )
 
@@ -161,7 +162,7 @@ async def get_podcast_episodes(podcast_name: str) -> List[dict]:
     episodes = await list_episodes(
         podcast_name=podcast_name,
         status=EpisodeStatus.COMPLETED,
-        limit=100
+        limit=None
     )
     
     return [
@@ -334,7 +335,7 @@ async def delete_feed(feed_id: str):
 async def list_all_episodes(
     status: Optional[str] = None,
     feed_title: Optional[str] = None,
-    limit: int = 100,
+    limit: Optional[int] = None,
     offset: int = 0
 ):
     """
@@ -366,6 +367,7 @@ async def list_all_episodes(
             published_date=ep.meta_data.get('published_date', '') if ep.meta_data else '',
             selected=ep.meta_data.get('selected', False) if ep.meta_data else False,
             fetched_date=ep.created_at.isoformat() if ep.created_at else '',
+            is_seen=ep.is_seen,
             status=ep.status.value
         )
         for ep in episodes
@@ -387,6 +389,7 @@ async def get_episode_queue():
             published_date=ep.meta_data.get('published_date', '') if ep.meta_data else '',
             selected=ep.meta_data.get('selected', False) if ep.meta_data else False,
             fetched_date=ep.created_at.isoformat() if ep.created_at else '',
+            is_seen=ep.is_seen,
             status=ep.status.value
         )
         for ep in episodes
@@ -501,6 +504,18 @@ async def bulk_select_episodes(request: BulkSelectRequest):
         "status": "updated",
         "count": len(request.episode_ids),
         "selected": request.selected
+    }
+
+
+@app.post("/episodes/bulk-seen")
+async def bulk_seen_episodes(request: BulkSeenRequest):
+    """Bulk mark episodes as seen/unseen in PostgreSQL."""
+    count = await mark_episodes_as_seen(request.episode_ids, request.seen)
+    
+    return {
+        "status": "updated",
+        "count": count,
+        "seen": request.seen
     }
 
 

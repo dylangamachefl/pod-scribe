@@ -5,6 +5,8 @@ import { ChatDrawer } from './components/ChatDrawer';
 import InboxPage from './pages/InboxPage';
 import SmartLibraryPage from './pages/SmartLibraryPage';
 import EpisodeExecBrief from './pages/EpisodeExecBrief';
+import DashboardPage from './pages/DashboardPage';
+import FeedManagerPage from './pages/FeedManagerPage';
 import './App.css';
 
 function App() {
@@ -32,6 +34,8 @@ function App() {
                         <Route path="/library" element={<SmartLibraryPage />} />
                         <Route path="/brief/:id" element={<EpisodeExecBrief />} />
                         <Route path="/favorites" element={<SmartLibraryPage />} />
+                        <Route path="/feeds" element={<FeedManagerPage />} />
+                        <Route path="/system" element={<DashboardPage />} />
                         <Route path="*" element={<div>Page Not Found</div>} />
                     </Routes>
                 </div>

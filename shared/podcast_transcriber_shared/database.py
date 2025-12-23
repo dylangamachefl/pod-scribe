@@ -8,8 +8,8 @@ from typing import Optional, List
 from enum import Enum
 
 from sqlalchemy import (
-    Column, String, Text, DateTime, Integer, Enum as SQLEnum,
-    ForeignKey, create_engine, select
+    Column, String, Text, DateTime, Integer, Boolean, Enum as SQLEnum,
+    ForeignKey, create_engine, select, update
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -61,8 +61,11 @@ class Episode(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     processed_at = Column(DateTime(timezone=True), nullable=True)
     
-    # Flexible metadata (speakers, duration, audio_url, etc.)
+    #灵活元数据（扬声器、持续时间、audio_url等）
     meta_data = Column(JSONB, nullable=True, default={})
+    
+    # Seen status for inbox management
+    is_seen = Column(Boolean, default=False, nullable=False, index=True)
     
     # Relationship to summaries
     summaries = relationship("Summary", back_populates="episode", cascade="all, delete-orphan")
@@ -180,7 +183,8 @@ async def get_episode_by_id(episode_id: str, load_transcript: bool = True) -> Op
 async def list_episodes(
     podcast_name: Optional[str] = None,
     status: Optional[EpisodeStatus] = None,
-    limit: int = 100
+    is_seen: Optional[bool] = None,
+    limit: Optional[int] = None
 ) -> List[Episode]:
     """
     List episodes without loading full transcript text (uses deferred loading).
@@ -188,7 +192,8 @@ async def list_episodes(
     Args:
         podcast_name: Filter by podcast name (optional)
         status: Filter by status (optional)
-        limit: Maximum number of episodes to return
+        is_seen: Filter by seen status (optional)
+        limit: Maximum number of episodes to return (None for all)
     
     Returns:
         List of Episode objects (transcript_text not loaded)
@@ -202,11 +207,46 @@ async def list_episodes(
         
         if status:
             query = query.where(Episode.status == status)
+            
+        if is_seen is not None:
+            query = query.where(Episode.is_seen == is_seen)
         
-        query = query.order_by(Episode.created_at.desc()).limit(limit)
+        query = query.order_by(Episode.created_at.desc())
+        
+        if limit is not None:
+            query = query.limit(limit)
         
         result = await session.execute(query)
         return result.scalars().all()
+
+
+async def mark_episodes_as_seen(
+    episode_ids: List[str],
+    seen: bool = True
+) -> int:
+    """
+    Bulk update episodes' seen status.
+    
+    Args:
+        episode_ids: List of episode IDs to update
+        seen: Whether to mark as seen or unseen
+    
+    Returns:
+        Number of updated rows
+    """
+    if not episode_ids:
+        return 0
+        
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        query = (
+            update(Episode)
+            .where(Episode.id.in_(episode_ids))
+            .values(is_seen=seen)
+        )
+        result = await session.execute(query)
+        await session.commit()
+        return result.rowcount
 
 
 async def create_episode(

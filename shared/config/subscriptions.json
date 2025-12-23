@@ -2,14 +2,14 @@
   {
     "url": "https://feeds.megaphone.fm/hubermanlab",
     "title": "Huberman Lab",
-    "active": false,
+    "active": true,
     "id": "c22d58b7-5ca7-45ed-ab10-fe02b2a93327"
   },
   {
     "id": "1b5ded5d-5659-43de-8e42-20e05b9d3c6b",
     "url": "http://feeds.libsyn.com/254861/rss",
     "title": "All-In with Chamath, Jason, Sacks & Friedberg",
-    "active": false
+    "active": true
   },
   {
     "id": "eea243e5-626c-48ca-bf80-b3a00500e988",
@@ -21,12 +21,30 @@
     "id": "83cc1a00-b1e7-4ac8-8460-1cb4f6d1210d",
     "url": "https://api.substack.com/feed/podcast/69345.rss",
     "title": "Dwarkesh Podcast",
-    "active": false
+    "active": true
   },
   {
     "id": "e291ebc3-1d45-4b80-89e6-8b6522791a39",
     "url": "https://api.substack.com/feed/podcast/10845.rss",
     "title": "Lenny's Podcast: Product | Career | Growth",
+    "active": true
+  },
+  {
+    "id": "f13b8d3f-d31f-4a4b-8ec9-bd709d33e46b",
+    "url": "https://feeds.simplecast.com/JGE3yC0V",
+    "title": "The a16z Show",
+    "active": true
+  },
+  {
+    "id": "dbf7f83e-0c1b-436e-96cc-e2a85c0f972c",
+    "url": "https://feeds.simplecast.com/Hb_IuXOo",
+    "title": "AI + a16z",
+    "active": true
+  },
+  {
+    "id": "6bcd2adb-c9a3-4915-ad11-8cbcd7188b16",
+    "url": "https://api.substack.com/feed/podcast/48206.rss",
+    "title": "Interconnects",
     "active": true
   }
 ]

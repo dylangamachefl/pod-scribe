@@ -4,12 +4,14 @@ import { summarizationApi } from '../api';
 import { Summary } from '../api/types';
 import { SmartCard } from '../components/SmartCard';
 import { ChatDrawer } from '../components/ChatDrawer';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, Radio, X } from 'lucide-react';
+import './SmartLibraryPage.css';
 
 export default function SmartLibraryPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const tagFilter = searchParams.get('tag');
+    const feedFilter = searchParams.get('feed');
 
     const [summaries, setSummaries] = useState<Summary[]>([]);
     const [loading, setLoading] = useState(true);
@@ -51,13 +53,17 @@ export default function SmartLibraryPage() {
             ? s.key_topics.includes(tagFilter)
             : true;
 
+        const matchesFeed = feedFilter
+            ? s.podcast_name === feedFilter
+            : true;
+
         const matchesSearch = searchQuery
             ? s.episode_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             s.podcast_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             s.summary.toLowerCase().includes(searchQuery.toLowerCase())
             : true;
 
-        return matchesTag && matchesSearch;
+        return matchesTag && matchesFeed && matchesSearch;
     });
 
     return (
@@ -65,30 +71,40 @@ export default function SmartLibraryPage() {
             <header className="library-header pb-8 pt-4">
                 <div className="flex justify-between items-end mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-200 to-teal-500">
-                            Smart Library
-                        </h1>
-                        <p className="text-slate-400 mt-2">
+                        <h1 className="library-title">Smart Library</h1>
+                        <p className="library-subtitle">
                             {filteredSummaries.length} insights collected
                         </p>
                     </div>
                 </div>
 
-                <div className="search-bar-wrapper flex gap-4">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+                <div className="library-controls">
+                    <div className="search-wrapper">
+                        <Search className="search-icon" size={18} />
                         <input
                             type="text"
                             placeholder="Search concepts, speakers, or titles..."
-                            className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl py-3 pl-12 pr-4 text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all"
+                            className="search-input"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
                     {tagFilter && (
-                        <div className="flex items-center gap-2 px-4 py-2 bg-teal-500/10 border border-teal-500/20 rounded-xl text-teal-300">
-                            <Filter size={16} />
-                            <span>Filter: #{tagFilter}</span>
+                        <div className="filter-chip tag-chip">
+                            <Filter size={14} />
+                            <span>Tag: {tagFilter}</span>
+                            <button onClick={() => navigate('/library')} className="clear-filter-btn">
+                                <X size={14} />
+                            </button>
+                        </div>
+                    )}
+                    {feedFilter && (
+                        <div className="filter-chip feed-chip">
+                            <Radio size={14} />
+                            <span>Feed: {feedFilter}</span>
+                            <button onClick={() => navigate('/library')} className="clear-filter-btn">
+                                <X size={14} />
+                            </button>
                         </div>
                     )}
                 </div>
@@ -101,7 +117,7 @@ export default function SmartLibraryPage() {
                     ))}
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">
+                <div className="library-grid">
                     {filteredSummaries.map((summary, idx) => (
                         <SmartCard
                             key={idx}
@@ -112,7 +128,7 @@ export default function SmartLibraryPage() {
                     ))}
 
                     {filteredSummaries.length === 0 && (
-                        <div className="col-span-full text-center py-20 text-slate-500">
+                        <div className="empty-state">
                             <p className="text-lg">No insights found matching your criteria.</p>
                         </div>
                     )}

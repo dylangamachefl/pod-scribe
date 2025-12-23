@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
     Inbox,
     Library,
@@ -8,39 +8,30 @@ import {
     Layout,
     BarChart3
 } from 'lucide-react';
-import { transcriptionApi, summarizationApi } from '../api';
+import { transcriptionApi } from '../api';
 import './Sidebar.css';
 
 export function Sidebar() {
+    const location = useLocation();
     const [queueCount, setQueueCount] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [topTags, setTopTags] = useState<string[]>([]);
+    const [feeds, setFeeds] = useState<{ id: string, title: string }[]>([]);
 
     useEffect(() => {
         const loadData = async () => {
             try {
-                // Get queue count
-                const queue = await transcriptionApi.getEpisodeQueue();
-                setQueueCount(queue.length);
+                // Get queue count (unseen episodes)
+                const allEpisodes = await transcriptionApi.getAllEpisodes();
+                const unseenCount = allEpisodes.filter(ep => !ep.is_seen).length;
+                setQueueCount(unseenCount);
 
                 // Get processing status
                 const status = await transcriptionApi.getTranscriptionStatus();
                 setIsProcessing(status.is_running);
 
-                // Get top tags (simplified logic: just get all summaries and aggregate for now)
-                // In a real app with backend support, we'd hit a tags endpoint
-                const summaries = await summarizationApi.getSummaries();
-                const tagCounts: Record<string, number> = {};
-                summaries.forEach(s => {
-                    s.key_topics.forEach(t => {
-                        tagCounts[t] = (tagCounts[t] || 0) + 1;
-                    });
-                });
-                const sortedTags = Object.entries(tagCounts)
-                    .sort(([, a], [, b]) => b - a)
-                    .slice(0, 5)
-                    .map(([tag]) => tag);
-                setTopTags(sortedTags);
+                // Get feeds instead of tags
+                const feedsList = await transcriptionApi.getFeeds();
+                setFeeds(feedsList.map(f => ({ id: f.id, title: f.title })));
 
             } catch (error) {
                 console.error('Sidebar data fetch error:', error);
@@ -86,7 +77,11 @@ export function Sidebar() {
                     <div className="section-label">Library</div>
                     <NavLink
                         to="/library"
-                        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                        className={() => {
+                            const isLibrary = location.pathname === '/library';
+                            const hasParams = new URLSearchParams(location.search).has('feed') || new URLSearchParams(location.search).has('tag');
+                            return `nav-item ${isLibrary && !hasParams ? 'active' : ''}`;
+                        }}
                     >
                         <Library size={18} />
                         <span className="nav-text">All Summaries</span>
@@ -101,20 +96,24 @@ export function Sidebar() {
                 </div>
 
                 <div className="nav-section">
-                    <div className="section-label">Smart Tags</div>
+                    <div className="section-label">Feeds</div>
                     <div className="tags-list">
-                        {topTags.map(tag => (
+                        {feeds.map(feed => (
                             <NavLink
-                                key={tag}
-                                to={`/library?tag=${encodeURIComponent(tag)}`}
-                                className="nav-item tag-item"
+                                key={feed.id}
+                                to={`/library?feed=${encodeURIComponent(feed.title)}`}
+                                className={() => {
+                                    const params = new URLSearchParams(location.search);
+                                    const isActive = location.pathname === '/library' && params.get('feed') === feed.title;
+                                    return `nav-item tag-item ${isActive ? 'active' : ''}`;
+                                }}
                             >
-                                <span className="hash">#</span>
-                                <span className="nav-text">{tag}</span>
+                                <Radio size={14} className="feed-nav-icon" />
+                                <span className="nav-text">{feed.title}</span>
                             </NavLink>
                         ))}
-                        {topTags.length === 0 && (
-                            <div className="empty-tags">Indexing tags...</div>
+                        {feeds.length === 0 && (
+                            <div className="empty-tags">No feeds active</div>
                         )}
                     </div>
                 </div>

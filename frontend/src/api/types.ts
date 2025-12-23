@@ -96,6 +96,7 @@ export interface Episode {
     selected: boolean;
     status: string;
     fetched_date?: string;
+    is_seen: boolean;
     feed_url?: string;
 }
 
@@ -106,6 +107,11 @@ export interface EpisodeSelect {
 export interface BulkSelectRequest {
     episode_ids: string[];
     selected: boolean;
+}
+
+export interface BulkSeenRequest {
+    episode_ids: string[];
+    seen: boolean;
 }
 
 export interface TranscriptionStatus {
