@@ -107,6 +107,16 @@
     filter: brightness(1.1);
 }
 
+.action-btn.favorite-active {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.action-btn.favorite-active:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
 /* Bento Grid */
 .bento-grid {
     display: grid;

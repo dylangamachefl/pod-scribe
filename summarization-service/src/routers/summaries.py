@@ -11,7 +11,7 @@ from models import SummarizeRequest, SummaryResponse
 from config import SUMMARY_OUTPUT_PATH
 from services.gemini_service import get_gemini_service
 from utils.transcript_parser import extract_metadata_from_transcript
-from podcast_transcriber_shared.database import get_session_maker, Summary
+from podcast_transcriber_shared.database import get_session_maker, Summary, Episode
 from sqlalchemy import select
 
 router = APIRouter(prefix="/summaries", tags=["summaries"])
@@ -67,16 +67,19 @@ async def list_summaries():
     try:
         session_maker = get_session_maker()
         async with session_maker() as session:
-            # Query summaries from DB, newest first
-            query = select(Summary).order_by(Summary.created_at.desc())
+            # Query summaries from DB join with episodes for is_favorite status
+            query = select(Summary, Episode.is_favorite).join(Episode, Summary.episode_id == Episode.id).order_by(Summary.created_at.desc())
             result = await session.execute(query)
-            db_summaries = result.scalars().all()
+            db_results = result.all()
             
             response = []
-            for s in db_summaries:
+            for summary_row, is_favorite in db_results:
                 try:
                     # Content is already a dict matching SummaryResponse structure
-                    response.append(SummaryResponse(**s.content))
+                    content = summary_row.content.copy()
+                    content['episode_id'] = summary_row.episode_id
+                    content['is_favorite'] = is_favorite
+                    response.append(SummaryResponse(**content))
                 except Exception as e:
                     print(f"⚠️ Error parsing summary {s.id}: {e}")
                     continue
@@ -98,16 +101,20 @@ async def get_summary(episode_title: str):
         async with session_maker() as session:
             # Search within the JSONB content for episode_title
             # Note: Postgres JSONB operator ->> returns text
-            query = select(Summary).where(
+            query = select(Summary, Episode.is_favorite).join(Episode, Summary.episode_id == Episode.id).where(
                 Summary.content["episode_title"].astext == episode_title
             )
             result = await session.execute(query)
-            summary = result.scalar_one_or_none()
+            row = result.first()
             
-            if not summary:
+            if not row:
                 raise HTTPException(status_code=404, detail=f"Summary not found for episode: {episode_title}")
                 
-            return SummaryResponse(**summary.content)
+            summary_row, is_favorite = row
+            content = summary_row.content.copy()
+            content['episode_id'] = summary_row.episode_id
+            content['is_favorite'] = is_favorite
+            return SummaryResponse(**content)
             
     except HTTPException:
         raise

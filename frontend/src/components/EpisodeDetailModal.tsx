@@ -12,6 +12,7 @@ interface EpisodeDetailModalProps {
 }
 
 function EpisodeDetailModal({ episode, onClose, onOpenChat, isChatOpen }: EpisodeDetailModalProps) {
+    const [isFavorite, setIsFavorite] = useState(episode.is_favorite || false);
     const [showTranscript, setShowTranscript] = useState(false);
     const [transcript, setTranscript] = useState<string | null>(null);
     const [loadingTranscript, setLoadingTranscript] = useState(false);
@@ -79,6 +80,23 @@ function EpisodeDetailModal({ episode, onClose, onOpenChat, isChatOpen }: Episod
         return `${minutes}m`;
     };
 
+    const toggleFavorite = async () => {
+        try {
+            const newStatus = !isFavorite;
+            // episode.episode_id is available now from backend update
+            if (episode.episode_id) {
+                await transcriptionApi.toggleFavorite(episode.episode_id, newStatus);
+                setIsFavorite(newStatus);
+                // Update local object for consistency
+                episode.is_favorite = newStatus;
+            } else {
+                console.warn('Cannot toggle favorite: No episode_id available');
+            }
+        } catch (err) {
+            console.error('Failed to toggle favorite:', err);
+        }
+    };
+
     const loadTranscript = async () => {
         if (transcript) {
             setShowTranscript(!showTranscript);
@@ -103,10 +121,9 @@ function EpisodeDetailModal({ episode, onClose, onOpenChat, isChatOpen }: Episod
     };
 
     const downloadTranscript = () => {
-        const episodeFilename = getTranscriptFilename();
         const url = transcriptionApi.getTranscriptUrl(
             episode.podcast_name,
-            episodeFilename
+            episode.episode_id || episode.episode_title
         );
 
         // Trigger download via temporary anchor tag
@@ -194,7 +211,7 @@ function EpisodeDetailModal({ episode, onClose, onOpenChat, isChatOpen }: Episod
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${episode.episode_title} - Summary.txt`;
+        a.download = `${episode.episode_title} - Smart Summary.txt`;
         a.click();
         URL.revokeObjectURL(url);
     };
@@ -227,14 +244,23 @@ function EpisodeDetailModal({ episode, onClose, onOpenChat, isChatOpen }: Episod
                     <div>
                         <div className="podcast-badge">{episode.podcast_name}</div>
                         <h2 id="modal-title">{episode.episode_title}</h2>
-                        <div className="episode-meta">
-                            {episode.duration && <span>⏱️ {formatDuration(episode.duration)}</span>}
-                            <span>📅 {formatDate(episode.created_at)}</span>
-                            {episode.total_processing_time_ms && (
-                                <span className="processing-time" title={`Stage 1: ${(episode.stage1_processing_time_ms || 0) / 1000}s | Stage 2: ${(episode.stage2_processing_time_ms || 0) / 1000}s`}>
-                                    ⚡ {(episode.total_processing_time_ms / 1000).toFixed(1)}s
-                                </span>
-                            )}
+                        <div className="episode-actions-meta">
+                            <button
+                                className={`favorite-btn ${isFavorite ? 'active' : ''}`}
+                                onClick={toggleFavorite}
+                                title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                            >
+                                {isFavorite ? '❤️' : '🤍'}
+                            </button>
+                            <div className="episode-meta">
+                                {episode.duration && <span>⏱️ {formatDuration(episode.duration)}</span>}
+                                <span>📅 {formatDate(episode.created_at)}</span>
+                                {episode.total_processing_time_ms && (
+                                    <span className="processing-time" title={`Stage 1: ${(episode.stage1_processing_time_ms || 0) / 1000}s | Stage 2: ${(episode.stage2_processing_time_ms || 0) / 1000}s`}>
+                                        ⚡ {(episode.total_processing_time_ms / 1000).toFixed(1)}s
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <button className="close-button" onClick={onClose} aria-label="Close episode details">✕</button>

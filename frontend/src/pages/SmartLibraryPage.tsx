@@ -10,6 +10,7 @@ import './SmartLibraryPage.css';
 export default function SmartLibraryPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const isFavoritesPage = window.location.pathname === '/favorites';
     const tagFilter = searchParams.get('tag');
     const feedFilter = searchParams.get('feed');
 
@@ -63,7 +64,9 @@ export default function SmartLibraryPage() {
             s.summary.toLowerCase().includes(searchQuery.toLowerCase())
             : true;
 
-        return matchesTag && matchesFeed && matchesSearch;
+        const matchesFavorite = isFavoritesPage ? s.is_favorite : true;
+
+        return matchesTag && matchesFeed && matchesSearch && matchesFavorite;
     });
 
     return (
@@ -71,7 +74,7 @@ export default function SmartLibraryPage() {
             <header className="library-header pb-8 pt-4">
                 <div className="flex justify-between items-end mb-6">
                     <div>
-                        <h1 className="library-title">Smart Library</h1>
+                        <h1 className="library-title">{isFavoritesPage ? 'Your Favorites' : 'Smart Library'}</h1>
                         <p className="library-subtitle">
                             {filteredSummaries.length} insights collected
                         </p>

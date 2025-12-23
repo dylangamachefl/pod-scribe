@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from api.models import (
     Feed, FeedCreate, FeedUpdate,
     Episode, EpisodeSelect, BulkSelectRequest, BulkSeenRequest, EpisodeFetchRequest,
+    EpisodeFavoriteUpdate,
     TranscriptionStatus, TranscriptionStartRequest, TranscriptionStartResponse,
     PodcastInfo, EpisodeInfo, TranscriptResponse,
     StatsResponse, HealthResponse
@@ -368,6 +369,7 @@ async def list_all_episodes(
             selected=ep.meta_data.get('selected', False) if ep.meta_data else False,
             fetched_date=ep.created_at.isoformat() if ep.created_at else '',
             is_seen=ep.is_seen,
+            is_favorite=ep.is_favorite,
             status=ep.status.value
         )
         for ep in episodes
@@ -390,6 +392,7 @@ async def get_episode_queue():
             selected=ep.meta_data.get('selected', False) if ep.meta_data else False,
             fetched_date=ep.created_at.isoformat() if ep.created_at else '',
             is_seen=ep.is_seen,
+            is_favorite=ep.is_favorite,
             status=ep.status.value
         )
         for ep in episodes
@@ -486,6 +489,26 @@ async def select_episode(episode_id: str, selection: EpisodeSelect):
             await session.commit()
     
     return {"status": "updated", "episode_id": episode_id, "selected": selection.selected}
+
+
+@app.put("/episodes/{episode_id}/favorite")
+async def toggle_favorite(episode_id: str, favorite_update: EpisodeFavoriteUpdate):
+    """Toggle episode favorite status in PostgreSQL."""
+    from podcast_transcriber_shared.database import get_session_maker
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        from podcast_transcriber_shared.database import Episode as EpisodeModel
+        result = await session.execute(
+            select(EpisodeModel).where(EpisodeModel.id == episode_id)
+        )
+        db_episode = result.scalar_one_or_none()
+        if not db_episode:
+            raise HTTPException(status_code=404, detail="Episode not found")
+        
+        db_episode.is_favorite = favorite_update.is_favorite
+        await session.commit()
+    
+    return {"status": "updated", "episode_id": episode_id, "is_favorite": favorite_update.is_favorite}
 
 
 @app.post("/episodes/bulk-select")
@@ -685,6 +708,29 @@ async def get_transcript(podcast_name: str, episode_id: str):
         podcast_name=podcast_name,
         episode_name=episode_id,
         content=content
+    )
+
+
+@app.get("/transcripts/{podcast_name}/{episode_id}/download")
+async def download_transcript_raw(podcast_name: str, episode_id: str):
+    """
+    Download raw transcript content as a .txt file.
+    """
+    # Read transcript from database
+    content = await read_transcript(episode_id)
+    
+    if content is None:
+        raise HTTPException(status_code=404, detail="Transcript not found")
+    
+    from fastapi.responses import Response
+    
+    # Return as a downloadable text file
+    return Response(
+        content=content,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f'attachment; filename="{episode_id}.txt"'
+        }
     )
 
 

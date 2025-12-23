@@ -67,6 +67,9 @@ class Episode(Base):
     # Seen status for inbox management
     is_seen = Column(Boolean, default=False, nullable=False, index=True)
     
+    # Favorite status
+    is_favorite = Column(Boolean, default=False, nullable=False, index=True)
+    
     # Relationship to summaries
     summaries = relationship("Summary", back_populates="episode", cascade="all, delete-orphan")
     
@@ -184,6 +187,7 @@ async def list_episodes(
     podcast_name: Optional[str] = None,
     status: Optional[EpisodeStatus] = None,
     is_seen: Optional[bool] = None,
+    is_favorite: Optional[bool] = None,
     limit: Optional[int] = None
 ) -> List[Episode]:
     """
@@ -193,6 +197,7 @@ async def list_episodes(
         podcast_name: Filter by podcast name (optional)
         status: Filter by status (optional)
         is_seen: Filter by seen status (optional)
+        is_favorite: Filter by favorite status (optional)
         limit: Maximum number of episodes to return (None for all)
     
     Returns:
@@ -210,6 +215,9 @@ async def list_episodes(
             
         if is_seen is not None:
             query = query.where(Episode.is_seen == is_seen)
+        
+        if is_favorite is not None:
+            query = query.where(Episode.is_favorite == is_favorite)
         
         query = query.order_by(Episode.created_at.desc())
         

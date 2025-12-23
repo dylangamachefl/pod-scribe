@@ -47,6 +47,10 @@ export interface Summary {
     concepts?: Array<{ term: string; definition: string }>;
     perspectives?: string;
 
+    // Association fields
+    episode_id?: string;
+    is_favorite?: boolean;
+
     // Two-stage pipeline metadata
     stage1_processing_time_ms?: number;
     stage2_processing_time_ms?: number;
@@ -97,6 +101,7 @@ export interface Episode {
     status: string;
     fetched_date?: string;
     is_seen: boolean;
+    is_favorite: boolean;
     feed_url?: string;
 }
 

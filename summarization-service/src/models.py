@@ -27,6 +27,10 @@ class SummaryResponse(BaseModel):
     summary: str
     key_topics: List[str]
     
+    # Association fields
+    episode_id: str
+    is_favorite: bool = False
+    
     # Legacy fields for backward compatibility
     insights: Optional[List[str]] = None  # Deprecated, mapped from key_takeaways
     

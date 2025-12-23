@@ -1,4 +1,4 @@
-import { MessageSquare, Calendar, Clock } from 'lucide-react';
+import { MessageSquare, Calendar, Clock, Heart } from 'lucide-react';
 import { Summary } from '../api/types';
 import './SmartCard.css';
 
@@ -15,11 +15,18 @@ export function SmartCard({ summary, onChat, onOpen }: SmartCardProps) {
     return (
         <div className="smart-card glass-panel" onClick={() => onOpen(summary)}>
             <div className="card-header">
-                <div className="card-podcast">{summary.podcast_name}</div>
-                <div className="card-date">
-                    <Calendar size={12} />
-                    <span>{new Date(summary.created_at).toLocaleDateString()}</span>
+                <div className="flex-1 overflow-hidden">
+                    <div className="card-podcast">{summary.podcast_name}</div>
+                    <div className="card-date">
+                        <Calendar size={12} />
+                        <span>{new Date(summary.created_at).toLocaleDateString()}</span>
+                    </div>
                 </div>
+                {summary.is_favorite && (
+                    <div className="favorite-indicator">
+                        <Heart size={14} fill="#ef4444" color="#ef4444" />
+                    </div>
+                )}
             </div>
 
             <div className="card-body">

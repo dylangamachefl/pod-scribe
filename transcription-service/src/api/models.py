@@ -33,6 +33,7 @@ class Episode(BaseModel):
     audio_url: str
     selected: bool = False
     is_seen: bool = False
+    is_favorite: bool = False
     status: str = "pending"  # pending, processing, completed, failed
 
 
@@ -54,6 +55,11 @@ class BulkSeenRequest(BaseModel):
     """Request model for marking episodes as seen/unseen."""
     episode_ids: List[str]
     seen: bool = True
+
+
+class EpisodeFavoriteUpdate(BaseModel):
+    """Request model for toggling an episode as favorite."""
+    is_favorite: bool = True
 
 
 # Transcription Models

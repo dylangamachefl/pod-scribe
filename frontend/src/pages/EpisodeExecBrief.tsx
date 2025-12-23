@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, Calendar, Share2, Bookmark, PlayCircle } from 'lucide-react';
-import { summarizationApi } from '../api';
+import { ArrowLeft, Clock, Calendar, Heart, Download, FileText, PlayCircle } from 'lucide-react';
+import { summarizationApi, transcriptionApi } from '../api';
 import { Summary } from '../api/types';
 import './EpisodeExecBrief.css';
 
@@ -10,6 +10,7 @@ export default function EpisodeExecBrief() {
     const navigate = useNavigate();
     const [summary, setSummary] = useState<Summary | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isFavorite, setIsFavorite] = useState(false);
 
     useEffect(() => {
         const loadBrief = async () => {
@@ -19,13 +20,9 @@ export default function EpisodeExecBrief() {
                 // For now, fetching all and filtering is the only option in our mock-ish API structure 
                 // unless we add a specific getSummaryById endpoint.
                 const summaries = await summarizationApi.getSummaries();
-                // Assuming ID matches a generated ID or we match by title/filename if needed.
-                // Since our current Summary type doesn't explicitly have a UUID in the frontend interface (it uses filename/title keys usually),
-                // we might need to rely on title matching or index if 'id' is passed as index.
-                // Let's assume we pass the title as ID for now for simplicity, or we should have fixed the API.
-                // Actually, let's look for a fuzzy match or exact match on title.
                 const found = summaries.find(s => s.episode_title === decodeURIComponent(id)) || summaries[0];
                 setSummary(found);
+                setIsFavorite(found?.is_favorite || false);
             } catch (error) {
                 console.error('Failed to load brief:', error);
             } finally {
@@ -34,6 +31,73 @@ export default function EpisodeExecBrief() {
         };
         loadBrief();
     }, [id]);
+
+    const toggleFavorite = async () => {
+        if (!summary || !summary.episode_id) return;
+        try {
+            const newStatus = !isFavorite;
+            await transcriptionApi.toggleFavorite(summary.episode_id, newStatus);
+            setIsFavorite(newStatus);
+            summary.is_favorite = newStatus;
+        } catch (err) {
+            console.error('Failed to toggle favorite:', err);
+        }
+    };
+
+    const downloadTranscript = () => {
+        if (!summary) return;
+        const url = transcriptionApi.getTranscriptUrl(
+            summary.podcast_name,
+            summary.episode_id || summary.episode_title
+        );
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${summary.episode_title} - Transcript.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    };
+
+    const downloadSummary = () => {
+        if (!summary) return;
+
+        let content = `EPISODE BRIEF: ${summary.episode_title}\n`;
+        content += `PODCAST: ${summary.podcast_name}\n`;
+        content += `DATE: ${new Date(summary.created_at).toLocaleDateString()}\n`;
+        content += `\nTHE HOOK:\n"${summary.hook}"\n`;
+
+        content += `\nKEY TAKEAWAYS:\n`;
+        (summary.key_takeaways || []).forEach((t, i) => {
+            content += `${i + 1}. ${t.concept}: ${t.explanation}\n`;
+        });
+
+        content += `\nACTIONABLE ADVICE:\n`;
+        (summary.actionable_advice || []).forEach((advice) => {
+            content += `- ${advice}\n`;
+        });
+
+        content += `\nCORE CONCEPTS:\n`;
+        (summary.concepts || []).forEach(c => {
+            content += `- ${c.term}: ${c.definition}\n`;
+        });
+
+        if (summary.perspectives) {
+            content += `\nPERSPECTIVES:\n${summary.perspectives}\n`;
+        }
+
+        content += `\nSUMMARY:\n${summary.summary}\n`;
+
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${summary.episode_title} - Smart Summary.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
 
     if (loading) return <div className="p-12 text-center text-slate-400">Loading brief...</div>;
     if (!summary) return <div className="p-12 text-center text-slate-400">Brief not found.</div>;
@@ -56,8 +120,21 @@ export default function EpisodeExecBrief() {
                 </div>
                 <div className="hero-actions">
                     <button className="action-btn primary"><PlayCircle size={20} /> Play Episode</button>
-                    <button className="action-btn icon-only"><Bookmark size={20} /></button>
-                    <button className="action-btn icon-only"><Share2 size={20} /></button>
+                    <button
+                        className={`action-btn icon-only ${isFavorite ? 'favorite-active' : ''}`}
+                        onClick={toggleFavorite}
+                        title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                    >
+                        <Heart size={20} fill={isFavorite ? "currentColor" : "none"} />
+                    </button>
+                    <button className="action-btn" onClick={downloadTranscript} title="Download Transcript">
+                        <FileText size={20} />
+                        <span>Transcript</span>
+                    </button>
+                    <button className="action-btn" onClick={downloadSummary} title="Download Summary">
+                        <Download size={20} />
+                        <span>Summary</span>
+                    </button>
                 </div>
             </header>
 

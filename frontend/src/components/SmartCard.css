@@ -39,8 +39,15 @@
 .card-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 16px;
+}
+
+.favorite-indicator {
+    padding: 4px;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 50%;
+    display: flex;
 }
 
 .card-podcast {

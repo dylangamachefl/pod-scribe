@@ -128,6 +128,15 @@ export const transcriptionClient = {
     },
 
     /**
+     * Toggle favorite status
+     */
+    async toggleFavorite(episodeId: string, is_favorite: boolean): Promise<void> {
+        await axiosInstance.put(`/episodes/${episodeId}/favorite`, {
+            is_favorite,
+        });
+    },
+
+    /**
      * Clear processed episodes from queue
      */
     async clearProcessedEpisodes(): Promise<{ status: string; count: number }> {
@@ -207,8 +216,8 @@ export const transcriptionClient = {
     /**
      * Get URL for direct download
      */
-    getTranscriptUrl(podcastName: string, episodeName: string): string {
-        return `${API_BASE_URL}/files/${encodeURIComponent(podcastName)}/${encodeURIComponent(episodeName)}.txt`;
+    getTranscriptUrl(podcastName: string, episodeId: string): string {
+        return `${API_BASE_URL}/transcripts/${encodeURIComponent(podcastName)}/${encodeURIComponent(episodeId)}/download`;
     },
 
     // ========================================================================
