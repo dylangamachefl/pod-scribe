@@ -1,0 +1,16 @@
+FROM qwen3:8b
+
+# RTX 3070 Optimization (8GB VRAM)
+# 6144 tokens: Calculated to fit in memory while allowing sufficient RAG context.
+PARAMETER num_ctx 6144
+
+# RAG Settings
+# Temp 0.6: Allows natural phrasing while staying factual.
+PARAMETER temperature 0.6
+PARAMETER top_k 20
+PARAMETER top_p 0.95
+
+SYSTEM """
+You are a helpful assistant. Answer questions using only the context provided.
+If you do not know the answer based on the context, say so.
+"""

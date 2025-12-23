@@ -1,6 +1,6 @@
 # Podcast Summarization Service
 
-AI-powered summarization service for podcast transcripts using Google Gemini API.
+AI-powered summarization service for podcast transcripts using local Ollama models.
 
 ## Overview
 
@@ -13,7 +13,7 @@ This service automatically monitors new podcast transcripts and generates compre
 ## Features
 
 - **Automatic Processing**: File watcher monitors transcript directory and auto-generates summaries
-- **Configurable Model**: Uses environment variable to specify Gemini model (default: `gemini-2.5-flash-lite`)
+- **Local Processing**: Uses local Ollama `qwen3:summarizer` model (no external API)
 - **RESTful API**: FastAPI endpoints for manual summarization and summary retrieval
 - **Structured Output**: JSON summaries with topics, insights, and quotes
 
@@ -21,7 +21,7 @@ This service automatically monitors new podcast transcripts and generates compre
 
 The summarization service is decoupled from the RAG service to allow independent scaling and configuration:
 - **Input**: Reads transcripts from `shared/output/`
-- **Processing**: Uses Gemini API for summarization
+- **Processing**: Uses local Ollama API for summarization
 - **Output**: Saves summaries to `shared/summaries/`
 - **API**: Provides REST endpoints for frontend consumption
 
@@ -33,21 +33,27 @@ Create a `.env` file in the project root with:
 
 ```env
 # Required
-GEMINI_API_KEY=your_gemini_api_key_here
+OLLAMA_API_URL=http://host.docker.internal:11434
+OLLAMA_SUMMARIZER_MODEL=qwen3:summarizer
 
 # Optional (with defaults)
-SUMMARIZATION_MODEL=gemini-2.5-flash-lite
 SUMMARIZATION_API_PORT=8002
 SUMMARIZATION_FRONTEND_URL=http://localhost:3000
 ```
 
 ### Model Configuration
 
-The `SUMMARIZATION_MODEL` environment variable allows you to specify any Gemini model:
-- `gemini-2.5-flash-lite` (default, fast and lightweight)
-- `gemini-2.5-flash` (faster, good balance)
-- `gemini-pro` (higher quality, slower)
-- `gemini-1.5-pro` (best quality, slowest)
+The service uses the local Ollama model `qwen3:summarizer`. Ensure this model is available by running:
+
+```bash
+ollama list
+```
+
+If the model is not available, create it using the provided Modelfile:
+
+```bash
+ollama create qwen3:summarizer -f Modelfile_sum
+```
 
 ## Setup
 
@@ -66,7 +72,7 @@ pip install -e .
 
 ### 3. Configure Environment
 
-Copy `.env.example` to `.env` and add your Gemini API key.
+Set `OLLAMA_API_URL` and `OLLAMA_SUMMARIZER_MODEL` in your `.env` file.
 
 ### 4. Run the Service
 
@@ -119,7 +125,7 @@ The service automatically watches the `shared/output/` directory for new `.txt` 
 
 1. File is debounced (2-second delay)
 2. Metadata is extracted from transcript
-3. Summary is generated via Gemini API
+3. Summary is generated via local Ollama API
 4. Result is saved to `shared/summaries/`
 
 ## Output Format
@@ -171,16 +177,14 @@ Start the service and visit:
 
 ## Troubleshooting
 
-### Gemini API Key Not Found
-Ensure `.env` file exists in project root with valid `GEMINI_API_KEY`.
+### Ollama Model Not Found
+Ensure the `qwen3:summarizer` model exists. Create it with:
+```bash
+ollama create qwen3:summarizer -f Modelfile_sum
+```
 
-### File Watcher Not Detecting Files
-- Check `TRANSCRIPTION_WATCH_PATH` points to correct directory
-- Ensure directory exists and has proper permissions
-- Check logs for file system events
-
-### Model Not Found
-Verify the `SUMMARIZATION_MODEL` value is a valid Gemini model name.
+### Ollama Connection Failed
+Verify Ollama is running and accessible at the configured `OLLAMA_API_URL`.
 
 ## Architecture
 

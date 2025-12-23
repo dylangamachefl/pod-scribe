@@ -10,12 +10,11 @@ from contextlib import asynccontextmanager
 from config import (
     SUMMARIZATION_API_PORT, 
     SUMMARIZATION_FRONTEND_URL, 
-    STAGE1_MODEL,
-    STAGE2_MODEL
+    OLLAMA_SUMMARIZER_MODEL
 )
 from models import HealthResponse
 from routers import summaries
-from services.gemini_service import get_gemini_service
+from services.ollama_service import get_ollama_service
 from event_subscriber import start_summarization_event_subscriber
 
 
@@ -31,7 +30,7 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting Summarization Service")
     print("="*60)
     
-    # Pre-load Gemini service
+    # Pre-load Ollama service
     print("\n📦 Initializing services...")
     try:
         # Initialize database
@@ -39,9 +38,9 @@ async def lifespan(app: FastAPI):
         await init_db()
         print("✅ Database initialized")
         
-        # Initialize Gemini service
-        get_gemini_service()
-        print("✅ Gemini service initialized")
+        # Initialize Ollama service
+        get_ollama_service()
+        print("✅ Ollama service initialized")
     except Exception as e:
         print(f"❌ Service initialization failed: {e}")
         raise
@@ -53,8 +52,7 @@ async def lifespan(app: FastAPI):
     
     print("\n" + "="*60)
     print("✅ Summarization Service is ready!")
-    print(f"   Stage 1 Model (Thinker): {STAGE1_MODEL}")
-    print(f"   Stage 2 Model (Structurer): {STAGE2_MODEL}")
+    print(f"   Model: {OLLAMA_SUMMARIZER_MODEL}")
     print(f"   Architecture: Event-Driven Only (no file watching)")
     print("="*60 + "\n")
     
@@ -74,7 +72,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="Podcast Summarization Service",
-    description="AI-powered summarization for podcast transcripts using Gemini API",
+    description="AI-powered summarization for podcast transcripts using local Ollama models",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -99,8 +97,7 @@ async def root():
         "service": "Podcast Summarization Service",
         "version": "2.0.0",
         "architecture": "two-stage",
-        "stage1_model": STAGE1_MODEL,
-        "stage2_model": STAGE2_MODEL,
+        "model": OLLAMA_SUMMARIZER_MODEL,
         "status": "running",
         "docs": "/docs",
         "health": "/health"
@@ -111,24 +108,24 @@ async def root():
 async def health_check():
     """
     Health check endpoint.
-    Verifies Gemini API is configured and event subscriber is running.
+    Verifies Ollama connectivity and event subscriber is running.
     """
     try:
-        # Check if Gemini service is accessible
-        gemini_service = get_gemini_service()
+        # Check if Ollama service is accessible
+        ollama_service = get_ollama_service()
         
         return HealthResponse(
             status="healthy",
-            gemini_api_configured=gemini_service is not None,
-            model_name=f"{STAGE1_MODEL} + {STAGE2_MODEL}",
+            ollama_connected=ollama_service is not None,
+            model_name=OLLAMA_SUMMARIZER_MODEL,
             event_subscriber_active=True  # Task-based, always active if service is running
         )
     
     except Exception as e:
         return HealthResponse(
             status="unhealthy",
-            gemini_api_configured=False,
-            model_name=f"{STAGE1_MODEL} + {STAGE2_MODEL}",
+            ollama_connected=False,
+            model_name=OLLAMA_SUMMARIZER_MODEL,
             event_subscriber_active=False
         )
 

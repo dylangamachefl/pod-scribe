@@ -51,6 +51,6 @@ class SummaryResponse(BaseModel):
 class HealthResponse(BaseModel):
     """Health check response."""
     status: str
-    gemini_api_configured: bool
+    ollama_connected: bool
     model_name: str
     event_subscriber_active: bool = True

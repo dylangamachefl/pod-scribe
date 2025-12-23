@@ -8,7 +8,7 @@ import uuid
 import json
 
 from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed, EpisodeSummarized
-from services.gemini_service import get_gemini_service
+from services.ollama_service import get_ollama_service
 from utils.transcript_parser import extract_metadata_from_transcript
 from config import SUMMARY_OUTPUT_PATH
 
@@ -18,7 +18,7 @@ async def process_transcription_event(event_data: dict):
     Process an EpisodeTranscribed event asynchronously.
     
     Called when a new transcript is available.
-    Generates a structured summary using Gemini.
+    Generates a structured summary using Ollama.
     
     Args:
         event_data: Event data dictionary from Redis
@@ -62,14 +62,14 @@ async def process_transcription_event(event_data: dict):
         print(f"📄 Episode: {metadata.get('episode_title', event.episode_title)}")
         print(f"🎙️  Podcast: {metadata.get('podcast_name', event.podcast_name)}")
         
-        # Generate summary with Gemini (heavy API call - run in executor)
-        print(f"🤖 Generating summary with Gemini...")
-        gemini_service = get_gemini_service()
+        # Generate summary with Ollama (heavy API call - run in executor)
+        print(f"🤖 Generating summary with Ollama...")
+        ollama_service = get_ollama_service()
         
         loop = asyncio.get_running_loop()
         summary_result = await loop.run_in_executor(
             None,
-            gemini_service.summarize_transcript,
+            ollama_service.summarize_transcript,
             content,
             metadata.get("episode_title", event.episode_title),
             metadata.get("podcast_name", event.podcast_name)
@@ -151,7 +151,7 @@ if __name__ == "__main__":
     
     # Initialize services before subscribing
     print("📦 Initializing Summarization services...")
-    get_gemini_service()
+    get_ollama_service()
     print("✅ Services initialized\n")
     
     # Run async subscriber

@@ -1,19 +1,18 @@
 """
-Gemini API Client for Two-Stage Summarization
+Ollama API Client for Two-Stage Summarization
 Stage 1: Generates high-fidelity unstructured summaries
 Stage 2: Extracts structured data using Instructor for guaranteed validation
 """
 from typing import Dict
 from pathlib import Path
-import google.generativeai as genai
+import requests
 import instructor
 import time
 import yaml
 
 from config import (
-    GEMINI_API_KEY, 
-    STAGE1_MODEL, 
-    STAGE2_MODEL,
+    OLLAMA_API_URL,
+    OLLAMA_SUMMARIZER_MODEL,
     STAGE1_MAX_RETRIES,
     STAGE1_BASE_DELAY,
     STAGE2_MAX_RETRIES,
@@ -22,11 +21,41 @@ from config import (
 from structured_models_v2 import RawSummary, StructuredSummaryV2
 
 
-class GeminiSummarizationService:
-    """Two-stage summarization client using Gemini and Instructor."""
+class OllamaClient:
+    """Wrapper for Ollama API that mimics genai.GenerativeModel interface."""
+    
+    def __init__(self, api_url: str, model_name: str):
+        self.api_url = api_url
+        self.model_name = model_name
+    
+    def generate_content(self, prompt: str) -> 'OllamaResponse':
+        """Generate content using Ollama API."""
+        response = requests.post(
+            f"{self.api_url}/api/generate",
+            json={
+                "model": self.model_name,
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=300  # 5 minutes for long summarization
+        )
+        response.raise_for_status()
+        result = response.json()
+        return OllamaResponse(result.get("response", ""))
+
+
+class OllamaResponse:
+    """Response wrapper for Ollama API."""
+    
+    def __init__(self, text: str):
+        self.text = text
+
+
+class OllamaSummarizationService:
+    """Two-stage summarization client using Ollama and Instructor."""
     
     def __init__(self):
-        """Initialize two-stage Gemini summarization client."""
+        """Initialize two-stage Ollama summarization client."""
         # Load prompts from YAML
         prompts_path = Path(__file__).parent.parent.parent / "config" / "prompts.yaml"
         try:
@@ -41,27 +70,40 @@ class GeminiSummarizationService:
         except yaml.YAMLError as e:
             raise RuntimeError(f"Invalid YAML in prompts file: {e}")
         
-        # Configure API key
-        genai.configure(api_key=GEMINI_API_KEY)
-        
-        # Stage 1: Standard Gemini client for raw summarization (The Thinker)
-        self.stage1_model_name = STAGE1_MODEL
-        self.stage1_model = genai.GenerativeModel(self.stage1_model_name)
+        # Stage 1: Ollama client for raw summarization (The Thinker)
+        self.stage1_model_name = OLLAMA_SUMMARIZER_MODEL
+        self.stage1_model = OllamaClient(OLLAMA_API_URL, self.stage1_model_name)
         self.stage1_max_retries = STAGE1_MAX_RETRIES
         self.stage1_base_delay = STAGE1_BASE_DELAY
         
         # Stage 2: Instructor-wrapped client for structure extraction (The Structurer)
-        self.stage2_model_name = STAGE2_MODEL
-        self.stage2_client = instructor.from_gemini(
-            client=genai.GenerativeModel(self.stage2_model_name),
-            mode=instructor.Mode.GEMINI_JSON
-        )
+        self.stage2_model_name = OLLAMA_SUMMARIZER_MODEL
+        # Create Ollama client wrapper for Instructor
+        ollama_client = OllamaClient(OLLAMA_API_URL, self.stage2_model_name)
+        
+        # Wrap with Instructor - using OpenAI-compatible mode
+        # Instructor supports Ollama through the OpenAI-compatible API
+        try:
+            from openai import OpenAI
+            # Create OpenAI client pointing to Ollama's OpenAI-compatible endpoint
+            openai_client = OpenAI(
+                base_url=f"{OLLAMA_API_URL}/v1",
+                api_key="ollama"  # Ollama doesn't require a real key
+            )
+            self.stage2_client = instructor.from_openai(openai_client)
+        except ImportError:
+            raise RuntimeError(
+                "OpenAI library required for Instructor integration. "
+                "Install with: pip install openai"
+            )
+        
         self.stage2_max_retries = STAGE2_MAX_RETRIES
         self.stage2_base_delay = STAGE2_BASE_DELAY
         
         print(f"✅ Two-Stage Summarization Service Initialized:")
         print(f"   Stage 1 (Thinker): {self.stage1_model_name}")
         print(f"   Stage 2 (Structurer): {self.stage2_model_name}")
+        print(f"   Ollama API: {OLLAMA_API_URL}")
     
     def _stage1_generate_raw_summary(
         self,
@@ -102,20 +144,20 @@ class GeminiSummarizationService:
                 
                 return RawSummary(content=response.text)
                 
-            except Exception as e:
+            except requests.exceptions.RequestException as e:
                 error_str = str(e)
                 
-                # Check if it's a quota error (429)
-                if "429" in error_str or "quota" in error_str.lower():
-                    if attempt < self.stage1_max_retries - 1:
-                        delay = self.stage1_base_delay * (2 ** attempt)
-                        print(f"⚠️  Stage 1 quota error. Retrying in {delay}s... (Attempt {attempt + 1}/{self.stage1_max_retries})")
-                        time.sleep(delay)
-                        continue
-                    else:
-                        print(f"❌ Stage 1 quota error persists after {self.stage1_max_retries} attempts")
-                        raise
-                
+                # Check if it's a connection or timeout error
+                if attempt < self.stage1_max_retries - 1:
+                    delay = self.stage1_base_delay * (2 ** attempt)
+                    print(f"⚠️  Stage 1 Ollama error. Retrying in {delay}s... (Attempt {attempt + 1}/{self.stage1_max_retries})")
+                    print(f"    Error: {error_str}")
+                    time.sleep(delay)
+                    continue
+                else:
+                    print(f"❌ Stage 1 Ollama error persists after {self.stage1_max_retries} attempts")
+                    raise
+            except Exception as e:
                 # For other errors, raise immediately
                 print(f"❌ Stage 1 error: {e}")
                 raise
@@ -132,7 +174,7 @@ class GeminiSummarizationService:
         """
         Stage 2: Extract structured data using Instructor.
         
-        Instructor wraps the Gemini API and enforces strict Pydantic validation.
+        Instructor wraps the Ollama API and enforces strict Pydantic validation.
         If the model outputs invalid data, Instructor automatically retries with
         the validation error, forcing the model to fix it.
         
@@ -157,8 +199,9 @@ class GeminiSummarizationService:
                 start_time = time.time()
                 
                 # Instructor handles validation automatically
-                # If Gemini returns invalid JSON, Instructor re-prompts with the error
+                # If Ollama returns invalid JSON, Instructor re-prompts with the error
                 structured_data = self.stage2_client.chat.completions.create(
+                    model=self.stage2_model_name,
                     response_model=StructuredSummaryV2,
                     messages=[
                         {
@@ -174,20 +217,20 @@ class GeminiSummarizationService:
                 
                 return structured_data
                 
-            except Exception as e:
+            except requests.exceptions.RequestException as e:
                 error_str = str(e)
                 
-                # Check if it's a quota error (429)
-                if "429" in error_str or "quota" in error_str.lower():
-                    if attempt < self.stage2_max_retries - 1:
-                        delay = self.stage2_base_delay * (2 ** attempt)
-                        print(f"⚠️  Stage 2 quota error. Retrying in {delay}s... (Attempt {attempt + 1}/{self.stage2_max_retries})")
-                        time.sleep(delay)
-                        continue
-                    else:
-                        print(f"❌ Stage 2 quota error persists after {self.stage2_max_retries} attempts")
-                        raise
-                
+                # Check if it's a connection or timeout error
+                if attempt < self.stage2_max_retries - 1:
+                    delay = self.stage2_base_delay * (2 ** attempt)
+                    print(f"⚠️  Stage 2 Ollama error. Retrying in {delay}s... (Attempt {attempt + 1}/{self.stage2_max_retries})")
+                    print(f"    Error: {error_str}")
+                    time.sleep(delay)
+                    continue
+                else:
+                    print(f"❌ Stage 2 Ollama error persists after {self.stage2_max_retries} attempts")
+                    raise
+            except Exception as e:
                 # For other errors, raise immediately
                 print(f"❌ Stage 2 error: {e}")
                 raise
@@ -254,11 +297,11 @@ class GeminiSummarizationService:
 
 
 # Singleton instance
-_gemini_service = None
+_ollama_service = None
 
-def get_gemini_service() -> GeminiSummarizationService:
-    """Get or create the Gemini summarization service singleton."""
-    global _gemini_service
-    if _gemini_service is None:
-        _gemini_service = GeminiSummarizationService()
-    return _gemini_service
+def get_ollama_service() -> OllamaSummarizationService:
+    """Get or create the Ollama summarization service singleton."""
+    global _ollama_service
+    if _ollama_service is None:
+        _ollama_service = OllamaSummarizationService()
+    return _ollama_service

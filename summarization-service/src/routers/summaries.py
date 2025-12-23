@@ -9,7 +9,7 @@ from pathlib import Path
 
 from models import SummarizeRequest, SummaryResponse
 from config import SUMMARY_OUTPUT_PATH
-from services.gemini_service import get_gemini_service
+from services.ollama_service import get_ollama_service
 from utils.transcript_parser import extract_metadata_from_transcript
 from podcast_transcriber_shared.database import get_session_maker, Summary, Episode
 from sqlalchemy import select
@@ -26,10 +26,10 @@ async def generate_summary(request: SummarizeRequest):
     Generate a summary for a transcript (manual trigger).
     """
     try:
-        gemini_service = get_gemini_service()
+        ollama_service = get_ollama_service()
         
         # Generate summary (returns StructuredSummary Pydantic model)
-        result = gemini_service.summarize_transcript(
+        result = ollama_service.summarize_transcript(
             request.transcript_text,
             request.episode_title,
             request.podcast_name

@@ -1,0 +1,18 @@
+FROM qwen3:8b
+
+# RTX 3070 Optimization (8GB VRAM)
+# Keeps the same 6144 limit.
+PARAMETER num_ctx 6144
+
+# Summarization Settings
+# Temp 0.2: Reduces creativity to ensure strict, factual summaries.
+PARAMETER temperature 0.2
+PARAMETER top_k 20
+PARAMETER top_p 0.90
+
+SYSTEM """
+You are an expert content summarizer.
+Your goal is to provide clear, concise, and accurate summaries of the text provided.
+Focus on extracting the main arguments and key details.
+Do not add external information or opinions.
+"""

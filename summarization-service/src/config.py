@@ -13,32 +13,14 @@ load_dotenv()
 # In Docker: /app/src/config.py -> /app
 PROJECT_ROOT = Path(__file__).parent.parent
 
-# Gemini API Configuration
-# Support Docker Secrets (file-based) or direct environment variable
-GEMINI_API_KEY_FILE = os.getenv("GEMINI_API_KEY_FILE")
-if GEMINI_API_KEY_FILE:
-    # Read from Docker Secret file
-    with open(GEMINI_API_KEY_FILE, 'r') as f:
-        GEMINI_API_KEY = f.read().strip()
-else:
-    # Fallback to environment variable for backward compatibility
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# Ollama API Configuration
+OLLAMA_API_URL = os.getenv("OLLAMA_API_URL", "http://host.docker.internal:11434")
+OLLAMA_SUMMARIZER_MODEL = os.getenv("OLLAMA_SUMMARIZER_MODEL", "qwen3:summarizer")
 
-if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY not found. Set GEMINI_API_KEY_FILE or GEMINI_API_KEY.")
-
-# Model Configuration
 # Two-Stage Pipeline Configuration
+# Both stages use the same local Ollama model
 # Stage 1: High-fidelity summarization (The Thinker)
-STAGE1_MODEL = os.getenv("STAGE1_MODEL", "gemini-2.5-flash")
-
 # Stage 2: Structured extraction (The Structurer)
-STAGE2_MODEL = os.getenv("STAGE2_MODEL", "gemini-2.5-flash-lite")
-
-# Backward compatibility: if SUMMARIZATION_MODEL is set, use it for Stage 1
-if os.getenv("SUMMARIZATION_MODEL"):
-    STAGE1_MODEL = os.getenv("SUMMARIZATION_MODEL")
-    print(f"⚠️  Using legacy SUMMARIZATION_MODEL env var. Consider migrating to STAGE1_MODEL.")
 
 # Rate limiting configuration
 STAGE1_MAX_RETRIES = int(os.getenv("STAGE1_MAX_RETRIES", "3"))
