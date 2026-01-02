@@ -3,10 +3,10 @@ Ollama API Client for Two-Stage Summarization
 Stage 1: Generates high-fidelity unstructured summaries
 Stage 2: Extracts structured data using Instructor for guaranteed validation
 """
-from typing import Dict
-from pathlib import Path
-import requests
 import instructor
+import requests
+from typing import Dict, List
+from pathlib import Path
 import time
 import yaml
 
@@ -200,9 +200,10 @@ class OllamaSummarizationService:
                 
                 # Instructor handles validation automatically
                 # If Ollama returns invalid JSON, Instructor re-prompts with the error
-                structured_data = self.stage2_client.chat.completions.create(
+                # We use List[StructuredSummaryV2] to handle models that might return multiple tool calls
+                structured_data_list = self.stage2_client.chat.completions.create(
                     model=self.stage2_model_name,
-                    response_model=StructuredSummaryV2,
+                    response_model=List[StructuredSummaryV2],
                     messages=[
                         {
                             "role": "user",
@@ -211,6 +212,15 @@ class OllamaSummarizationService:
                     ],
                     max_retries=2  # Instructor's internal retry for validation errors
                 )
+                
+                if not structured_data_list:
+                    raise ValueError("Stage 2: Model returned an empty list of structured data")
+                
+                # Take the first one (most reliable)
+                structured_data = structured_data_list[0]
+                
+                if len(structured_data_list) > 1:
+                    print(f"⚠️  Stage 2: Model returned {len(structured_data_list)} items, using the first one.")
                 
                 processing_time = (time.time() - start_time) * 1000
                 print(f"✅ Stage 2 complete ({processing_time:.0f}ms)")

@@ -598,16 +598,38 @@ async def start_transcription(
     if status and status.get('is_running'):
         raise HTTPException(status_code=400, detail="Transcription already in progress")
     
-    # Get selected episodes from PostgreSQL
-    all_pending = await list_episodes(status=EpisodeStatus.PENDING)
-    selected_episodes = [
-        {'id': ep.id, 'audio_url': ep.meta_data.get('audio_url', ep.url),
-         'episode_title': ep.title, 'feed_title': ep.podcast_name}
-        for ep in all_pending if ep.meta_data and ep.meta_data.get('selected')
-    ]
+    # Identify target episodes
+    target_episodes = []
     
-    if not selected_episodes:
-        raise HTTPException(status_code=400, detail="No episodes selected")
+    if request.episode_ids and len(request.episode_ids) > 0:
+        # Case 1: Specific episodes requested via API
+        from podcast_transcriber_shared.database import get_session_maker, Episode as EpisodeModel
+        
+        session_maker = get_session_maker()
+        async with session_maker() as session:
+            query = select(EpisodeModel).where(EpisodeModel.id.in_(request.episode_ids))
+            result = await session.execute(query)
+            episodes = result.scalars().all()
+            
+            target_episodes = [
+                {'id': ep.id, 'audio_url': ep.meta_data.get('audio_url', ep.url),
+                 'episode_title': ep.title, 'feed_title': ep.podcast_name}
+                for ep in episodes
+            ]
+    else:
+        # Case 2: Fallback to "selected" episodes in database (Legacy/Queue Page)
+        all_pending = await list_episodes(status=EpisodeStatus.PENDING)
+        target_episodes = [
+            {'id': ep.id, 'audio_url': ep.meta_data.get('audio_url', ep.url),
+             'episode_title': ep.title, 'feed_title': ep.podcast_name}
+            for ep in all_pending if ep.meta_data and ep.meta_data.get('selected')
+        ]
+    
+    if not target_episodes:
+        raise HTTPException(status_code=400, detail="No episodes selected for transcription")
+        
+    # Alias for consistency with rest of function
+    selected_episodes = target_episodes
     
     try:
         # Connect to Redis

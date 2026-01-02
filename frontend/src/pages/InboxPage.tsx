@@ -21,6 +21,7 @@ export default function InboxPage() {
         vram_total_gb: 0
     });
     const [isSyncing, setIsSyncing] = useState(false);
+    const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
     // Filter & Sort State
     const [viewMode, setViewMode] = useState<'inbox' | 'all'>('inbox');
@@ -59,8 +60,10 @@ export default function InboxPage() {
         try {
             await transcriptionApi.fetchEpisodes();
             await loadData(); // Reload immediately
+            showNotification('Feeds synced successfully', 'success');
         } catch (error) {
             console.error('Sync failed:', error);
+            showNotification('Failed to sync feeds', 'error');
         } finally {
             setIsSyncing(false);
         }
@@ -91,15 +94,22 @@ export default function InboxPage() {
         }
     };
 
+    const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 3000);
+    };
+
     const handleTranscribe = async () => {
         try {
-            await transcriptionApi.startTranscription({ episode_ids: selectedIds });
+            const response = await transcriptionApi.startTranscription({ episode_ids: selectedIds });
             // Auto mark as seen when transcribing
             await transcriptionApi.bulkSeenEpisodes(selectedIds, true);
             setSelectedIds([]); // Clear selection after start
             await loadData(); // Reload status and data
+            showNotification(response.message || 'Transcription started successfully', 'success');
         } catch (error) {
             console.error('Transcription start failed:', error);
+            showNotification('Failed to start transcription', 'error');
         }
     };
 
@@ -108,8 +118,10 @@ export default function InboxPage() {
             await transcriptionApi.bulkSeenEpisodes(selectedIds, true);
             setSelectedIds([]);
             await loadData();
+            showNotification('Marked as seen', 'success');
         } catch (error) {
             console.error('Failed to mark episodes as seen:', error);
+            showNotification('Failed to mark as seen', 'error');
         }
     };
 
@@ -128,6 +140,24 @@ export default function InboxPage() {
             />
 
             <LiveStatusBanner status={status} />
+
+            {notification && (
+                <div className={`notification-banner ${notification.type}`} style={{
+                    padding: '8px 16px',
+                    margin: '8px 24px',
+                    borderRadius: '8px',
+                    backgroundColor: notification.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    border: `1px solid ${notification.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                    color: notification.type === 'success' ? '#10b981' : '#ef4444',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '14px',
+                    fontWeight: 500
+                }}>
+                    {notification.message}
+                </div>
+            )}
 
             {/* Filter & Sort Controls */}
             <div className="filter-bar">
