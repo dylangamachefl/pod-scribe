@@ -63,6 +63,16 @@ class EpisodeFavoriteUpdate(BaseModel):
 
 
 # Transcription Models
+class PipelineStage(BaseModel):
+    active: bool
+    completed: int
+    total: int
+    current: Optional[dict] = None
+
+class PipelineStatus(BaseModel):
+    is_running: bool
+    stages: dict[str, PipelineStage]
+
 class TranscriptionStatus(BaseModel):
     is_running: bool
     current_episode: Optional[str] = None
@@ -77,6 +87,7 @@ class TranscriptionStatus(BaseModel):
     vram_total_gb: float = 0.0
     start_time: Optional[str] = None
     recent_logs: List[str] = []
+    pipeline: Optional[PipelineStatus] = None
 
 
 class TranscriptionStartRequest(BaseModel):

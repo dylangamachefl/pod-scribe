@@ -8,6 +8,7 @@ import uuid
 import json
 
 from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed, EpisodeSummarized
+from podcast_transcriber_shared.status_monitor import get_pipeline_status_manager
 from services.ollama_service import get_ollama_service
 from utils.transcript_parser import extract_metadata_from_transcript
 from config import SUMMARY_OUTPUT_PATH
@@ -33,6 +34,14 @@ async def process_transcription_event(event_data: dict):
         print(f"   Episode: {event.episode_title}")
         print(f"   Podcast: {event.podcast_name}")
         print(f"{'='*60}")
+        
+        # Report status
+        manager = get_pipeline_status_manager()
+        manager.set_service_status('summarization', event.episode_id, {
+            "episode_title": event.episode_title,
+            "podcast_name": event.podcast_name,
+            "stage": "summarizing"
+        })
         
         # Fetch transcript from database
         # Database operations are async, so we just await them directly!
@@ -93,6 +102,19 @@ async def process_transcription_event(event_data: dict):
         summary = await db_save_summary(event.episode_id, complete_summary_data)
         
         print(f"✅ Summary saved to database for episode: {event.episode_id}")
+        
+        # Update progress in manager
+        from podcast_transcriber_shared.database import get_session_maker, Episode as EpisodeModel
+        from sqlalchemy import select, func
+        session_maker = get_session_maker()
+        async with session_maker() as session:
+             # This is a bit expensive but accurate for batch progress
+             pass # In a real system we'd use a counter in Redis, but for now let's just clear individual status
+        
+        # Clear individual status for this episode in this service
+        manager.clear_service_status('summarization', event.episode_id)
+        # We also need to increment the completed count for summarization
+        manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}summarization:completed") if manager.redis else None
         
         # Publish EpisodeSummarized event
         try:

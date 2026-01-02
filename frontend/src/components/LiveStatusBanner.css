@@ -1,18 +1,23 @@
 .status-banner {
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(15, 23, 42, 0.7);
     border: 1px solid rgba(234, 179, 8, 0.2);
     border-radius: 12px;
     margin-bottom: 24px;
     overflow: hidden;
     position: relative;
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .status-content {
+    padding: 16px 20px;
+}
+
+.status-top {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px;
+    align-items: flex-start;
+    margin-bottom: 16px;
 }
 
 .status-left {
@@ -48,6 +53,10 @@
     font-size: 0.95rem;
     font-weight: 500;
     color: #f8fafc;
+    max-width: 400px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .status-right {
@@ -61,7 +70,7 @@
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.3);
     border-radius: 8px;
     font-size: 0.85rem;
     color: #cbd5e1;
@@ -90,6 +99,92 @@
     background: #fbbf24;
     transition: width 0.3s ease;
     box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+
+.pipeline-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 8px;
+}
+
+.pipeline-stage {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+}
+
+.pipeline-stage.active {
+    border-color: rgba(234, 179, 8, 0.3);
+    background: rgba(234, 179, 8, 0.05);
+}
+
+.stage-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.stage-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.active .stage-header {
+    color: #fbbf24;
+}
+
+.stage-stats {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.active .stage-stats {
+    color: #f8fafc;
+}
+
+.stage-progress-bg {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.stage-progress-fill {
+    height: 100%;
+    background: #475569;
+    transition: width 0.5s ease;
+}
+
+.active .stage-progress-fill {
+    background: #fbbf24;
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+}
+
+.completed .stage-progress-fill {
+    background: #22c55e;
+}
+
+.spin-slow {
+    animation: spin 3s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .text-yellow-400 {

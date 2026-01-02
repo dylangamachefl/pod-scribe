@@ -83,6 +83,8 @@ def get_gpu_stats() -> Dict:
         }
 
 
+from podcast_transcriber_shared.status_monitor import get_pipeline_status_manager
+
 def write_status(
     is_running: bool,
     current_episode: str = "",
@@ -94,43 +96,26 @@ def write_status(
     start_time: Optional[str] = None,
     log_message: Optional[str] = None
 ):
-    """Write current transcription status to Redis.
+    """Write current transcription status to shared PipelineStatusManager."""
+    manager = get_pipeline_status_manager()
     
-    Args:
-        is_running: Whether transcription is currently running
-        current_episode: Title of episode being processed
-        current_podcast: Name of podcast
-        stage: Current processing stage
-        progress: Progress of current episode (0.0 to 1.0)
-        episodes_completed: Number of episodes completed
-        episodes_total: Total number of episodes to process
-        start_time: ISO format start time
-        log_message: Optional log message to append to recent logs
-    """
-    if not redis_client:
-        return
-
-    # Get GPU stats
+    # Get GPU stats (Transcription specific)
     gpu_stats = get_gpu_stats()
     
-    # Get existing status to preserve logs and start time
+    # Get existing status for logs/start_time (could also move this to manager)
     existing_status = read_status() or {}
     recent_logs = existing_status.get('recent_logs', [])
     
-    # Auto-generate start time if starting and not provided
     if is_running and start_time is None:
         if existing_status.get('is_running'):
             start_time = existing_status.get('start_time')
         else:
             start_time = datetime.now().isoformat()
-            # Clear logs on new run start
             recent_logs = []
             
-    # Append new log message if provided
     if log_message:
         timestamp = datetime.now().strftime("%H:%M:%S")
         recent_logs.insert(0, f"[{timestamp}] {log_message}")
-        # Keep last 50 logs
         recent_logs = recent_logs[:50]
     
     status = {
@@ -146,48 +131,36 @@ def write_status(
         "start_time": start_time,
         "episodes_completed": episodes_completed,
         "episodes_total": episodes_total,
-        "last_updated": datetime.now().isoformat(),
         "recent_logs": recent_logs
     }
     
-    try:
-        redis_client.set(STATUS_KEY, json.dumps(status))
-    except Exception as e:
-        print(f"Error writing status to Redis: {e}")
+    # Use shared manager
+    # For transcription, we use a fixed episode_id "current" for the backward-compatible single status
+    # and also update stats
+    manager.set_service_status('transcription', 'current', status)
+    if episodes_total > 0:
+        manager.update_stats('transcription', episodes_completed, episodes_total)
 
 
 def read_status() -> Optional[Dict]:
-    """Read current status from Redis.
-    
-    Returns:
-        Status dict or None if key doesn't exist
-    """
-    if not redis_client:
-        return None
-    
+    """Read current transcription status from shared PipelineStatusManager."""
+    manager = get_pipeline_status_manager()
+    # We retrieve the "current" status for backward compatibility
     try:
-        data = redis_client.get(STATUS_KEY)
+        data = manager.redis.get(manager._get_status_key('transcription', 'current'))
         if data:
             return json.loads(data)
-        return None
-    except Exception as e:
-        print(f"Error reading status from Redis: {e}")
-        return None
+    except:
+        pass
+    return None
 
 
 def clear_status():
-    """Clear status (set to idle state)."""
-    write_status(
-        is_running=False,
-        current_episode="",
-        current_podcast="",
-        stage="idle",
-        progress=0.0,
-        episodes_completed=0,
-        episodes_total=0,
-        start_time=None,
-        log_message="Ready"
-    )
+    """Clear transcription status."""
+    manager = get_pipeline_status_manager()
+    manager.clear_service_status('transcription', 'current')
+    # Reset stats to 0/0
+    manager.update_stats('transcription', 0, 0)
 
 
 def update_progress(stage: str, progress: float = 0.0, log: Optional[str] = None):

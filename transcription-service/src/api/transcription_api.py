@@ -567,15 +567,24 @@ async def clear_processed():
 # Transcription Control Endpoints
 # ============================================================================
 
+from podcast_transcriber_shared.status_monitor import get_pipeline_status_manager
+
 @app.get("/transcription/status", response_model=TranscriptionStatus)
 async def get_transcription_status():
-    """Get current transcription status."""
+    """Get current transcription status including full pipeline status."""
+    manager = get_pipeline_status_manager()
     status = read_status()
+    pipeline_status = manager.get_pipeline_status()
     
     if status:
+        status['pipeline'] = pipeline_status
         return TranscriptionStatus(**status)
     else:
-        return TranscriptionStatus(is_running=False, stage="idle")
+        return TranscriptionStatus(
+            is_running=pipeline_status['is_running'],
+            stage="idle",
+            pipeline=pipeline_status
+        )
 
 
 @app.post("/transcription/start", response_model=TranscriptionStartResponse)
@@ -592,11 +601,13 @@ async def start_transcription(
     import redis
     from datetime import datetime
     from podcast_transcriber_shared.database import create_episode, EpisodeStatus
+    from podcast_transcriber_shared.status_monitor import get_pipeline_status_manager
     
-    # Check if already running (via status file)
-    status = read_status()
-    if status and status.get('is_running'):
-        raise HTTPException(status_code=400, detail="Transcription already in progress")
+    # Check if already running
+    manager = get_pipeline_status_manager()
+    pipeline_status = manager.get_pipeline_status()
+    if pipeline_status and pipeline_status.get('is_running'):
+        raise HTTPException(status_code=400, detail="Transcription pipeline already in progress")
     
     # Identify target episodes
     target_episodes = []
@@ -617,7 +628,7 @@ async def start_transcription(
                 for ep in episodes
             ]
     else:
-        # Case 2: Fallback to "selected" episodes in database (Legacy/Queue Page)
+        # Case 2: Fallback to "selected" episodes in database
         all_pending = await list_episodes(status=EpisodeStatus.PENDING)
         target_episodes = [
             {'id': ep.id, 'audio_url': ep.meta_data.get('audio_url', ep.url),
@@ -628,6 +639,10 @@ async def start_transcription(
     if not target_episodes:
         raise HTTPException(status_code=400, detail="No episodes selected for transcription")
         
+    # Initialize pipeline batch
+    episode_ids = [ep['id'] for ep in target_episodes]
+    manager.initialize_batch(episode_ids, len(episode_ids))
+    
     # Alias for consistency with rest of function
     selected_episodes = target_episodes
     

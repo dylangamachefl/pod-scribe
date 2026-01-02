@@ -6,6 +6,7 @@ import asyncio
 from pathlib import Path
 
 from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed
+from podcast_transcriber_shared.status_monitor import get_pipeline_status_manager
 from services.embeddings import get_embedding_service
 from services.qdrant_service import get_qdrant_service
 from services.hybrid_retriever import get_hybrid_retriever_service
@@ -56,6 +57,14 @@ async def process_transcription_event(event_data: dict):
         print(f"   Event ID: {event.event_id}")
         print(f"   Episode: {event.episode_title}")
         print(f"{'='*60}")
+        
+        # Report status
+        manager = get_pipeline_status_manager()
+        manager.set_service_status('rag', event.episode_id, {
+            "episode_title": event.episode_title,
+            "podcast_name": event.podcast_name,
+            "stage": "indexing"
+        })
         
         # === IDEMPOTENCY CHECK ===
         qdrant_service = get_qdrant_service()
@@ -133,6 +142,10 @@ async def process_transcription_event(event_data: dict):
             
         except Exception as e:
             print(f"⚠️  Failed to update BM25 index: {e}")
+        
+        # Clear individual status and increment completed count
+        manager.clear_service_status('rag', event.episode_id)
+        manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}rag:completed") if manager.redis else None
         
         print(f"✅ Processing complete: {event.episode_title}\n")
         

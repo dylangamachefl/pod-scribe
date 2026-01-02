@@ -119,6 +119,22 @@ export interface BulkSeenRequest {
     seen: boolean;
 }
 
+export interface PipelineStage {
+    active: boolean;
+    completed: number;
+    total: number;
+    current?: any;
+}
+
+export interface PipelineStatus {
+    is_running: boolean;
+    stages: {
+        transcription: PipelineStage;
+        summarization: PipelineStage;
+        rag: PipelineStage;
+    };
+}
+
 export interface TranscriptionStatus {
     is_running: boolean;
     current_episode?: string;
@@ -133,6 +149,7 @@ export interface TranscriptionStatus {
     vram_total_gb: number;
     start_time?: string;
     recent_logs?: string[];
+    pipeline?: PipelineStatus;
 }
 
 export interface TranscriptionStartRequest {
