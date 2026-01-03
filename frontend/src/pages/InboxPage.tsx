@@ -137,6 +137,7 @@ export default function InboxPage() {
                 onTranscribe={handleTranscribe}
                 onMarkSeen={handleMarkAsSeen}
                 isSyncing={isSyncing}
+                isProcessing={status.is_running}
             />
 
             <LiveStatusBanner status={status} />

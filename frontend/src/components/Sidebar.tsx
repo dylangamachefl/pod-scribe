@@ -55,7 +55,14 @@ export function Sidebar() {
 
             <nav className="sidebar-nav">
                 <div className="nav-section">
-                    <div className="section-label">Inbox</div>
+                    <div className="section-label">Main</div>
+                    <NavLink
+                        to="/dashboard"
+                        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                    >
+                        <BarChart3 size={18} />
+                        <span className="nav-text">Overview</span>
+                    </NavLink>
                     <NavLink
                         to="/inbox"
                         className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
@@ -119,20 +126,13 @@ export function Sidebar() {
                 </div>
 
                 <div className="nav-section mt-auto">
-                    <div className="section-label">System</div>
+                    <div className="section-label">Settings</div>
                     <NavLink
                         to="/feeds"
                         className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                     >
                         <Radio size={18} />
                         <span className="nav-text">Manage Feeds</span>
-                    </NavLink>
-                    <NavLink
-                        to="/system"
-                        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                    >
-                        <BarChart3 size={18} />
-                        <span className="nav-text">System Health</span>
                     </NavLink>
                 </div>
             </nav>

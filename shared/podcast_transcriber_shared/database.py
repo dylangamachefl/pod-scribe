@@ -264,9 +264,11 @@ async def create_episode(
     podcast_name: str,
     status: EpisodeStatus = EpisodeStatus.PENDING,
     meta_data: Optional[dict] = None
-) -> Episode:
+) -> Optional[Episode]:
     """
-    Create a new episode.
+    Create a new episode with conflict handling.
+    
+    Uses PostgreSQL ON CONFLICT DO NOTHING to handle episodes that already exist.
     
     Args:
         episode_id: Unique episode identifier (GUID from RSS)
@@ -277,22 +279,35 @@ async def create_episode(
         meta_data: Optional metadata dict
     
     Returns:
-        Created Episode object
+        Created Episode object, or None if it already exists
     """
+    from sqlalchemy.dialects.postgresql import insert
+    
     session_maker = get_session_maker()
     async with session_maker() as session:
-        episode = Episode(
+        # Build insert statement with conflict handling
+        stmt = insert(Episode).values(
             id=episode_id,
             url=url,
             title=title,
             podcast_name=podcast_name,
             status=status,
             meta_data=meta_data or {}
-        )
-        session.add(episode)
+        ).on_conflict_do_nothing(index_elements=['id'])
+        
+        # Execute statement
+        result = await session.execute(stmt)
         await session.commit()
-        await session.refresh(episode)
-        return episode
+        
+        # If no row was inserted (conflict), result.rowcount will be 0
+        if result.rowcount == 0:
+            return None
+            
+        # Refetch the episode to return the full object
+        # Since we just inserted it, it should exist
+        query = select(Episode).where(Episode.id == episode_id)
+        result = await session.execute(query)
+        return result.scalar_one_or_none()
 
 
 async def update_episode_status(

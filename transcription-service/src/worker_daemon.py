@@ -110,7 +110,7 @@ async def main():
                 job_count += 1
                 
                 print(f"\n📥 Job #{job_count} received from queue")
-                write_status(is_running=True, stage="preparing", log_message=f"Job #{job_count} received from queue")
+                write_status(is_running=True, stage="preparing", log_message=f"Job #{job_count} received from queue", episode_id="current")
                 
                 episode_id = None
                 try:
@@ -134,6 +134,7 @@ async def main():
                     print(f"📋 Processing episode: {episode_id}")
                     write_status(
                         is_running=True, 
+                        episode_id=episode_id,
                         current_episode=episode_id,
                         stage="preparing", 
                         log_message=f"Processing Request: {episode_id}"
@@ -150,6 +151,7 @@ async def main():
                     print(f"✅ Retrieved episode from PostgreSQL: {episode.title}")
                     write_status(
                         is_running=True,
+                        episode_id=episode_id,
                         current_episode=episode.title,
                         current_podcast=episode.podcast_name,
                         stage="preparing",
@@ -187,7 +189,8 @@ async def main():
                         print(f"⚠️  Episode processing failed: {episode_id}")
                     
                     print(f"✅ Job #{job_count} completed successfully")
-                    clear_status()
+                    clear_status(episode_id=episode_id)
+                    clear_status(episode_id="current")
                     
                 except json.JSONDecodeError:
                     print(f"❌ Invalid JSON in job data")

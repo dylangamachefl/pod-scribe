@@ -430,14 +430,13 @@ async def fetch_episodes(request: EpisodeFetchRequest = None):
             days_limit=days_limit
         )
         
-        # Create episodes in PostgreSQL (skip duplicates)
+        # Create episodes in PostgreSQL
         for episode in episodes:
             episode_id = episode.get('id')
-            if episode_id in existing_ids:
-                continue  # Skip duplicates
-                
+            
             try:
-                await create_episode(
+                # create_episode now handles duplicates gracefully with ON CONFLICT DO NOTHING
+                new_ep = await create_episode(
                     episode_id=episode_id,
                     url=episode.get('audio_url', ''),
                     title=episode.get('episode_title', 'Unknown'),
@@ -450,8 +449,14 @@ async def fetch_episodes(request: EpisodeFetchRequest = None):
                         'selected': False
                     }
                 )
-                total_new += 1
-                existing_ids.add(episode_id)  # Track to avoid duplicates in same batch
+                
+                if new_ep:
+                    total_new += 1
+                    logger.info(f"Created new episode: {episode_id}")
+                else:
+                    # Episode already existed and was skipped by ON CONFLICT
+                    pass
+                    
             except Exception as e:
                 logger.error(f"Failed to create episode {episode_id}: {e}")
                 continue
@@ -571,20 +576,32 @@ from podcast_transcriber_shared.status_monitor import get_pipeline_status_manage
 
 @app.get("/transcription/status", response_model=TranscriptionStatus)
 async def get_transcription_status():
-    """Get current transcription status including full pipeline status."""
+    """Get current transcription status including full pipeline status and active episodes."""
     manager = get_pipeline_status_manager()
     status = read_status()
     pipeline_status = manager.get_pipeline_status()
     
+    active_episodes = pipeline_status.get('active_episodes', [])
+    
     if status:
         status['pipeline'] = pipeline_status
+        status['active_episodes'] = active_episodes
         return TranscriptionStatus(**status)
     else:
         return TranscriptionStatus(
             is_running=pipeline_status['is_running'],
             stage="idle",
-            pipeline=pipeline_status
+            pipeline=pipeline_status,
+            active_episodes=active_episodes
         )
+
+
+@app.post("/transcription/status/clear")
+async def clear_transcription_status():
+    """Manually clear all stale pipeline status and stats."""
+    manager = get_pipeline_status_manager()
+    manager.clear_all_status()
+    return {"status": "cleared", "message": "All pipeline status and stats have been reset."}
 
 
 @app.post("/transcription/start", response_model=TranscriptionStartResponse)

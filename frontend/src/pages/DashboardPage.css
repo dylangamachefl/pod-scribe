@@ -5,7 +5,19 @@
 }
 
 .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
     margin-bottom: 32px;
+}
+
+.header-main {
+    flex: 1;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
 }
 
 .dashboard-header h1 {
@@ -15,6 +27,45 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+.btn-icon {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-icon:hover {
+    background: rgba(30, 41, 59, 0.6);
+    color: var(--color-text-primary);
+    border-color: var(--color-accent-primary);
+}
+
+.btn-icon.cleanup:hover {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .dashboard-header p {

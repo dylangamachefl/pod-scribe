@@ -119,6 +119,17 @@ export interface BulkSeenRequest {
     seen: boolean;
 }
 
+export interface ActiveEpisodeStatus {
+    episode_id: string;
+    title: string;
+    podcast: string;
+    stage: string;
+    progress: number;
+    services: {
+        [service: string]: any;
+    };
+}
+
 export interface PipelineStage {
     active: boolean;
     completed: number;
@@ -150,6 +161,7 @@ export interface TranscriptionStatus {
     start_time?: string;
     recent_logs?: string[];
     pipeline?: PipelineStatus;
+    active_episodes?: ActiveEpisodeStatus[];
 }
 
 export interface TranscriptionStartRequest {

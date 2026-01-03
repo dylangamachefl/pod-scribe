@@ -29,13 +29,13 @@ function App() {
 
                 <div className="content-scroll-area">
                     <Routes>
-                        <Route path="/" element={<Navigate to="/inbox" replace />} />
+                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/inbox" element={<InboxPage />} />
                         <Route path="/library" element={<SmartLibraryPage />} />
                         <Route path="/brief/:id" element={<EpisodeExecBrief />} />
                         <Route path="/favorites" element={<SmartLibraryPage />} />
                         <Route path="/feeds" element={<FeedManagerPage />} />
-                        <Route path="/system" element={<DashboardPage />} />
                         <Route path="*" element={<div>Page Not Found</div>} />
                     </Routes>
                 </div>

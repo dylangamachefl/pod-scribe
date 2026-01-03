@@ -171,6 +171,16 @@ export const transcriptionClient = {
         return response.data;
     },
 
+    /**
+     * Manually clear all stale pipeline status and stats
+     */
+    async clearTranscriptionStatus(): Promise<{ status: string; message: string }> {
+        const response = await axiosInstance.post<{ status: string; message: string }>(
+            '/transcription/status/clear'
+        );
+        return response.data;
+    },
+
     // ========================================================================
     // Transcript Browsing
     // ========================================================================

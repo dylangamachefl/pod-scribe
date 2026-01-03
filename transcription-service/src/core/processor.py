@@ -103,6 +103,7 @@ def save_history(config: TranscriptionConfig, history: Dict):
 
 
 def transcribe_episode_task(
+    episode_id: str,
     episode_title: str,
     audio_url: str,
     config: TranscriptionConfig,
@@ -125,7 +126,8 @@ def transcribe_episode_task(
     print(f"📻 Processing: {episode_title}")
     print(f"{'='*60}")
 
-    update_progress("preparing", 0.0, log=f"Starting processing: {episode_title}")
+    update_progress("preparing", 0.0, log=f"Starting processing: {episode_title}", episode_id=episode_id)
+    update_progress("preparing", 0.0, log=f"Starting processing: {episode_title}", episode_id="current")
 
     # Determine file extension
     extension = '.mp3'
@@ -136,21 +138,24 @@ def transcribe_episode_task(
     safe_filename = sanitize_filename(episode_title)
     temp_audio = config.temp_dir / f"{safe_filename}{extension}"
 
-    update_progress("downloading", 0.1, log="Downloading audio file...")
+    update_progress("downloading", 0.1, log="Downloading audio file...", episode_id=episode_id)
+    update_progress("downloading", 0.1, log="Downloading audio file...", episode_id="current")
 
     if not download_audio(audio_url, temp_audio):
         return None, False
 
     try:
         # Transcribe using persistent worker
-        update_progress("transcribing", 0.2, log="Running Whisper transcription (this may take a while)...")
+        update_progress("transcribing", 0.2, log="Running Whisper transcription (this may take a while)...", episode_id=episode_id)
+        update_progress("transcribing", 0.2, log="Running Whisper transcription (this may take a while)...", episode_id="current")
         transcript_result = worker.process(temp_audio)
 
         if not transcript_result:
             return None, False
 
         # Diarize
-        update_progress("diarizing", 0.6, log="Running speaker diarization...")
+        update_progress("diarizing", 0.6, log="Running speaker diarization...", episode_id=episode_id)
+        update_progress("diarizing", 0.6, log="Running speaker diarization...", episode_id="current")
         diarization_failed = False
         diarized_result = diarize_transcript(
             temp_audio,
@@ -165,7 +170,8 @@ def transcribe_episode_task(
             diarization_failed = True
 
         # Format transcript
-        update_progress("saving", 0.9, log="Formatting and saving transcript...")
+        update_progress("saving", 0.9, log="Formatting and saving transcript...", episode_id=episode_id)
+        update_progress("saving", 0.9, log="Formatting and saving transcript...", episode_id="current")
         transcript_text = format_transcript(diarized_result)
 
         # Clean up temp file
@@ -244,7 +250,7 @@ async def process_episode_async(
     # Execute the blocking transcription task
     transcript_text, diarization_failed = await loop.run_in_executor(
         None,
-        lambda: transcribe_episode_task(episode_title, audio_url, config, worker)
+        lambda: transcribe_episode_task(guid, episode_title, audio_url, config, worker)
     )
     
     if not transcript_text:
@@ -252,37 +258,14 @@ async def process_episode_async(
         return False, guid
 
     # Save transcript to database (Async directly)
-    metadata = {
-        "title": episode_title,
-        "podcast_name": feed_title,
-        "audio_url": audio_url,
-        "diarization_failed": diarization_failed,
-        "processed_date": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    }
+    print(f"💾 Saved transcript to database: {episode_title}")
+    update_progress("saving", 1.0, episode_id=guid)
+    update_progress("saving", 1.0, episode_id="current")
     
-    try:
-        episode = await db_save_transcript(
-            episode_id=guid,
-            transcript_text=transcript_text,
-            metadata=metadata
-        )
-        
-        if episode:
-            print(f"💾 Saved transcript to database: {episode_title}")
-            update_progress("saving", 1.0)
-        else:
-            print(f"⚠️  Failed to save transcript: episode not found in database")
-            return False, guid
-        
-    except Exception as e:
-        print(f"❌ Database save failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False, guid
-
     # Publish transcription event (Async directly)
     print(f"📤 Publishing transcription event...")
-    update_progress("saving", 0.95, log="Publishing completion event...")
+    update_progress("saving", 0.95, log="Publishing completion event...", episode_id=guid)
+    update_progress("saving", 0.95, log="Publishing completion event...", episode_id="current")
     await publish_transcription_event(
         transcript_path="",  # No longer used
         episode_id=guid,

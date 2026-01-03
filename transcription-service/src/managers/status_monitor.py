@@ -87,6 +87,7 @@ from podcast_transcriber_shared.status_monitor import get_pipeline_status_manage
 
 def write_status(
     is_running: bool,
+    episode_id: str = "current",
     current_episode: str = "",
     current_podcast: str = "",
     stage: str = "idle",
@@ -102,8 +103,8 @@ def write_status(
     # Get GPU stats (Transcription specific)
     gpu_stats = get_gpu_stats()
     
-    # Get existing status for logs/start_time (could also move this to manager)
-    existing_status = read_status() or {}
+    # Get existing status for logs/start_time
+    existing_status = read_status(episode_id) or {}
     recent_logs = existing_status.get('recent_logs', [])
     
     if is_running and start_time is None:
@@ -135,19 +136,16 @@ def write_status(
     }
     
     # Use shared manager
-    # For transcription, we use a fixed episode_id "current" for the backward-compatible single status
-    # and also update stats
-    manager.set_service_status('transcription', 'current', status)
+    manager.set_service_status('transcription', episode_id, status)
     if episodes_total > 0:
         manager.update_stats('transcription', episodes_completed, episodes_total)
 
 
-def read_status() -> Optional[Dict]:
-    """Read current transcription status from shared PipelineStatusManager."""
+def read_status(episode_id: str = "current") -> Optional[Dict]:
+    """Read transcription status for a specific episode from shared PipelineStatusManager."""
     manager = get_pipeline_status_manager()
-    # We retrieve the "current" status for backward compatibility
     try:
-        data = manager.redis.get(manager._get_status_key('transcription', 'current'))
+        data = manager.redis.get(manager._get_status_key('transcription', episode_id))
         if data:
             return json.loads(data)
     except:
@@ -155,26 +153,22 @@ def read_status() -> Optional[Dict]:
     return None
 
 
-def clear_status():
-    """Clear transcription status."""
+def clear_status(episode_id: str = "current"):
+    """Clear transcription status for a specific episode."""
     manager = get_pipeline_status_manager()
-    manager.clear_service_status('transcription', 'current')
-    # Reset stats to 0/0
-    manager.update_stats('transcription', 0, 0)
+    manager.clear_service_status('transcription', episode_id)
+    # Reset stats to 0/0 (only if clearing "current" or last one)
+    if episode_id == "current":
+        manager.update_stats('transcription', 0, 0)
 
 
-def update_progress(stage: str, progress: float = 0.0, log: Optional[str] = None):
-    """Update only the stage, progress, and optionally add a log.
-    
-    Args:
-        stage: Current processing stage
-        progress: Progress of current stage (0.0 to 1.0)
-        log: Optional log message
-    """
-    existing = read_status()
+def update_progress(stage: str, progress: float = 0.0, log: Optional[str] = None, episode_id: str = "current"):
+    """Update only the stage, progress, and optionally add a log for a specific episode."""
+    existing = read_status(episode_id)
     if existing:
         write_status(
             is_running=existing.get('is_running', False),
+            episode_id=episode_id,
             current_episode=existing.get('current_episode', ''),
             current_podcast=existing.get('current_podcast', ''),
             stage=stage,

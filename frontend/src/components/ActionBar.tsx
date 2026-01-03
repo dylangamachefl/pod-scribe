@@ -7,9 +7,10 @@ interface ActionBarProps {
     onTranscribe: () => void;
     onMarkSeen: () => void;
     isSyncing: boolean;
+    isProcessing?: boolean;
 }
 
-export function ActionBar({ selectedCount, onSync, onTranscribe, onMarkSeen, isSyncing }: ActionBarProps) {
+export function ActionBar({ selectedCount, onSync, onTranscribe, onMarkSeen, isSyncing, isProcessing }: ActionBarProps) {
     return (
         <div className="action-bar header-glass">
             <div className="actions-left">
@@ -37,7 +38,7 @@ export function ActionBar({ selectedCount, onSync, onTranscribe, onMarkSeen, isS
 
                 <button
                     className="btn primary"
-                    disabled={selectedCount === 0}
+                    disabled={selectedCount === 0 || isProcessing}
                     onClick={onTranscribe}
                 >
                     <Bolt size={18} fill="currentColor" />

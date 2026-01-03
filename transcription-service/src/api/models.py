@@ -57,6 +57,16 @@ class BulkSeenRequest(BaseModel):
     seen: bool = True
 
 
+class ActiveEpisodeStatus(BaseModel):
+    """Status for an individual episode in the pipeline."""
+    episode_id: str
+    title: str
+    podcast: str
+    stage: str
+    progress: float
+    services: dict[str, dict]
+
+
 class EpisodeFavoriteUpdate(BaseModel):
     """Request model for toggling an episode as favorite."""
     is_favorite: bool = True
@@ -88,6 +98,7 @@ class TranscriptionStatus(BaseModel):
     start_time: Optional[str] = None
     recent_logs: List[str] = []
     pipeline: Optional[PipelineStatus] = None
+    active_episodes: List[ActiveEpisodeStatus] = []
 
 
 class TranscriptionStartRequest(BaseModel):
