@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 class ChatRequest(BaseModel):
     """Request schema for episode-scoped chat with hybrid search."""
     question: str = Field(..., description="User's question about the episode")
-    episode_title: str = Field(..., description="Episode title (required for scoped chat)")
+    episode_title: Optional[str] = Field(default=None, description="Episode title (optional for global search)")
     conversation_history: Optional[List[dict]] = Field(
         default=None, 
         description="Optional conversation history for context"

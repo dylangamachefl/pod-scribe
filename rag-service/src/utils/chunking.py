@@ -39,14 +39,17 @@ def parse_transcript_line(line: str) -> Dict:
 
 def chunk_by_speaker_turns(
     transcript_lines: List[str],
-    max_chunk_size: int = CHUNK_SIZE
+    max_chunk_size: int = CHUNK_SIZE,
+    overlap: int = CHUNK_OVERLAP
 ) -> List[Dict]:
     """
     Chunk transcript by speaker turns, combining consecutive turns from same speaker.
+    If a turn is too large, it is split with overlap.
     
     Args:
         transcript_lines: List of transcript lines
         max_chunk_size: Maximum characters per chunk
+        overlap: Overlap characters when splitting large turns
         
     Returns:
         List of chunks with metadata
@@ -65,11 +68,8 @@ def chunk_by_speaker_turns(
         if not parsed["text"]:
             continue
         
-        # If speaker changes or chunk too large, finalize current chunk
-        if (current_chunk["speaker"] and 
-            (parsed["speaker"] != current_chunk["speaker"] or 
-             len(current_chunk["text"]) + len(parsed["text"]) > max_chunk_size)):
-            
+        # If speaker changes, finalize current chunk
+        if current_chunk["speaker"] and parsed["speaker"] != current_chunk["speaker"]:
             if current_chunk["text"]:
                 chunks.append(current_chunk.copy())
             
@@ -79,12 +79,37 @@ def chunk_by_speaker_turns(
                 "text": parsed["text"]
             }
         else:
-            # Extend current chunk
+            # Same speaker or first speaker
             if not current_chunk["speaker"]:
                 current_chunk["speaker"] = parsed["speaker"]
                 current_chunk["timestamp"] = parsed["timestamp"]
             
-            current_chunk["text"] += " " + parsed["text"]
+            # Combine text
+            combined_text = (current_chunk["text"] + " " + parsed["text"]).strip()
+            
+            # If combined is too large, split it
+            if len(combined_text) > max_chunk_size:
+                # Basic split with overlap
+                start = 0
+                while start < len(combined_text):
+                    # For middle chunks, we want to capture some context from previous chunk
+                    end = start + max_chunk_size
+                    chunk_text = combined_text[start:end]
+                    
+                    # If this is not the last piece, keep it and move start
+                    if end < len(combined_text):
+                        chunks.append({
+                            "speaker": current_chunk["speaker"],
+                            "timestamp": current_chunk["timestamp"],
+                            "text": chunk_text
+                        })
+                        start += (max_chunk_size - overlap)
+                    else:
+                        # This is the last piece, keep it in current_chunk for next iteration or finalization
+                        current_chunk["text"] = chunk_text
+                        break
+            else:
+                current_chunk["text"] = combined_text
     
     # Add final chunk
     if current_chunk["text"]:

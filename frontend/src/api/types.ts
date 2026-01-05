@@ -20,6 +20,7 @@ export interface ChatMessage {
 
 export interface ChatRequest {
     question: string;
+    episode_title?: string;
     conversation_history?: Array<{ role: string; content: string }>;
 }
 

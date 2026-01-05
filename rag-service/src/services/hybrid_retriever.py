@@ -143,22 +143,18 @@ class HybridRetrieverService:
         qdrant_weight: Optional[float] = None,
         episode_filter: Optional[str] = None
     ) -> List[Dict]:
-        """Search using hybrid approach."""
+        """Search using hybrid approach with Reciprocal Rank Fusion (RRF)."""
         if bm25_weight is None:
             bm25_weight = BM25_WEIGHT
         if qdrant_weight is None:
             qdrant_weight = QDRANT_WEIGHT
         
-        # Normalize weights
-        total_weight = bm25_weight + qdrant_weight
-        bm25_weight = bm25_weight / total_weight
-        qdrant_weight = qdrant_weight / total_weight
-        
         # BM25 Search
         bm25_results = []
         if self.bm25_retriever:
             try:
-                self.bm25_retriever.k = k
+                # We fetch more results than k to ensure we have enough after filtering
+                self.bm25_retriever.k = k * 2 if episode_filter else k
                 bm25_docs = self.bm25_retriever.invoke(query)
                 if episode_filter:
                     bm25_docs = [d for d in bm25_docs if d.metadata.get("episode_title") == episode_filter]
@@ -166,61 +162,73 @@ class HybridRetrieverService:
             except Exception as e:
                 print(f"⚠️  BM25 search failed: {e}")
         
-        # Qdrant Search
+        # Qdrant Search with pre-filtering
         qdrant_results = []
         try:
             query_vector = self.embeddings_service.embed_text(query)
-            qdrant_docs = self.qdrant_service.search(
+            qdrant_results = self.qdrant_service.search(
                 query_vector=query_vector,
                 limit=k,
-                podcast_filter=None
+                episode_filter=episode_filter
             )
-            if episode_filter:
-                qdrant_docs = [d for d in qdrant_docs if d.get("episode_title") == episode_filter]
-            qdrant_results = qdrant_docs[:k]
         except Exception as e:
             print(f"⚠️  Qdrant search failed: {e}")
         
-        # Merge
-        return self._merge_results(bm25_results, qdrant_results, bm25_weight, qdrant_weight, k)
+        # Merge using Reciprocal Rank Fusion (RRF)
+        return self._merge_results_rrf(bm25_results, qdrant_results, k)
     
-    def _merge_results(self, bm25_results, qdrant_results, bm25_weight, qdrant_weight, k):
+    def _merge_results_rrf(self, bm25_results, qdrant_results, k, rrf_k=60):
+        """
+        Merge results using Reciprocal Rank Fusion (RRF).
+        Formula: score = sum(1 / (rrf_k + rank))
+        """
         doc_scores = {}
         
-        # Rank-based scoring for BM25
-        for rank, doc in enumerate(bm25_results):
-            text = doc.page_content
-            score = (k - rank) / k if rank < k else 0.0
-            weighted_score = score * bm25_weight
-            
-            doc_scores[text] = {
-                "text": text,
-                "episode_title": doc.metadata.get("episode_title", "Unknown"),
-                "podcast_name": doc.metadata.get("podcast_name", "Unknown"),
-                "score": weighted_score,
-                "sources": ["bm25"],
-                **{k: v for k, v in doc.metadata.items() if k not in ["episode_title", "podcast_name"]}
-            }
-        
-        # Relevance-based scoring for Qdrant
-        for doc in qdrant_results:
-            text = doc["text"]
-            base_score = doc.get("relevance_score", 0.0)
-            weighted_score = base_score * qdrant_weight
-            
-            if text in doc_scores:
-                doc_scores[text]["score"] += weighted_score
-                doc_scores[text]["sources"].append("qdrant")
-            else:
+        # Helper to get or create doc entry
+        def get_doc_entry(text, metadata, source):
+            if text not in doc_scores:
                 doc_scores[text] = {
                     "text": text,
-                    "score": weighted_score,
-                    "sources": ["qdrant"],
-                    **{k: v for k, v in doc.items() if k not in ["text", "relevance_score", "score"]}
+                    "score": 0.0,
+                    "sources": [],
+                    **metadata
                 }
+            if source not in doc_scores[text]["sources"]:
+                doc_scores[text]["sources"].append(source)
+            return doc_scores[text]
+
+        # BM25 Ranks
+        for rank, doc in enumerate(bm25_results):
+            text = doc.page_content
+            metadata = {
+                "episode_title": doc.metadata.get("episode_title", "Unknown"),
+                "podcast_name": doc.metadata.get("podcast_name", "Unknown"),
+                "speaker": doc.metadata.get("speaker", "UNKNOWN"),
+                "timestamp": doc.metadata.get("timestamp", "00:00:00"),
+                "chunk_index": doc.metadata.get("chunk_index", 0),
+                "source_file": doc.metadata.get("source_file", "")
+            }
+            entry = get_doc_entry(text, metadata, "bm25")
+            entry["score"] += 1.0 / (rrf_k + rank + 1)
         
+        # Qdrant Ranks
+        for rank, doc in enumerate(qdrant_results):
+            text = doc["text"]
+            metadata = {
+                "episode_title": doc.get("episode_title", "Unknown"),
+                "podcast_name": doc.get("podcast_name", "Unknown"),
+                "speaker": doc.get("speaker", "UNKNOWN"),
+                "timestamp": doc.get("timestamp", "00:00:00"),
+                "chunk_index": doc.get("chunk_index", 0),
+                "source_file": doc.get("source_file", "")
+            }
+            entry = get_doc_entry(text, metadata, "qdrant")
+            entry["score"] += 1.0 / (rrf_k + rank + 1)
+        
+        # Sort by RRF score
         sorted_results = sorted(doc_scores.values(), key=lambda x: x["score"], reverse=True)
         return sorted_results[:k]
+
     
     def save_bm25_index(self):
         """Save BM25 index to disk atomically using temporary file."""

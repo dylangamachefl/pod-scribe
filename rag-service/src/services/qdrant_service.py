@@ -105,30 +105,51 @@ class QdrantService:
         self,
         query_vector: List[float],
         limit: int = TOP_K_RESULTS,
-        podcast_filter: Optional[str] = None
+        podcast_filter: Optional[str] = None,
+        episode_filter: Optional[str] = None,
+        episode_id_filter: Optional[str] = None
     ) -> List[Dict]:
         """
-        Search for similar chunks using vector similarity.
+        Search for similar chunks using vector similarity with optional filters.
         
         Args:
             query_vector: Query embedding vector
             limit: Maximum number of results
             podcast_filter: Optional filter by podcast name
+            episode_filter: Optional filter by episode title
+            episode_id_filter: Optional filter by episode ID
             
         Returns:
             List of matching chunks with metadata and scores
         """
-        # Build filter if podcast specified
-        search_filter = None
+        # Build filter conditions
+        must_conditions = []
+        
         if podcast_filter:
-            search_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="podcast_name",
-                        match=MatchValue(value=podcast_filter)
-                    )
-                ]
+            must_conditions.append(
+                FieldCondition(
+                    key="podcast_name",
+                    match=MatchValue(value=podcast_filter)
+                )
             )
+            
+        if episode_filter:
+            must_conditions.append(
+                FieldCondition(
+                    key="episode_title",
+                    match=MatchValue(value=episode_filter)
+                )
+            )
+            
+        if episode_id_filter:
+            must_conditions.append(
+                FieldCondition(
+                    key="episode_id",
+                    match=MatchValue(value=episode_id_filter)
+                )
+            )
+        
+        search_filter = Filter(must=must_conditions) if must_conditions else None
         
         results = self.client.query_points(
             collection_name=self.collection_name,

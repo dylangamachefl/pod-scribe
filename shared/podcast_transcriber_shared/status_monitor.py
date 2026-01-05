@@ -135,9 +135,11 @@ class PipelineStatusManager:
             episodes_map[eid]['services'][entry['service']] = entry
 
         # Cleanup: if an episode ID has no status in any service, it's stale
-        for eid in active_episode_ids:
-            if eid not in episodes_map and eid != "current":
-                self.redis.srem(self.ACTIVE_EPISODES_KEY, eid)
+        # BUT we shouldn't do this here because it causes a race condition
+        # between batch initialization and the first worker status report.
+        # for eid in active_episode_ids:
+        #     if eid not in episodes_map and eid != "current":
+        #         self.redis.srem(self.ACTIVE_EPISODES_KEY, eid)
 
         # Re-evaluating is_running:
         # 1. At least one episode is actively being processed in a service
@@ -148,7 +150,11 @@ class PipelineStatusManager:
         transcription_status = json.loads(transcription_status_raw) if transcription_status_raw else {}
         service_is_running = transcription_status.get('is_running', False)
         
-        is_running = service_is_running or len(episodes_map) > 0
+        # is_running if: 
+        # 1. Any service reports as running
+        # 2. Any episode is actively mapped
+        # 3. We have active episode IDs (means something is queued)
+        is_running = service_is_running or len(episodes_map) > 0 or len(active_episode_ids) > 0
         
         # Cleanup: if all stages finished and no service is running, clear active episodes
         if not is_running and active_episode_ids:

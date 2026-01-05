@@ -258,7 +258,15 @@ async def process_episode_async(
         return False, guid
 
     # Save transcript to database (Async directly)
-    print(f"💾 Saved transcript to database: {episode_title}")
+    print(f"💾 Saving transcript to database for episode: {guid}")
+    await db_save_transcript(
+        episode_id=guid,
+        transcript_text=transcript_text,
+        metadata={
+            "diarization_failed": diarization_failed
+        }
+    )
+    print(f"✅ Saved transcript to database: {episode_title}")
     update_progress("saving", 1.0, episode_id=guid)
     update_progress("saving", 1.0, episode_id="current")
     

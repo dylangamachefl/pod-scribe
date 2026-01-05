@@ -20,6 +20,36 @@ class OllamaChatClient:
         print(f"✅ Ollama Chat Client configured with model: {self.model_name}")
         print(f"   API URL: {self.api_url}")
     
+    def _build_prompt(self, question: str, retrieved_chunks: List[Dict], conversation_history: Optional[List[Dict]] = None) -> str:
+        """Build the prompt for Ollama."""
+        # Build conversation context if provided
+        history_text = ""
+        if conversation_history:
+            history_text = "\n".join([
+                f"{msg['role']}: {msg['content']}"
+                for msg in conversation_history[-5:]  # Last 5 messages
+            ])
+        
+        # Format retrieved chunks
+        context_text = ""
+        for i, chunk in enumerate(retrieved_chunks):
+            context_text += f"\n[Source {i+1}] {chunk['podcast_name']} - {chunk['episode_title']}\n"
+            context_text += f"Speaker: {chunk['speaker']} | Timestamp: {chunk['timestamp']}\n"
+            context_text += f"{chunk['text']}\n"
+        
+        # Build prompt with optional conversation history
+        if history_text:
+            history_section = f"CONVERSATION HISTORY:\n{history_text}\n\n"
+        else:
+            history_section = ""
+        
+        return f"""You are a helpful AI assistant answering questions about podcast content.
+{history_section}RETRIEVED RELEVANT EXCERPTS:
+{context_text}
+USER QUESTION: {question}
+Please provide a comprehensive answer based on the excerpts above. Reference specific sources, speakers, and episodes when relevant. If the excerpts don't fully answer the question, acknowledge this clearly.
+"""
+
     def answer_with_retrieved_chunks(
         self,
         question: str,
@@ -45,33 +75,7 @@ class OllamaChatClient:
                 "model": self.model_name
             }
         
-        # Build conversation context if provided
-        history_text = ""
-        if conversation_history:
-            history_text = "\n".join([
-                f"{msg['role']}: {msg['content']}"
-                for msg in conversation_history[-5:]  # Last 5 messages
-            ])
-        
-        # Format retrieved chunks
-        context_text = ""
-        for i, chunk in enumerate(retrieved_chunks):
-            context_text += f"\n[Source {i+1}] {chunk['podcast_name']} - {chunk['episode_title']}\n"
-            context_text += f"Speaker: {chunk['speaker']} | Timestamp: {chunk['timestamp']}\n"
-            context_text += f"{chunk['text']}\n"
-        
-# Build prompt with optional conversation history
-        if history_text:
-            history_section = f"CONVERSATION HISTORY:\\n{history_text}\\n\\n"
-        else:
-            history_section = ""
-        
-        prompt = f"""You are a helpful AI assistant answering questions about podcast content.
-{history_section}RETRIEVED RELEVANT EXCERPTS:
-{context_text}
-USER QUESTION: {question}
-Please provide a comprehensive answer based on the excerpts above. Reference specific sources, speakers, and episodes when relevant. If the excerpts don't fully answer the question, acknowledge this clearly.
-"""
+        prompt = self._build_prompt(question, retrieved_chunks, conversation_history)
         
         try:
             start_time = time.time()
@@ -115,6 +119,46 @@ Please provide a comprehensive answer based on the excerpts above. Reference spe
                 "model": self.model_name
             }
 
+    def generate_answer_stream(
+        self,
+        question: str,
+        retrieved_chunks: List[Dict],
+        conversation_history: Optional[List[Dict]] = None
+    ):
+        """
+        Yield answer chunks from Ollama as they are generated.
+        """
+        if not retrieved_chunks:
+            yield json.dumps({"answer": "I couldn't find any relevant information to answer your question."})
+            return
+            
+        prompt = self._build_prompt(question, retrieved_chunks, conversation_history)
+        
+        try:
+            response = requests.post(
+                f"{self.api_url}/api/generate",
+                json={
+                    "model": self.model_name,
+                    "prompt": prompt,
+                    "stream": True
+                },
+                stream=True,
+                timeout=120
+            )
+            response.raise_for_status()
+            
+            for line in response.iter_lines():
+                if line:
+                    chunk = json.loads(line)
+                    if not chunk.get("done", False):
+                        yield chunk.get("response", "")
+                    else:
+                        # Signal completion with potential final stats if needed
+                        pass
+        
+        except Exception as e:
+            print(f"❌ Ollama streaming error: {e}")
+            yield f"Error: {str(e)}"
 
 
 # Singleton instance

@@ -3,7 +3,9 @@ Chat Router
 Handles episode-scoped Q&A using hybrid search (BM25 + FAISS).
 """
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 import time
+import json
 
 from models import ChatRequest, ChatResponse, SourceCitation
 from services.ollama_client import get_ollama_chat_client
@@ -12,6 +14,86 @@ from services.qdrant_service import get_qdrant_service
 from services.hybrid_retriever import get_hybrid_retriever_service
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
+@router.post("/stream")
+async def ask_question_stream(request: ChatRequest):
+    """
+    Answer a question and stream the response chunk-by-chunk.
+    """
+    try:
+        # 1. Setup services (match ask_question logic)
+        embeddings_service = get_embedding_service()
+        qdrant_service = get_qdrant_service()
+        
+        try:
+            hybrid_service = get_hybrid_retriever_service()
+        except ValueError:
+            # Initialize if not already done
+            hybrid_service = get_hybrid_retriever_service(
+                embeddings_service=embeddings_service,
+                qdrant_service=qdrant_service
+            )
+            if not hybrid_service._loaded_from_disk:
+                hybrid_service.build_bm25_index()
+        
+        if hybrid_service.bm25_retriever is None:
+            hybrid_service.build_bm25_index()
+        
+        # 2. Retrieval
+        retrieved_chunks = hybrid_service.search(
+            query=request.question,
+            k=5,
+            episode_filter=request.episode_title
+        )
+        
+        if not retrieved_chunks:
+            # For streaming, we can either return 404 immediately or stream a "not found" message
+            # The frontend usually expects a response once it connects, so let's raise 404
+            raise HTTPException(
+                status_code=404, 
+                detail=f"No content found for episode: {request.episode_title}"
+            )
+
+        # 3. Extract sources
+        sources = [
+            {
+                "speaker": c["speaker"], 
+                "timestamp": c["timestamp"], 
+                "episode": c["episode_title"]
+            } 
+            for c in retrieved_chunks
+        ]
+        
+        # 4. Stream Generator
+        def stream_generator():
+            try:
+                chat_client = get_ollama_chat_client()
+                
+                # Send sources first as metadata
+                yield f"METADATA:{json.dumps({'sources': sources})}\n"
+                
+                # Send answer chunks
+                for chunk in chat_client.generate_answer_stream(
+                    question=request.question,
+                    retrieved_chunks=retrieved_chunks,
+                    conversation_history=request.conversation_history
+                ):
+                    yield chunk
+            except Exception as e:
+                print(f"❌ Error in stream generator: {e}")
+                yield f"\n[Error: {str(e)}]"
+
+        return StreamingResponse(stream_generator(), media_type="text/plain")
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (like our 404)
+        raise
+    except Exception as e:
+        print(f"❌ Streaming setup error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("", response_model=ChatResponse)
@@ -85,15 +167,15 @@ async def ask_question(request: ChatRequest):
             print("📊 BM25 index not available, building from Qdrant...")
             hybrid_service.build_bm25_index()
         
-        # Perform hybrid search scoped to the episode
+        # Perform hybrid search (episode-scoped or global)
         print(f"🔍 Searching for relevant chunks...")
         try:
             retrieved_chunks = hybrid_service.search(
                 query=request.question,
                 k=5,
                 bm25_weight=request.bm25_weight,
-                qdrant_weight=request.faiss_weight,  # Still using faiss_weight name in request model for backward compat
-                episode_filter=request.episode_title  # Always filter by episode
+                qdrant_weight=request.faiss_weight,
+                episode_filter=request.episode_title  # May be None for global search
             )
             print(f"✅ Found {len(retrieved_chunks)} relevant chunks")
         except Exception as e:
@@ -104,10 +186,11 @@ async def ask_question(request: ChatRequest):
             )
         
         if not retrieved_chunks:
-            print(f"⚠️  No content found for episode: {request.episode_title}")
+            search_scope = f"episode: {request.episode_title}" if request.episode_title else "global library"
+            print(f"⚠️  No content found for {search_scope}")
             raise HTTPException(
                 status_code=404,
-                detail=f"No content found for episode: {request.episode_title}. The episode may not have been ingested yet."
+                detail=f"No relevant content found in {search_scope}."
             )
         
         # Use Ollama chat client with retrieved chunks

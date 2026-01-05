@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, Calendar, Heart, Download, FileText, PlayCircle } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar, Heart, Download, FileText, PlayCircle, MessageSquare } from 'lucide-react';
 import { summarizationApi, transcriptionApi } from '../api';
 import { Summary } from '../api/types';
 import './EpisodeExecBrief.css';
@@ -120,6 +120,21 @@ export default function EpisodeExecBrief() {
                 </div>
                 <div className="hero-actions">
                     <button className="action-btn primary"><PlayCircle size={20} /> Play Episode</button>
+                    <button
+                        className="action-btn secondary"
+                        onClick={() => {
+                            // Trigger the global chat drawer with this episode's context
+                            // We need a way to communicate with the App-level drawer
+                            // For simplicity in this session, I'll add the button but 
+                            // we might need a context provider for full functionality
+                            (window as any).toggleGlobalChat?.({
+                                type: 'episode',
+                                title: summary.episode_title
+                            });
+                        }}
+                    >
+                        <MessageSquare size={20} /> Ask AI
+                    </button>
                     <button
                         className={`action-btn icon-only ${isFavorite ? 'favorite-active' : ''}`}
                         onClick={toggleFavorite}

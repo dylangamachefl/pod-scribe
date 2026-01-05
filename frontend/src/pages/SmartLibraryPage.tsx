@@ -3,7 +3,6 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { summarizationApi } from '../api';
 import { Summary } from '../api/types';
 import { SmartCard } from '../components/SmartCard';
-import { ChatDrawer } from '../components/ChatDrawer';
 import { Search, Filter, Radio, X } from 'lucide-react';
 import './SmartLibraryPage.css';
 
@@ -17,10 +16,6 @@ export default function SmartLibraryPage() {
     const [summaries, setSummaries] = useState<Summary[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-
-    // Chat & Detail States
-    const [chatContext, setChatContext] = useState<{ type: 'episode', title: string } | null>(null);
-    const [isChatOpen, setIsChatOpen] = useState(false);
 
     useEffect(() => {
         const loadSummaries = async () => {
@@ -38,8 +33,10 @@ export default function SmartLibraryPage() {
     }, []);
 
     const handleChat = (summary: Summary) => {
-        setChatContext({ type: 'episode', title: summary.episode_title });
-        setIsChatOpen(true);
+        (window as any).toggleGlobalChat?.({
+            type: 'episode',
+            title: summary.episode_title
+        });
     };
 
     const handleOpenDetail = (summary: Summary) => {
@@ -138,14 +135,6 @@ export default function SmartLibraryPage() {
                 </div>
             )}
 
-            {/* Local Chat Context for specific episode */}
-            {isChatOpen && chatContext && (
-                <ChatDrawer
-                    isOpen={isChatOpen}
-                    onClose={() => setIsChatOpen(false)}
-                    initialContext={chatContext}
-                />
-            )}
         </div>
     );
 }

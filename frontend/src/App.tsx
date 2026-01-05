@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { ChatDrawer } from './components/ChatDrawer';
@@ -11,6 +11,17 @@ import './App.css';
 
 function App() {
     const [isChatOpen, setIsChatOpen] = useState(false);
+    const [chatContext, setChatContext] = useState<any>(null);
+
+    // Expose toggle to window for simple cross-component triggering
+    useEffect(() => {
+        (window as any).toggleGlobalChat = (context?: any) => {
+            if (context) setChatContext(context);
+            else setChatContext(null);
+            setIsChatOpen(true);
+        };
+        return () => { delete (window as any).toggleGlobalChat; };
+    }, []);
 
     return (
         <div className="app-container">
@@ -44,6 +55,7 @@ function App() {
             <ChatDrawer
                 isOpen={isChatOpen}
                 onClose={() => setIsChatOpen(false)}
+                initialContext={chatContext}
             />
         </div>
     );

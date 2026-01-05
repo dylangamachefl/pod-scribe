@@ -31,12 +31,12 @@ function DashboardPage() {
     useEffect(() => {
         loadData();
 
-        // Auto-refresh if transcription is running
+        // Always poll, but frequency depends on if transcription is running
+        const getInterval = () => (status?.is_running ? 2000 : 10000);
+
         const interval = setInterval(() => {
-            if (status?.is_running) {
-                loadData();
-            }
-        }, 2000); // Refresh every 2 seconds when running
+            loadData();
+        }, getInterval());
 
         return () => clearInterval(interval);
     }, [status?.is_running]);
