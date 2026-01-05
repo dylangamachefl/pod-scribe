@@ -48,6 +48,11 @@ class IngestRequest(BaseModel):
     file_path: str = Field(..., description="Path to transcript file")
 
 
+class IngestDBRequest(BaseModel):
+    """Request schema for ingestion from database."""
+    episode_id: str = Field(..., description="Episode ID in database")
+
+
 class IngestResponse(BaseModel):
     """Response schema for ingestion endpoint."""
     status: str

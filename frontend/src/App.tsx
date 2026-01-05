@@ -32,7 +32,13 @@ function App() {
                     <div className="header-search">
                         {/* Global Search could go here */}
                     </div>
-                    <button className="chat-trigger-btn" onClick={() => setIsChatOpen(true)}>
+                    <button
+                        className="chat-trigger-btn"
+                        onClick={() => {
+                            setChatContext(null); // Reset to global context
+                            setIsChatOpen(true);
+                        }}
+                    >
                         <span>Ask AI Assistant</span>
                         <span className="kbd-shortcut">⌘K</span>
                     </button>
