@@ -20,6 +20,7 @@ from config import (
     STAGE2_BASE_DELAY
 )
 from structured_models_v2 import RawSummary, StructuredSummaryV2
+from podcast_transcriber_shared.gpu_lock import get_gpu_lock
 
 
 class OllamaClient:
@@ -111,7 +112,8 @@ class OllamaSummarizationService:
         for attempt in range(self.stage1_max_retries):
             try:
                 start_time = time.time()
-                response = await self.stage1_model.generate_content(prompt)
+                async with get_gpu_lock().acquire():
+                    response = await self.stage1_model.generate_content(prompt)
                 print(f"✅ Stage 1 complete ({(time.time() - start_time)*1000:.0f}ms)")
                 return RawSummary(content=response.text)
                 
@@ -139,12 +141,13 @@ class OllamaSummarizationService:
         for attempt in range(self.stage2_max_retries):
             try:
                 start_time = time.time()
-                structured_data_list = await self.stage2_client.chat.completions.create(
-                    model=self.stage2_model_name,
-                    response_model=List[StructuredSummaryV2],
-                    messages=[{"role": "user", "content": prompt}],
-                    max_retries=2
-                )
+                async with get_gpu_lock().acquire():
+                    structured_data_list = await self.stage2_client.chat.completions.create(
+                        model=self.stage2_model_name,
+                        response_model=List[StructuredSummaryV2],
+                        messages=[{"role": "user", "content": prompt}],
+                        max_retries=2
+                    )
                 
                 if not structured_data_list:
                     raise ValueError("Stage 2: Empty results")
