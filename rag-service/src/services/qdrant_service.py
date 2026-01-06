@@ -1,44 +1,51 @@
 """
-Qdrant Vector Database Client
-Handles all interactions with the Qdrant vector database.
+Qdrant Vector Database Client (Async)
+Handles all interactions with the Qdrant vector database using async client.
 """
 from typing import List, Dict, Optional
-from qdrant_client import QdrantClient
+from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
     Distance,
     VectorParams,
     PointStruct,
     Filter,
     FieldCondition,
-    MatchValue,
-    SearchRequest
+    MatchValue
 )
 from datetime import datetime
 import uuid
 
 from config import QDRANT_URL, QDRANT_COLLECTION_NAME, EMBEDDING_DIMENSION, TOP_K_RESULTS
+from podcast_transcriber_shared.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class QdrantService:
-    """Service for vector database operations."""
+    """Service for vector database operations with async support."""
     
     def __init__(self):
-        """Initialize Qdrant client and ensure collection exists."""
-        print(f"Connecting to Qdrant at {QDRANT_URL}")
-        self.client = QdrantClient(url=QDRANT_URL)
+        """Initialize async Qdrant client."""
+        logger.info("connecting_to_qdrant", url=QDRANT_URL, collection=QDRANT_COLLECTION_NAME)
+        self.client = AsyncQdrantClient(url=QDRANT_URL)
         self.collection_name = QDRANT_COLLECTION_NAME
-        
-        self._ensure_collection_exists()
-        print(f"✅ Qdrant connected: collection '{self.collection_name}'")
+        self._initialized = False
     
-    def _ensure_collection_exists(self):
+    async def initialize(self):
+        """Ensure collection exists. Call this before using the service."""
+        if not self._initialized:
+            await self._ensure_collection_exists()
+            self._initialized = True
+            logger.info("qdrant_initialized", collection=self.collection_name)
+    
+    async def _ensure_collection_exists(self):
         """Create collection if it doesn't exist."""
-        collections = self.client.get_collections().collections
-        collection_names = [col.name for col in collections]
+        collections = await self.client.get_collections()
+        collection_names = [col.name for col in collections.collections]
         
         if self.collection_name not in collection_names:
-            print(f"Creating collection: {self.collection_name}")
-            self.client.create_collection(
+            logger.info("creating_qdrant_collection", collection=self.collection_name)
+            await self.client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config=VectorParams(
                     size=EMBEDDING_DIMENSION,
@@ -46,7 +53,7 @@ class QdrantService:
                 )
             )
     
-    def insert_chunks(
+    async def insert_chunks(
         self,
         chunks: List[Dict],
         embeddings: List[List[float]],
@@ -63,6 +70,8 @@ class QdrantService:
         Returns:
             Number of chunks inserted
         """
+        await self.initialize()
+        
         points = []
         
         for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
@@ -94,14 +103,14 @@ class QdrantService:
             )
         
         # Batch insert
-        self.client.upsert(
+        await self.client.upsert(
             collection_name=self.collection_name,
             points=points
         )
         
         return len(points)
     
-    def search(
+    async def search(
         self,
         query_vector: List[float],
         limit: int = TOP_K_RESULTS,
@@ -122,6 +131,8 @@ class QdrantService:
         Returns:
             List of matching chunks with metadata and scores
         """
+        await self.initialize()
+        
         # Build filter conditions
         must_conditions = []
         
@@ -151,16 +162,16 @@ class QdrantService:
         
         search_filter = Filter(must=must_conditions) if must_conditions else None
         
-        results = self.client.query_points(
+        results = await self.client.query_points(
             collection_name=self.collection_name,
             query=query_vector,
             limit=limit,
             query_filter=search_filter
-        ).points
+        )
         
         # Format results
         formatted_results = []
-        for result in results:
+        for result in results.points:
             formatted_results.append({
                 "text": result.payload["text"],
                 "episode_title": result.payload["episode_title"],
@@ -173,18 +184,22 @@ class QdrantService:
         
         return formatted_results
     
-    def get_collection_stats(self) -> Dict:
+    async def get_collection_stats(self) -> Dict:
         """Get statistics about the collection."""
-        collection_info = self.client.get_collection(self.collection_name)
+        await self.initialize()
+        
+        collection_info = await self.client.get_collection(self.collection_name)
         return {
             "total_points": collection_info.points_count,
             "collection_name": self.collection_name,
             "vector_dimension": EMBEDDING_DIMENSION
         }
     
-    def delete_episode(self, episode_title: str):
+    async def delete_episode(self, episode_title: str):
         """Delete all chunks for a specific episode."""
-        self.client.delete(
+        await self.initialize()
+        
+        await self.client.delete(
             collection_name=self.collection_name,
             points_selector=Filter(
                 must=[
@@ -195,6 +210,20 @@ class QdrantService:
                 ]
             )
         )
+    
+    async def scroll(self, scroll_filter: Filter, limit: int = 1):
+        """
+        Scroll through points with a filter.
+        Used for idempotency checks.
+        """
+        await self.initialize()
+        
+        results = await self.client.scroll(
+            collection_name=self.collection_name,
+            scroll_filter=scroll_filter,
+            limit=limit
+        )
+        return results
 
 
 # Singleton instance

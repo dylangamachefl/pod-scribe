@@ -7,6 +7,7 @@ from pathlib import Path
 
 from podcast_transcriber_shared.events import get_event_bus, EpisodeSummarized
 from podcast_transcriber_shared.status_monitor import get_pipeline_status_manager
+from podcast_transcriber_shared.logging_config import configure_logging, get_logger, bind_correlation_id
 from services.embeddings import get_embedding_service
 from services.qdrant_service import get_qdrant_service
 from services.hybrid_retriever import get_hybrid_retriever_service
@@ -17,16 +18,19 @@ from utils.chunking import (
 )
 from langchain_core.documents import Document
 from qdrant_client.models import Filter, FieldCondition, MatchValue
+# Removed: from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+# Configure structured logging
+configure_logging("rag-service")
+logger = get_logger(__name__)
 
 
-def _episode_already_ingested(episode_id: str, qdrant_service) -> bool:
-    """
-    Check if episode has already been ingested into Qdrant.
-    """
+async def _episode_already_ingested(episode_id: str, qdrant_service) -> bool:
+    """Check if episode already exists in Qdrant (async)."""
+    from qdrant_client.models import Filter, FieldCondition, MatchValue
     try:
         # Query Qdrant for any chunks with this episode_id
-        results, _ = qdrant_service.client.scroll(
-            collection_name=qdrant_service.collection_name,
+        results, _ = await qdrant_service.scroll(
             scroll_filter=Filter(
                 must=[
                     FieldCondition(
@@ -39,7 +43,7 @@ def _episode_already_ingested(episode_id: str, qdrant_service) -> bool:
         )
         return len(results) > 0
     except Exception as e:
-        print(f"⚠️  Warning: Could not check for duplicates: {e}")
+        logger.warning("idempotency_check_failed", episode_id=episode_id, error=str(e))
         # Fail-open: proceed with ingestion if check fails
         return False
 
@@ -53,11 +57,13 @@ async def process_summary_event(event_data: dict) -> bool:
         # Parse event
         event = EpisodeSummarized(**event_data)
         
-        print(f"\n{'='*60}")
-        print(f"📥 Received EpisodeSummarized event")
-        print(f"   Event ID: {event.event_id}")
-        print(f"   Episode: {event.episode_title}")
-        print(f"{'='*60}")
+        # Bind correlation ID for tracking
+        bind_correlation_id(event.event_id)
+        logger.info("episode_summarized_event_received", 
+                   event_id=event.event_id, 
+                   episode_id=event.episode_id,
+                   episode_title=event.episode_title,
+                   podcast_name=event.podcast_name)
         
         # Report status (Async)
         manager = get_pipeline_status_manager()
@@ -66,16 +72,20 @@ async def process_summary_event(event_data: dict) -> bool:
             "podcast_name": event.podcast_name
         })
         
-        # === IDEMPOTENCY CHECK ===
-        qdrant_service = get_qdrant_service()
+        # === ATOMIC IDEMPOTENCY CHECK ===
+        from podcast_transcriber_shared.idempotency import get_idempotency_manager
         
-        loop = asyncio.get_running_loop()
-        already_ingested = await loop.run_in_executor(
-            None, _episode_already_ingested, event.episode_id, qdrant_service
-        )
+        idempotency_manager = get_idempotency_manager()
+        idempotency_key = idempotency_manager.make_key("rag", "transcribed", event.episode_id)
         
-        if already_ingested:
-            print(f"⏭️  Episode already ingested, skipping: {event.episode_title}")
+        # Atomic check-and-set: returns True if this is the first time processing
+        is_first_time = await idempotency_manager.check_and_set(idempotency_key, ttl=86400)
+        
+        if not is_first_time:
+            logger.info("episode_already_processed_skipping", 
+                       episode_id=event.episode_id, 
+                       title=event.episode_title,
+                       idempotency_key=idempotency_key)
             return True
         
         # Fetch transcript and summary from database (Async)
@@ -85,7 +95,7 @@ async def process_summary_event(event_data: dict) -> bool:
         summary_record = await get_summary_by_episode_id(event.episode_id)
         
         if not episode or not episode.transcript_text:
-            print(f"❌ No transcript text for episode: {event.episode_id}")
+            logger.error("no_transcript_text_for_episode", episode_id=event.episode_id)
             return True  # Acknowledge to remove invalid event
         
         summary_content = summary_record.content if summary_record else {}
@@ -105,7 +115,7 @@ async def process_summary_event(event_data: dict) -> bool:
         # Chunking
         transcript_lines = get_transcript_body(content)
         chunks = chunk_by_speaker_turns(transcript_lines)
-        print(f"📄 Extracted {len(chunks)} chunks")
+        logger.info("transcript_chunked", episode_id=event.episode_id, chunk_count=len(chunks))
         
         # Generate embeddings (Async)
         embedding_service = get_embedding_service()
@@ -113,12 +123,10 @@ async def process_summary_event(event_data: dict) -> bool:
         
         embeddings = await embedding_service.embed_batch(chunk_texts)
         
-        # Store in Qdrant (blocking)
+        # Store in Qdrant (async)
         manager.update_service_status('rag', event.episode_id, "indexing", progress=0.7, log_message="Uploading embeddings to vector store...")
-        num_inserted = await loop.run_in_executor(
-            None, qdrant_service.insert_chunks, chunks, embeddings, metadata
-        )
-        print(f"✅ Inserted {num_inserted} chunks into Qdrant")
+        num_inserted = await qdrant_service.insert_chunks(chunks, embeddings, metadata)
+        logger.info("chunks_inserted_to_qdrant", episode_id=event.episode_id, chunk_count=num_inserted)
         
         # Update BM25 index (blocking)
         try:
@@ -142,33 +150,27 @@ async def process_summary_event(event_data: dict) -> bool:
                 )
                 new_documents.append(doc)
             
-            await loop.run_in_executor(
-                None, hybrid_service.add_documents, new_documents
-            )
-            print(f"✅ Updated BM25 index")
+            hybrid_service.add_documents(new_documents)
+            logger.info("bm25_index_updated", episode_id=event.episode_id, document_count=len(new_documents))
             
         except Exception as e:
-            print(f"⚠️  Failed to update BM25 index: {e}")
+            logger.warning("bm25_index_update_failed", episode_id=event.episode_id, error=str(e))
         
         # Clear individual status and increment completed count
         manager.clear_service_status('rag', event.episode_id)
         manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}rag:completed") if manager.redis else None
         
-        print(f"✅ Processing complete: {event.episode_title}\n")
+        logger.info("rag_processing_complete", episode_id=event.episode_id, title=event.episode_title)
         return True
         
     except Exception as e:
-        print(f"❌ Error processing event: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error("rag_event_processing_error", episode_id=event.episode_id, error=str(e), exc_info=True)
         return False
 
 
 async def start_rag_event_subscriber():
     """Start the RAG event subscriber (Async)."""
-    print("\n" + "="*60)
-    print("🚀 Starting RAG Event Subscriber (Streams)")
-    print("="*60)
+    logger.info("rag_event_subscriber_starting", stream="STREAM_SUMMARIZED", group="rag_service_group")
     
     event_bus = get_event_bus()
     
@@ -183,7 +185,7 @@ async def start_rag_event_subscriber():
 
 if __name__ == "__main__":
     # Initialize services
-    print("📦 Initializing RAG services...")
+    logger.info("initializing_rag_services")
     get_embedding_service()
     get_qdrant_service()
     

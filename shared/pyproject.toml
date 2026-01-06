@@ -14,6 +14,8 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.0",  # Async SQLAlchemy
     "asyncpg>=0.29.0",             # Async Postgres driver
     "alembic>=1.13.0",             # Database migrations
+    "structlog>=23.0.0",           # Structured logging
+    "tenacity>=8.0.0",             # Retry logic
 ]
 
 [project.optional-dependencies]

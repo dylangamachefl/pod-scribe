@@ -34,8 +34,12 @@ from core.audio import TranscriptionWorker
 from podcast_transcriber_shared.database import create_episode, update_episode_status, EpisodeStatus, get_episode_by_id
 from podcast_transcriber_shared.events import get_event_bus, EventBus
 from podcast_transcriber_shared.gpu_lock import get_gpu_lock
+from podcast_transcriber_shared.logging_config import configure_logging, get_logger, bind_correlation_id
 from managers.status_monitor import write_status, clear_status
 
+# Configure structured logging
+configure_logging("transcription-worker")
+logger = get_logger(__name__)
 
 # Global flag for graceful shutdown
 shutdown_event = asyncio.Event()
@@ -49,10 +53,12 @@ async def process_job(job_data: dict) -> bool:
 
     episode_id = job_data.get('episode_id')
     if not episode_id:
-        print(f"⚠️  Job contains no episode_id, skipping")
+        logger.warning("job_missing_episode_id", job_data=job_data)
         return True # Skip invalid jobs (don't retry)
 
-    print(f"\n📋 Processing episode: {episode_id}")
+    # Bind correlation ID for tracking
+    bind_correlation_id(episode_id)
+    logger.info("processing_episode_started", episode_id=episode_id)
     write_status(
         is_running=True,
         episode_id=episode_id,
@@ -66,10 +72,10 @@ async def process_job(job_data: dict) -> bool:
         episode = await get_episode_by_id(episode_id, load_transcript=False)
 
         if not episode:
-            print(f"⚠️  Episode {episode_id} not found in database, skipping")
+            logger.warning("episode_not_found_in_database", episode_id=episode_id)
             return True # Skip missing episodes
 
-        print(f"✅ Retrieved episode from PostgreSQL: {episode.title}")
+        logger.info("episode_metadata_retrieved", episode_id=episode_id, title=episode.title, podcast=episode.podcast_name)
         write_status(
             is_running=True,
             episode_id=episode_id,
@@ -92,9 +98,9 @@ async def process_job(job_data: dict) -> bool:
         await update_episode_status(episode_id, EpisodeStatus.PROCESSING)
 
         # Acquire GPU Lock and Initialize Worker
-        print("🔒 Waiting for GPU lock...")
+        logger.info("waiting_for_gpu_lock", episode_id=episode_id)
         async with get_gpu_lock().acquire():
-            print("📦 Initializing Transcription Worker (Loading Models)...")
+            logger.info("gpu_lock_acquired_initializing_worker", episode_id=episode_id, model=config.whisper_model)
             worker = None
             try:
                 loop = asyncio.get_running_loop()
@@ -122,25 +128,23 @@ async def process_job(job_data: dict) -> bool:
                 import torch
                 gc.collect()
                 torch.cuda.empty_cache()
-                print("🧹 Worker unloaded and memory freed")
+                logger.info("worker_unloaded_memory_freed", episode_id=episode_id)
 
                 if success:
-                    print(f"✅ Episode completed successfully: {episode_id}")
+                    logger.info("episode_completed_successfully", episode_id=episode_id, title=episode.title)
                     return True
                 else:
                     await update_episode_status(episode_id, EpisodeStatus.FAILED)
-                    print(f"⚠️  Episode processing failed: {episode_id}")
+                    logger.error("episode_processing_failed", episode_id=episode_id)
                     return False
             except Exception as e:
-                print(f"❌ Worker error: {e}")
+                logger.error("worker_error", episode_id=episode_id, error=str(e), exc_info=True)
                 if worker:
                     del worker
                 return False
 
     except Exception as e:
-        print(f"❌ Error processing job: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error("job_processing_error", episode_id=episode_id, error=str(e), exc_info=True)
         await update_episode_status(episode_id, EpisodeStatus.FAILED)
         return False
     finally:
@@ -157,17 +161,7 @@ async def main():
     # Load configuration
     config = TranscriptionConfig.from_env()
     
-    # Setup signal handlers
-    # We can use EventBus signal handlers or ours. EventBus has them.
-    # But we want to control the outer loop.
-    # Actually EventBus.subscribe loops until _shutdown is True.
-    # We should use EventBus instance.
-
-    print("\n")
-    print("╔══════════════════════════════════════════════════════════════╗")
-    print("║          Podcast Transcription Worker Daemon v2.1           ║")
-    print("║          Redis Streams & Distributed Locking                 ║")
-    print("╚══════════════════════════════════════════════════════════════╝")
+    logger.info("worker_daemon_starting", version="v2.1", stream=EventBus.STREAM_TRANSCRIPTION_JOBS)
 
     event_bus = get_event_bus()
     event_bus.register_signal_handlers()
@@ -175,14 +169,14 @@ async def main():
     # Startup Cleanup
     download_dir = Path(config.temp_dir)
     if download_dir.exists():
-        print(f"🧹 Performing startup cleanup in {download_dir}...")
+        logger.info("startup_cleanup", directory=str(download_dir))
         for temp_file in download_dir.glob("*.mp3"):
             try:
                 temp_file.unlink()
             except:
                 pass
     
-    print(f"\n🔄 Worker started. Subscribing to {EventBus.STREAM_TRANSCRIPTION_JOBS}")
+    logger.info("worker_subscribed_to_stream", stream=EventBus.STREAM_TRANSCRIPTION_JOBS, group="transcription_workers")
     
     # Start subscribing
     # This will block until shutdown signal
@@ -193,7 +187,7 @@ async def main():
         callback=process_job
     )
     
-    print("\n🛑 Worker daemon shut down")
+    logger.info("worker_daemon_shutdown")
 
 
 if __name__ == "__main__":

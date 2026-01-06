@@ -1,9 +1,16 @@
+"""
+Service for generating embeddings from text using Ollama with async support and retry logic.
+"""
 import asyncio
 import httpx
 from typing import List, Optional
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from config import OLLAMA_API_URL, OLLAMA_EMBED_MODEL, EMBEDDING_DIMENSION
 from podcast_transcriber_shared.gpu_lock import get_gpu_lock
+from podcast_transcriber_shared.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class EmbeddingService:
@@ -17,10 +24,10 @@ class EmbeddingService:
         self.timeout = OLLAMA_TIMEOUT
         self._client = None
         
-        print(f"✅ Embedding service configured with Ollama (Async)")
-        print(f"   Model: {self.model_name}")
-        print(f"   Dimension: {EMBEDDING_DIMENSION}")
-        print(f"   Timeout: {self.timeout}s")
+        logger.info("embedding_service_initialized", 
+                   model=self.model_name, 
+                   dimension=EMBEDDING_DIMENSION,
+                   timeout=self.timeout)
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create the httpx AsyncClient."""
@@ -33,50 +40,68 @@ class EmbeddingService:
         embeddings = await self.embed_batch([text])
         return embeddings[0] if embeddings else []
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((httpx.HTTPError, httpx.ReadTimeout, httpx.ConnectError)),
+        reraise=True
+    )
+    async def _embed_batch_chunk(self, batch: List[str], batch_num: int) -> List[List[float]]:
+        """
+        Generate embeddings for a single batch chunk with automatic retry logic.
+        Uses tenacity for exponential backoff on failures.
+        """
+        client = await self._get_client()
+        
+        logger.info("requesting_embeddings", 
+                   batch_num=batch_num, 
+                   batch_size=len(batch))
+        
+        async with get_gpu_lock().acquire():
+            response = await client.post(
+                f"{self.api_url}/api/embed",
+                json={
+                    "model": self.model_name,
+                    "input": batch
+                }
+            )
+        
+        response.raise_for_status()
+        result = response.json()
+        embeddings = result.get("embeddings", [])
+        
+        logger.info("embeddings_generated", 
+                   batch_num=batch_num, 
+                   embedding_count=len(embeddings))
+        
+        return embeddings
+    
     async def embed_batch(self, texts: List[str], chunk_size: int = 16) -> List[List[float]]:
         """
         Generate embeddings for a batch of texts.
-        Splits very large batches into smaller chunks for Ollama stability.
-        Includes retry logic for robustness against timeouts.
+        Splits large batches into smaller chunks for Ollama stability.
+        Uses tenacity for automatic retry with exponential backoff.
         """
         if not texts:
             return []
-            
-        client = await self._get_client()
+        
         all_embeddings = []
         
         # Process in chunks to avoid overwhelming the Ollama worker
         for i in range(0, len(texts), chunk_size):
             batch = texts[i:i + chunk_size]
-            max_retries = 3
-            retry_count = 0
+            batch_num = i//chunk_size + 1
             
-            while retry_count <= max_retries:
-                try:
-                    print(f"   Requesting embeddings for batch {i//chunk_size + 1} ({len(batch)} texts, attempt {retry_count + 1})...")
-
-                    async with get_gpu_lock().acquire():
-                        response = await client.post(
-                            f"{self.api_url}/api/embed",
-                            json={
-                                "model": self.model_name,
-                                "input": batch
-                            }
-                        )
-
-                    response.raise_for_status()
-                    result = response.json()
-                    all_embeddings.extend(result.get("embeddings", []))
-                    break # Success, move to next batch
-                except (httpx.HTTPError, httpx.ReadTimeout) as e:
-                    retry_count += 1
-                    if retry_count > max_retries:
-                        print(f"❌ Ollama API error after {max_retries} retries: {e}")
-                        raise RuntimeError(f"Failed to generate batch embeddings after retries: {e}")
-                    
-                    wait_time = 2 ** retry_count
-                    print(f"⚠️  Timeout or error during embedding, retrying in {wait_time}s... ({e})")
-                    await asyncio.sleep(wait_time)
+            try:
+                embeddings = await self._embed_batch_chunk(batch, batch_num)
+                all_embeddings.extend(embeddings)
+            except Exception as e:
+                logger.error("embedding_batch_failed", 
+                           batch_num=batch_num,
+                           batch_size=len(batch),
+                           error=str(e),
+                           exc_info=True)
+                raise RuntimeError(f"Failed to generate embeddings for batch {batch_num} after retries: {e}")
         
         return all_embeddings
     

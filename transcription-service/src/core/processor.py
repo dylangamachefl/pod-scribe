@@ -25,7 +25,9 @@ async def publish_transcription_event(
     podcast_name: str,
     config: TranscriptionConfig,
     audio_url: Optional[str] = None,
-    diarization_failed: bool = False
+    diarization_failed: bool = False,
+    duration_seconds: Optional[float] = None,
+    speaker_count: Optional[int] = None
 ) -> bool:
     """
     Publish EpisodeTranscribed event to notify downstream services.
@@ -41,6 +43,8 @@ async def publish_transcription_event(
         config: Transcription configuration
         audio_url: Optional URL to the audio file
         diarization_failed: True if speaker diarization failed
+        duration_seconds: Duration of the audio in seconds
+        speaker_count: Number of unique speakers detected
         
     Returns:
         True if published successfully, False otherwise
@@ -49,14 +53,17 @@ async def publish_transcription_event(
         # Get event bus
         event_bus = get_event_bus()
         
-        # Create event (ID-only, no file paths)
+        # Create event with enriched fields
         event = EpisodeTranscribed(
             event_id=f"evt_{uuid.uuid4().hex[:12]}",
             service="transcription",
             episode_id=episode_id,
             episode_title=episode_title,
             podcast_name=podcast_name,
-            diarization_failed=diarization_failed
+            diarization_failed=diarization_failed,
+            audio_url=audio_url,
+            duration_seconds=duration_seconds,
+            speaker_count=speaker_count
         )
         
         # Publish to Stream
@@ -78,6 +85,61 @@ async def publish_transcription_event(
         return False
 
 
+def extract_duration_from_audio(audio_path: Path) -> Optional[float]:
+    """
+    Extract audio duration in seconds using ffprobe or fallback methods.
+    
+    Args:
+        audio_path: Path to audio file
+        
+    Returns:
+        Duration in seconds, or None if unable to determine
+    """
+    try:
+        import subprocess
+        # Try ffprobe first (most reliable)
+        result = subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
+             '-of', 'default=noprint_wrappers=1:nokey=1', str(audio_path)],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return float(result.stdout.strip())
+    except (subprocess.SubprocessError, ValueError, FileNotFoundError):
+        pass
+    
+    # Fallback: estimate from file size (very rough)
+    # Assume ~128kbps MP3 encoding: 1 second ≈ 16KB
+    try:
+        file_size_kb = audio_path.stat().st_size / 1024
+        estimated_duration = file_size_kb / 16  # Rough estimate
+        return estimated_duration
+    except:
+        return None
+
+
+def extract_speaker_count_from_transcript(transcript_text: str) -> Optional[int]:
+    """
+    Extract number of unique speakers from formatted transcript.
+    
+    Args:
+        transcript_text: Formatted transcript with speaker labels
+        
+    Returns:
+        Number of unique speakers, or None if unable to determine
+    """
+    try:
+        import re
+        # Match speaker labels like "SPEAKER_00:", "SPEAKER_01:", etc.
+        speaker_pattern = r'SPEAKER_\d+:'
+        speakers = set(re.findall(speaker_pattern, transcript_text))
+        return len(speakers) if speakers else None
+    except:
+        return None
+
+
 # Note: load_history and save_history DELETED in favor of database state
 
 
@@ -87,7 +149,7 @@ def transcribe_episode_task(
     temp_audio: Path,
     config: TranscriptionConfig,
     worker: TranscriptionWorker
-) -> Tuple[Optional[str], bool]:
+) -> Tuple[Optional[str], bool, Optional[float], Optional[int]]:
     """
     Blocking task for transcription and diarization.
     This function should be run in a thread executor.
@@ -100,7 +162,7 @@ def transcribe_episode_task(
         worker: Initialized TranscriptionWorker instance
 
     Returns:
-        (transcript_text, diarization_failed) or (None, False) on failure
+        (transcript_text, diarization_failed, duration_seconds, speaker_count) or (None, False, None, None) on failure
     """
     print(f"\n{'='*60}")
     print(f"📻 Processing: {episode_title}")
@@ -108,10 +170,13 @@ def transcribe_episode_task(
 
     if not temp_audio.exists():
         print(f"❌ Processing task failed: Audio file not found: {temp_audio}")
-        return None, False
+        return None, False, None, None
 
     update_progress("preparing", 0.0, log=f"Starting processing: {episode_title}", episode_id=episode_id)
     update_progress("preparing", 0.0, log=f"Starting processing: {episode_title}", episode_id="current")
+    
+    # Extract audio duration before processing
+    duration_seconds = extract_duration_from_audio(temp_audio)
 
     # Heavy transcription and diarization work starts here
 
@@ -122,7 +187,7 @@ def transcribe_episode_task(
         transcript_result = worker.process(temp_audio)
 
         if not transcript_result:
-            return None, False
+            return None, False, duration_seconds, None
 
         # Diarize
         update_progress("diarizing", 0.6, log="Running speaker diarization...", episode_id=episode_id)
@@ -144,12 +209,25 @@ def transcribe_episode_task(
         update_progress("saving", 0.9, log="Formatting and saving transcript...", episode_id=episode_id)
         update_progress("saving", 0.9, log="Formatting and saving transcript...", episode_id="current")
         transcript_text = format_transcript(diarized_result)
+        
+        # Extract speaker count from formatted transcript
+        speaker_count = extract_speaker_count_from_transcript(transcript_text)
 
         # Clean up temp file
         if temp_audio.exists():
             temp_audio.unlink()
 
-        return transcript_text, diarization_failed
+        return transcript_text, diarization_failed, duration_seconds, speaker_count
+
+    except Exception as e:
+        print(f"❌ Processing task failed: {e}")
+        # Clean up temp file on error
+        if temp_audio.exists():
+            try:
+                temp_audio.unlink()
+            except:
+                pass
+        return None, False, duration_seconds, None
 
     except Exception as e:
         print(f"❌ Processing task failed: {e}")
@@ -232,7 +310,7 @@ async def process_episode_async(
     loop = asyncio.get_running_loop()
     
     # Execute the blocking transcription task
-    transcript_text, diarization_failed = await loop.run_in_executor(
+    transcript_text, diarization_failed, duration_seconds, speaker_count = await loop.run_in_executor(
         None,
         lambda: transcribe_episode_task(guid, episode_title, temp_audio, config, worker)
     )
@@ -265,7 +343,9 @@ async def process_episode_async(
         podcast_name=feed_title,
         config=config,
         audio_url=audio_url,
-        diarization_failed=diarization_failed
+        diarization_failed=diarization_failed,
+        duration_seconds=duration_seconds,
+        speaker_count=speaker_count
     )
 
     return True, guid

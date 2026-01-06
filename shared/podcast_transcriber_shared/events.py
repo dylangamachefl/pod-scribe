@@ -33,6 +33,10 @@ class EpisodeTranscribed(BaseEvent):
     episode_title: str
     podcast_name: str
     diarization_failed: bool = False
+    # Enriched fields to reduce downstream database queries
+    audio_url: Optional[str] = None
+    duration_seconds: Optional[float] = None
+    speaker_count: Optional[int] = None
 
 
 class EpisodeSummarized(BaseEvent):
@@ -248,8 +252,8 @@ class EventBus:
 
     async def _move_to_dlq(self, stream: str, group_name: str, entry_id: str):
         """
-        Move a message to the Dead Letter Queue.
-        We need to fetch the data first since XPENDING only gives metadata.
+        Move a message to the Dead Letter Queue with monitoring and alerting.
+        Increments DLQ counters and logs warnings for operational visibility.
         """
         try:
             # Fetch data using XRANGE
@@ -265,6 +269,22 @@ class EventBus:
 
                 # Add to DLQ
                 await self.client.xadd(self.STREAM_DLQ, dlq_entry)
+                
+                # Increment DLQ counters for monitoring
+                dlq_counter_key = f"dlq:counter:{stream}"
+                dlq_total_key = "dlq:counter:total"
+                
+                await self.client.incr(dlq_counter_key)
+                total_dlq = await self.client.incr(dlq_total_key)
+                
+                # Structured logging for DLQ events
+                print(f"⚠️  DLQ: Message moved | stream={stream} | entry_id={entry_id} | total_dlq={total_dlq}")
+                
+                # Alert if DLQ threshold exceeded (configurable via env var)
+                dlq_threshold = int(os.getenv("DLQ_ALERT_THRESHOLD", "100"))
+                if total_dlq >= dlq_threshold and total_dlq % 10 == 0:  # Alert every 10 messages after threshold
+                    print(f"🚨 DLQ ALERT: Total DLQ messages ({total_dlq}) exceeds threshold ({dlq_threshold})")
+                    # TODO: Integrate with alerting system (email, Slack, PagerDuty, etc.)
 
             # Ack in original stream so it's removed from PEL
             await self.client.xack(stream, group_name, entry_id)

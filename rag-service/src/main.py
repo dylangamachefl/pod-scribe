@@ -104,43 +104,84 @@ async def root():
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """
-    Health check endpoint.
-    Verifies all services are operational.
+    Comprehensive health check endpoint.
+    Verifies all critical dependencies are operational.
     """
+    from fastapi.responses import JSONResponse
+    
+    checks = {
+        "qdrant": False,
+        "redis": False,
+        "postgres": False,
+        "ollama": False
+    }
+    
     try:
-        # Check if services are accessible
-        embedding_service = get_embedding_service()
-        qdrant_service = get_qdrant_service()
-        chat_client = get_ollama_chat_client()
-        
-        # Test Qdrant connection
+        # Check Qdrant connection
         try:
-            qdrant_service.get_collection_stats()
-            qdrant_connected = True
-        except:
-            qdrant_connected = False
+            qdrant_service = get_qdrant_service()
+            await qdrant_service.get_collection_stats()
+            checks["qdrant"] = True
+        except Exception as e:
+            print(f"Health check: Qdrant failed - {e}")
         
-        # Test Ollama connection
+        # Check Redis connection
         try:
-            import requests
-            response = requests.get(f"{chat_client.api_url}/api/tags", timeout=5)
-            ollama_connected = response.status_code == 200
-        except:
-            ollama_connected = False
+            from podcast_transcriber_shared.events import get_event_bus
+            event_bus = get_event_bus()
+            await event_bus._connect()
+            if event_bus.client:
+                await event_bus.client.ping()
+                checks["redis"] = True
+        except Exception as e:
+            print(f"Health check: Redis failed - {e}")
         
-        return HealthResponse(
-            status="healthy" if (qdrant_connected and ollama_connected) else "degraded",
-            qdrant_connected=qdrant_connected,
-            embedding_model_loaded=embedding_service is not None,
-            gemini_api_configured=ollama_connected  # Reuse field name for Ollama status
+        # Check PostgreSQL connection
+        try:
+            from podcast_transcriber_shared.database import get_episode_by_id
+            # Simple query to verify connection
+            await get_episode_by_id("health_check_test")
+            checks["postgres"] = True
+        except Exception as e:
+            # Expected to fail for non-existent ID, but connection works
+            if "health_check_test" in str(e) or "not found" in str(e).lower():
+                checks["postgres"] = True
+            else:
+                print(f"Health check: PostgreSQL failed - {e}")
+        
+        # Check Ollama connection
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                from config import OLLAMA_API_URL
+                response = await client.get(f"{OLLAMA_API_URL}/api/tags")
+                checks["ollama"] = response.status_code == 200
+        except Exception as e:
+            print(f"Health check: Ollama failed - {e}")
+        
+        # Determine overall status
+        all_healthy = all(checks.values())
+        status = "healthy" if all_healthy else ("degraded" if any(checks.values()) else "unhealthy")
+        status_code = 200 if all_healthy else 503
+        
+        return JSONResponse(
+            status_code=status_code,
+            content={
+                "status": status,
+                "checks": checks,
+                "service": "rag-service"
+            }
         )
     
     except Exception as e:
-        return HealthResponse(
-            status="unhealthy",
-            qdrant_connected=False,
-            embedding_model_loaded=False,
-            gemini_api_configured=False
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "checks": checks,
+                "error": str(e),
+                "service": "rag-service"
+            }
         )
 
 

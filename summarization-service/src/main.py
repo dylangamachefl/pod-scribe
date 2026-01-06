@@ -107,26 +107,76 @@ async def root():
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """
-    Health check endpoint.
-    Verifies Ollama connectivity and event subscriber is running.
+    Comprehensive health check endpoint.
+    Verifies all critical dependencies are operational.
     """
+    from fastapi.responses import JSONResponse
+    
+    checks = {
+        "ollama": False,
+        "redis": False,
+        "postgres": False
+    }
+    
     try:
-        # Check if Ollama service is accessible
-        ollama_service = get_ollama_service()
+        # Check Ollama connection
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                from config import OLLAMA_API_URL
+                response = await client.get(f"{OLLAMA_API_URL}/api/tags")
+                checks["ollama"] = response.status_code == 200
+        except Exception as e:
+            print(f"Health check: Ollama failed - {e}")
         
-        return HealthResponse(
-            status="healthy",
-            ollama_connected=ollama_service is not None,
-            model_name=OLLAMA_SUMMARIZER_MODEL,
-            event_subscriber_active=True  # Task-based, always active if service is running
+        # Check Redis connection
+        try:
+            from podcast_transcriber_shared.events import get_event_bus
+            event_bus = get_event_bus()
+            await event_bus._connect()
+            if event_bus.client:
+                await event_bus.client.ping()
+                checks["redis"] = True
+        except Exception as e:
+            print(f"Health check: Redis failed - {e}")
+        
+        # Check PostgreSQL connection
+        try:
+            from podcast_transcriber_shared.database import get_episode_by_id
+            # Simple query to verify connection
+            await get_episode_by_id("health_check_test")
+            checks["postgres"] = True
+        except Exception as e:
+            # Expected to fail for non-existent ID, but connection works
+            if "health_check_test" in str(e) or "not found" in str(e).lower():
+                checks["postgres"] = True
+            else:
+                print(f"Health check: PostgreSQL failed - {e}")
+        
+        # Determine overall status
+        all_healthy = all(checks.values())
+        status = "healthy" if all_healthy else ("degraded" if any(checks.values()) else "unhealthy")
+        status_code = 200 if all_healthy else 503
+        
+        return JSONResponse(
+            status_code=status_code,
+            content={
+                "status": status,
+                "checks": checks,
+                "service": "summarization-service",
+                "model": OLLAMA_SUMMARIZER_MODEL
+            }
         )
     
     except Exception as e:
-        return HealthResponse(
-            status="unhealthy",
-            ollama_connected=False,
-            model_name=OLLAMA_SUMMARIZER_MODEL,
-            event_subscriber_active=False
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "checks": checks,
+                "error": str(e),
+                "service": "summarization-service"
+            }
         )
 
 
