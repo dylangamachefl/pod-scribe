@@ -318,7 +318,7 @@ pytest tests/
 - [Transcription Service README](transcription-service/README.md)
 - [RAG Service README](rag-service/README.md)
 - [Summarization Service README](summarization-service/README.md)
-- [Event Bus Architecture](EVENT_BUS_ARCHITECTURE.md)
+- [Event Bus Architecture](docs/architecture/event_bus.md)
 - [GPU Setup Guide](GPU_SETUP.md)
 - [Historical Documentation](docs/archive/history/README.md)
 
