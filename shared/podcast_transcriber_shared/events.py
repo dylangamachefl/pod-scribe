@@ -149,22 +149,36 @@ class EventBus:
         
         while not self._shutdown:
             try:
-                # Read from stream in consumer group
-                # > means read only new messages not delivered to other consumers in the group
+                # 1. Try to read pending messages first (ID '0')
+                # These are messages that were delivered to this consumer but not acknowledged
+                pending = await self.client.xreadgroup(
+                    groupname=group_name,
+                    consumername=consumer_name,
+                    streams={stream: '0'},
+                    count=10
+                )
+                
+                if pending:
+                    for stream_name, entries in pending:
+                        for entry_id, entry_data in entries:
+                            print(f"🔄 Resuming pending event {entry_id} from {stream_name}")
+                            await self._process_entry(entry_id, entry_data, callback)
+                            await self.client.xack(stream, group_name, entry_id)
+                    continue # Check for more pending messages before reading new ones
+
+                # 2. Read only new messages (ID '>')
                 messages = await self.client.xreadgroup(
                     groupname=group_name,
                     consumername=consumer_name,
                     streams={stream: '>'},
                     count=1,
-                    block=5000  # Block for 5 seconds
+                    block=5000
                 )
                 
                 if messages:
                     for stream_name, entries in messages:
                         for entry_id, entry_data in entries:
-                            # Process the entry
                             await self._process_entry(entry_id, entry_data, callback)
-                            # Acknowledge the message
                             await self.client.xack(stream, group_name, entry_id)
                             
             except (redis.ConnectionError, OSError) as e:

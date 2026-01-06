@@ -23,7 +23,9 @@ class PipelineStatusManager:
     -- ARGV[2]: status_data_json
     -- ARGV[3]: ttl
     
-    redis.call('SADD', KEYS[1], ARGV[1])
+    if ARGV[1] ~= 'current' then
+        redis.call('SADD', KEYS[1], ARGV[1])
+    end
     redis.call('SETEX', KEYS[2], ARGV[3], ARGV[2])
     return 1
     """
@@ -36,6 +38,10 @@ class PipelineStatusManager:
     
     redis.call('DEL', KEYS[2])
     
+    if ARGV[1] == 'current' then
+        return 1
+    end
+
     -- Check if any other service still has status for this episode
     -- status:transcription:eid, status:summarization:eid, status:rag:eid
     local services = {'transcription', 'summarization', 'rag'}
@@ -172,7 +178,7 @@ class PipelineStatusManager:
         if not self.redis:
             return {"is_running": False, "stages": {}, "active_episodes": []}
 
-        active_episode_ids = list(self.redis.smembers(self.ACTIVE_EPISODES_KEY))
+        active_episode_ids = [eid for eid in self.redis.smembers(self.ACTIVE_EPISODES_KEY) if eid != 'current']
         
         stages = {}
         active_episodes_data = []
@@ -224,17 +230,28 @@ class PipelineStatusManager:
              for service in ['transcription', 'summarization', 'rag']:
                  self.redis.delete(self._get_stats_key(service))
 
+        # Helper function to get value with fallback to "current"
+        def get_service_value(key_name, default=None):
+            val = transcription_status.get(key_name)
+            if (val is None or val == 0 or val == "Unknown" or val == "N/A") and "current" in active_episode_ids:
+                # Try to get from the "current" episode status if overall status is missing
+                current_raw = self.redis.get(self._get_status_key('transcription', 'current'))
+                if current_raw:
+                    current_data = json.loads(current_raw)
+                    return current_data.get(key_name, default)
+            return val if val is not None else default
+
         return {
             "is_running": is_running,
             "stages": stages,
             "active_episodes": list(episodes_map.values()),
-            "gpu_name": transcription_status.get('gpu_name'),
-            "gpu_usage": transcription_status.get('gpu_usage', 0),
-            "vram_used_gb": transcription_status.get('vram_used_gb', 0),
-            "vram_total_gb": transcription_status.get('vram_total_gb', 0),
-            "recent_logs": transcription_status.get('recent_logs', []),
-            "episodes_completed": transcription_status.get('episodes_completed', 0),
-            "episodes_total": transcription_status.get('episodes_total', 0)
+            "gpu_name": get_service_value('gpu_name', 'Unknown'),
+            "gpu_usage": get_service_value('gpu_usage', 0),
+            "vram_used_gb": get_service_value('vram_used_gb', 0.0),
+            "vram_total_gb": get_service_value('vram_total_gb', 0.0),
+            "recent_logs": get_service_value('recent_logs', []),
+            "episodes_completed": get_service_value('episodes_completed', 0),
+            "episodes_total": get_service_value('episodes_total', 0)
         }
 
     def clear_all_status(self):

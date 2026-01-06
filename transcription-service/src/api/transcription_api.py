@@ -219,8 +219,9 @@ async def get_stats():
     pending_episodes = await list_episodes(status=EpisodeStatus.PENDING)
     completed_episodes = await list_episodes(status=EpisodeStatus.COMPLETED)
     
-    # Count selected episodes (stored in meta_data)
-    selected_count = sum(1 for ep in pending_episodes if ep.meta_data and ep.meta_data.get('selected'))
+    # Count selected episodes across all statuses (including FAILED)
+    all_episodes = await list_episodes()
+    selected_count = sum(1 for ep in all_episodes if ep.meta_data and ep.meta_data.get('selected'))
     
     return StatsResponse(
         active_feeds=sum(1 for s in subscriptions if s.get('active', True)),
@@ -519,14 +520,32 @@ async def toggle_favorite(episode_id: str, favorite_update: EpisodeFavoriteUpdat
 @app.post("/episodes/bulk-select")
 async def bulk_select_episodes(request: BulkSelectRequest):
     """Bulk select/deselect episodes in PostgreSQL."""
-    from podcast_transcriber_shared.database import save_transcript
+    from podcast_transcriber_shared.database import get_session_maker, Episode as EpisodeModel
+    from sqlalchemy import update
     
-    for episode_id in request.episode_ids:
-        episode = await get_episode_by_id(episode_id, load_transcript=False)
-        if episode:
-            updated_meta = episode.meta_data or {}
-            updated_meta['selected'] = request.selected
-            await save_transcript(episode_id, episode.transcript_text or '', metadata=updated_meta)
+    if not request.episode_ids:
+        return {"status": "updated", "count": 0, "selected": request.selected}
+        
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        # We need to fetch and build the new metadata for each
+        # A more efficient way would be a JSONB update but simpler to loop for now
+        # given the scale and existing pattern
+        for episode_id in request.episode_ids:
+            episode = await get_episode_by_id(episode_id, load_transcript=False)
+            if episode:
+                updated_meta = (episode.meta_data or {}).copy()
+                updated_meta['selected'] = request.selected
+                
+                # Update specifically without changing status
+                stmt = (
+                    update(EpisodeModel)
+                    .where(EpisodeModel.id == episode_id)
+                    .values(meta_data=updated_meta)
+                )
+                await session.execute(stmt)
+        
+        await session.commit()
     
     return {
         "status": "updated",
@@ -645,12 +664,12 @@ async def start_transcription(
                 for ep in episodes
             ]
     else:
-        # Case 2: Fallback to "selected" episodes in database
-        all_pending = await list_episodes(status=EpisodeStatus.PENDING)
+        # Case 2: Fallback to "selected" episodes in database (any status)
+        all_episodes = await list_episodes()
         target_episodes = [
             {'id': ep.id, 'audio_url': ep.meta_data.get('audio_url', ep.url),
              'episode_title': ep.title, 'feed_title': ep.podcast_name}
-            for ep in all_pending if ep.meta_data and ep.meta_data.get('selected')
+            for ep in all_episodes if ep.meta_data and ep.meta_data.get('selected')
         ]
     
     if not target_episodes:

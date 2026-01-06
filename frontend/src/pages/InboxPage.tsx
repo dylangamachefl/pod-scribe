@@ -42,6 +42,11 @@ export default function InboxPage() {
                 filteredData = data.filter(ep => !ep.is_seen);
             }
             setEpisodes(filteredData);
+
+            // Sync selected IDs from the server-side state
+            const serverSelectedIds = data.filter(ep => ep.selected).map(ep => ep.id);
+            setSelectedIds(serverSelectedIds);
+
             const currentStatus = await transcriptionApi.getTranscriptionStatus();
             setStatus(currentStatus);
         } catch (error) {
@@ -69,11 +74,22 @@ export default function InboxPage() {
         }
     };
 
-    const handleToggleSelect = (id: string, selected: boolean) => {
+    const handleToggleSelect = async (id: string, selected: boolean) => {
+        // Optimistic UI update
         if (selected) {
             setSelectedIds(prev => [...prev, id]);
         } else {
             setSelectedIds(prev => prev.filter(item => item !== id));
+        }
+
+        try {
+            await transcriptionApi.selectEpisode(id, selected);
+            // Optional: reload data to ensure sync, but the interval will catch it
+        } catch (error) {
+            console.error('Failed to toggle selection on server:', error);
+            showNotification('Failed to update selection', 'error');
+            // Revert state on failure
+            loadData();
         }
     };
 
@@ -86,11 +102,22 @@ export default function InboxPage() {
             return sortOrder === 'date_desc' ? dateB - dateA : dateA - dateB;
         });
 
-    const handleSelectAll = (selected: boolean) => {
+    const handleSelectAll = async (selected: boolean) => {
+        const idsToUpdate = filteredEpisodes.map(ep => ep.id);
+
+        // Optimistic UI
         if (selected) {
-            setSelectedIds(filteredEpisodes.map(ep => ep.id));
+            setSelectedIds(idsToUpdate);
         } else {
             setSelectedIds([]);
+        }
+
+        try {
+            await transcriptionApi.bulkSelectEpisodes(idsToUpdate, selected);
+        } catch (error) {
+            console.error('Failed bulk selection on server:', error);
+            showNotification('Failed to update bulk selection', 'error');
+            loadData();
         }
     };
 

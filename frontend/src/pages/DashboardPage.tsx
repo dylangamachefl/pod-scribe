@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { transcriptionApi } from '../api';
 import type { TranscriptionStats, TranscriptionStatus } from '../api/types';
 import { RefreshCw, Trash2 } from 'lucide-react';
 import './DashboardPage.css';
 
 function DashboardPage() {
+    const navigate = useNavigate();
     const [stats, setStats] = useState<TranscriptionStats | null>(null);
     const [status, setStatus] = useState<TranscriptionStatus | null>(null);
     const [loading, setLoading] = useState(true);
@@ -112,39 +114,39 @@ function DashboardPage() {
 
             {/* Statistics Cards */}
             <div className="stats-grid">
-                <div className="stat-card">
+                <div className="stat-card" onClick={() => navigate('/feeds')} style={{ cursor: 'pointer' }}>
                     <div className="stat-icon">📡</div>
                     <div className="stat-content">
                         <div className="stat-label">Active Feeds</div>
-                        <div className="stat-value">{stats?.active_feeds || 0}</div>
-                        <div className="stat-sublabel">of {stats?.total_feeds || 0} total</div>
+                        <div className="stat-value">{stats?.active_feeds ?? 0}</div>
+                        <div className="stat-sublabel">of {stats?.total_feeds ?? 0} total</div>
                     </div>
                 </div>
 
-                <div className="stat-card">
+                <div className="stat-card" onClick={() => navigate('/library')} style={{ cursor: 'pointer' }}>
                     <div className="stat-icon">🎙️</div>
                     <div className="stat-content">
                         <div className="stat-label">Podcasts</div>
-                        <div className="stat-value">{stats?.total_podcasts || 0}</div>
+                        <div className="stat-value">{stats?.total_podcasts ?? 0}</div>
                         <div className="stat-sublabel">with transcripts</div>
                     </div>
                 </div>
 
-                <div className="stat-card">
+                <div className="stat-card" onClick={() => navigate('/library')} style={{ cursor: 'pointer' }}>
                     <div className="stat-icon">📝</div>
                     <div className="stat-content">
                         <div className="stat-label">Processed</div>
-                        <div className="stat-value">{stats?.total_episodes_processed || 0}</div>
+                        <div className="stat-value">{stats?.total_episodes_processed ?? 0}</div>
                         <div className="stat-sublabel">all time</div>
                     </div>
                 </div>
 
-                <div className="stat-card">
-                    <div className="stat-icon">⏳</div>
+                <div className="stat-card" onClick={() => navigate('/inbox')} style={{ cursor: 'pointer', borderColor: (stats?.selected_episodes ?? 0) > 0 ? 'var(--color-accent-primary)' : '' }}>
+                    <div className="stat-icon">⌛</div>
                     <div className="stat-content">
                         <div className="stat-label">Selected</div>
-                        <div className="stat-value">{stats?.selected_episodes || 0}</div>
-                        <div className="stat-sublabel">in queue</div>
+                        <div className="stat-value">{stats?.selected_episodes ?? 0}</div>
+                        <div className="stat-sublabel">in inbox queue</div>
                     </div>
                 </div>
             </div>
@@ -153,20 +155,23 @@ function DashboardPage() {
             <div className="status-grid" style={{ marginBottom: '40px' }}>
                 {/* GPU Status */}
                 <div className="status-card">
-                    <h3>GPU Status</h3>
+                    <h3>System Resources</h3>
                     <div className="gpu-info">
-                        <div className="gpu-name">{status?.gpu_name || 'N/A'}</div>
+                        <div className="metric">
+                            <span className="metric-label">GPU</span>
+                            <span className="metric-value">{status?.gpu_name && status.gpu_name !== 'Unknown' ? status.gpu_name : 'No GPU Detected'}</span>
+                        </div>
                         <div className="metric">
                             <span className="metric-label">Utilization</span>
-                            <span className="metric-value">{status?.gpu_usage}%</span>
+                            <span className="metric-value">{status?.gpu_usage ?? 0}%</span>
                         </div>
                         <div className="progress-bar">
                             <div
                                 className="progress-fill gpu"
-                                style={{ width: `${status?.gpu_usage || 0}%` }}
+                                style={{ width: `${status?.gpu_usage ?? 0}%` }}
                             />
                         </div>
-                        {status && status.vram_total_gb > 0 && (
+                        {status && status.vram_total_gb > 0 ? (
                             <>
                                 <div className="metric">
                                     <span className="metric-label">VRAM Usage</span>
@@ -184,18 +189,29 @@ function DashboardPage() {
                                     />
                                 </div>
                             </>
+                        ) : (
+                            <div className="metric" style={{ opacity: 0.5 }}>
+                                <span className="metric-label">VRAM Usage</span>
+                                <span className="metric-value">N/A</span>
+                            </div>
                         )}
                     </div>
                 </div>
 
                 {/* Batch Progress */}
                 <div className="status-card">
-                    <h3>Overall Progress</h3>
+                    <h3>Pipeline Sync</h3>
                     <div className="batch-info">
                         <div className="metric">
-                            <span className="metric-label">Episodes Completed</span>
+                            <span className="metric-label">Current Task</span>
+                            <span className="metric-value" style={{ color: status?.is_running ? 'var(--color-accent-secondary)' : 'var(--color-text-tertiary)' }}>
+                                {status?.is_running ? 'Processing Queue' : 'Idle'}
+                            </span>
+                        </div>
+                        <div className="metric">
+                            <span className="metric-label">Batch Progress</span>
                             <span className="metric-value">
-                                {status?.episodes_completed || 0} / {status?.episodes_total || 0}
+                                {status?.episodes_completed ?? 0} / {status?.episodes_total ?? 0}
                             </span>
                         </div>
                         <div className="progress-bar">
@@ -212,7 +228,7 @@ function DashboardPage() {
                         <div className="progress-label">
                             {status && status.episodes_total > 0
                                 ? `${Math.round((status.episodes_completed / status.episodes_total) * 100)}% complete`
-                                : 'Waiting...'}
+                                : 'Ready'}
                         </div>
                     </div>
                 </div>
@@ -222,7 +238,7 @@ function DashboardPage() {
             {/* Processing Queue */}
             {status?.active_episodes && status.active_episodes.length > 0 && (
                 <div className="processing-queue">
-                    <h2>⏳ Processing Queue ({status.active_episodes.length})</h2>
+                    <h2><span style={{ fontSize: '1.2rem' }}>⚡</span> Active Processing ({status.active_episodes.length})</h2>
                     <div className="queue-grid">
                         {status.active_episodes.map((ep) => (
                             <div key={ep.episode_id} className="queue-item">
@@ -231,25 +247,25 @@ function DashboardPage() {
                                         <div className="queue-item-title">{ep.title}</div>
                                         <div className="queue-item-podcast">{ep.podcast}</div>
                                     </div>
-                                    <div className="queue-item-stage">{ep.stage}</div>
+                                    <div className="queue-item-stage">{ep.stage === 'unknown' ? 'Ready' : ep.stage}</div>
                                 </div>
 
                                 <div className="queue-item-pipeline">
-                                    <div className={`pipeline-step ${ep.services?.transcription ? (ep.services.transcription.stage === 'saving' && ep.services.transcription.progress === 1.0 ? 'completed' : 'active') : ''}`} />
-                                    <div className={`pipeline-step ${ep.services?.summarization ? 'active' : (ep.services?.transcription?.progress === 1.0 ? 'pending' : '')}`} />
-                                    <div className={`pipeline-step ${ep.services?.rag ? 'active' : ''}`} />
+                                    <div className={`pipeline-step ${ep.services?.transcription ? (ep.services.transcription.stage === 'saving' && ep.services.transcription.progress === 1.0 ? 'completed' : 'active') : ''}`} title="Transcription" />
+                                    <div className={`pipeline-step ${ep.services?.summarization ? 'active' : (ep.services?.transcription?.progress === 1.0 ? (ep.services?.summarization ? 'active' : 'pending') : '')}`} title="Summarization" />
+                                    <div className={`pipeline-step ${ep.services?.rag ? 'active' : ''}`} title="RAG Ingestion" />
                                 </div>
 
                                 <div className="progress-bar">
                                     <div
                                         className="progress-fill"
-                                        style={{ width: `${Math.round(ep.progress * 100)}%` }}
+                                        style={{ width: `${Math.round((ep.progress ?? 0) * 100)}%` }}
                                     />
                                 </div>
 
                                 <div className="queue-item-progress">
-                                    <span>{ep.stage}</span>
-                                    <span>{Math.round(ep.progress * 100)}%</span>
+                                    <span>{ep.stage === 'unknown' ? 'Initializing...' : ep.stage}</span>
+                                    <span>{Math.round((ep.progress ?? 0) * 100)}%</span>
                                 </div>
                             </div>
                         ))}
@@ -259,32 +275,33 @@ function DashboardPage() {
 
             {/* Run Transcription Section */}
             <div className="run-section">
-                <h2>▶️ Run Transcription</h2>
-                <p>Process selected episodes from the queue</p>
+                <h2>Ready to Transcribe?</h2>
+                <p>Process your selected episodes through the Whisper & Ollama pipeline</p>
 
                 <div className="run-controls">
                     <button
-                        className="btn-primary"
+                        className="btn-primary-lg"
                         onClick={handleStartTranscription}
                         disabled={
                             status?.is_running || (stats?.selected_episodes || 0) === 0
                         }
                     >
                         {status?.is_running
-                            ? '🔴 Transcription Running...'
-                            : `🚀 Run Transcription (${stats?.selected_episodes || 0})`}
+                            ? 'Processing...'
+                            : `🚀 Run Transcription (${stats?.selected_episodes ?? 0})`}
                     </button>
 
                     {(stats?.selected_episodes || 0) === 0 && !status?.is_running && (
-                        <div className="warning">
-                            ⚠️ No episodes selected. Go to Episode Queue to select episodes to
-                            transcribe.
+                        <div className="warning clickable" onClick={() => navigate('/inbox')} style={{ cursor: 'pointer' }}>
+                            <span>⚠️</span>
+                            No episodes selected. Click here to go to your <strong>Inbox</strong> and select episodes to transcribe.
                         </div>
                     )}
 
                     {(stats?.selected_episodes || 0) > 0 && !status?.is_running && (
                         <div className="info">
-                            ✅ Ready to transcribe {stats?.selected_episodes} selected episode(s)
+                            <span>✅</span>
+                            Ready to transcribe {stats?.selected_episodes} selected episode(s)
                         </div>
                     )}
                 </div>

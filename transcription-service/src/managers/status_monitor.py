@@ -115,6 +115,19 @@ def write_status(
         additional_data["episodes_total"] = episodes_total
         manager.update_stats('transcription', episodes_completed, episodes_total)
         
+    # Maintain legacy status key for components that read it directly
+    legacy_status = {
+        "is_running": is_running,
+        "stage": stage,
+        "progress": progress,
+        "current_episode": current_episode,
+        "current_podcast": current_podcast,
+        "episodes_completed": episodes_completed,
+        "episodes_total": episodes_total,
+        **gpu_stats
+    }
+    manager.redis.set(STATUS_KEY, json.dumps(legacy_status)) if manager.redis else None
+
     manager.update_service_status(
         service='transcription',
         episode_id=episode_id,

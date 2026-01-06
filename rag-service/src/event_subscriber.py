@@ -5,7 +5,7 @@ Listens for EpisodeTranscribed events and processes transcripts for RAG.
 import asyncio
 from pathlib import Path
 
-from podcast_transcriber_shared.events import get_event_bus, EpisodeTranscribed
+from podcast_transcriber_shared.events import get_event_bus, EpisodeSummarized
 from podcast_transcriber_shared.status_monitor import get_pipeline_status_manager
 from services.embeddings import get_embedding_service
 from services.qdrant_service import get_qdrant_service
@@ -44,16 +44,16 @@ def _episode_already_ingested(episode_id: str, qdrant_service) -> bool:
         return False
 
 
-async def process_transcription_event(event_data: dict):
+async def process_summary_event(event_data: dict):
     """
-    Process an EpisodeTranscribed event asynchronously.
+    Process an EpisodeSummarized event asynchronously.
     """
     try:
         # Parse event
-        event = EpisodeTranscribed(**event_data)
+        event = EpisodeSummarized(**event_data)
         
         print(f"\n{'='*60}")
-        print(f"📥 Received EpisodeTranscribed event")
+        print(f"📥 Received EpisodeSummarized event")
         print(f"   Event ID: {event.event_id}")
         print(f"   Episode: {event.episode_title}")
         print(f"{'='*60}")
@@ -77,14 +77,17 @@ async def process_transcription_event(event_data: dict):
             print(f"⏭️  Episode already ingested, skipping: {event.episode_title}")
             return
         
-        # Fetch transcript from database (Async)
-        from podcast_transcriber_shared.database import get_episode_by_id
+        # Fetch transcript and summary from database (Async)
+        from podcast_transcriber_shared.database import get_episode_by_id, get_summary_by_episode_id
         
         episode = await get_episode_by_id(event.episode_id, load_transcript=True)
+        summary_record = await get_summary_by_episode_id(event.episode_id)
         
         if not episode or not episode.transcript_text:
             print(f"❌ No transcript text for episode: {event.episode_id}")
             return
+        
+        summary_content = summary_record.content if summary_record else {}
         
         content = episode.transcript_text
         metadata = episode.meta_data or {}
@@ -92,6 +95,11 @@ async def process_transcription_event(event_data: dict):
         metadata["episode_title"] = event.episode_title
         metadata["podcast_name"] = event.podcast_name
         metadata["episode_id"] = event.episode_id
+        
+        # Include summary fields in metadata for context
+        if summary_content:
+            metadata["summary_hook"] = summary_content.get("hook", "")
+            metadata["key_takeaways"] = summary_content.get("key_takeaways", [])
         
         # Chunking
         transcript_lines = get_transcript_body(content)
@@ -163,10 +171,10 @@ async def start_rag_event_subscriber():
     
     # Use Redis Streams with a consumer group for reliability
     await event_bus.subscribe(
-        stream=event_bus.STREAM_TRANSCRIBED,
+        stream=event_bus.STREAM_SUMMARIZED,
         group_name="rag_service_group",
         consumer_name="rag_worker_1",
-        callback=process_transcription_event
+        callback=process_summary_event
     )
 
 
