@@ -107,9 +107,19 @@ class TranscriptionConfig:
         load_dotenv(env_file)
         
         token = os.getenv("HUGGINGFACE_TOKEN")
+
+        # Check for Docker Secret
+        token_file = os.getenv("HUGGINGFACE_TOKEN_FILE")
+        if token_file and os.path.exists(token_file):
+            try:
+                with open(token_file, 'r') as f:
+                    token = f.read().strip()
+            except Exception as e:
+                print(f"⚠️  Failed to read HUGGINGFACE_TOKEN from {token_file}: {e}")
+
         if not token:
-            print("❌ ERROR: HUGGINGFACE_TOKEN not found in .env file")
-            print("   Please add your Hugging Face token to .env:")
+            print("❌ ERROR: HUGGINGFACE_TOKEN not found in .env file or secrets")
+            print("   Please add your Hugging Face token to .env or use Docker Secrets:")
             print("   HUGGINGFACE_TOKEN=hf_your_token_here")
             sys.exit(1)
         

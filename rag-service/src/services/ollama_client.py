@@ -9,6 +9,7 @@ import json
 import time
 
 from config import OLLAMA_API_URL, OLLAMA_CHAT_MODEL
+from podcast_transcriber_shared.gpu_lock import get_gpu_lock
 
 
 class OllamaChatClient:
@@ -71,14 +72,18 @@ Please provide a comprehensive answer based on the excerpts above. Reference spe
         
         try:
             start_time = time.time()
-            response = await client.post(
-                f"{self.api_url}/api/generate",
-                json={
-                    "model": self.model_name,
-                    "prompt": prompt,
-                    "stream": False
-                }
-            )
+
+            # Acquire GPU lock for inference
+            async with get_gpu_lock().acquire():
+                response = await client.post(
+                    f"{self.api_url}/api/generate",
+                    json={
+                        "model": self.model_name,
+                        "prompt": prompt,
+                        "stream": False
+                    }
+                )
+
             response.raise_for_status()
             result = response.json()
             processing_time = (time.time() - start_time) * 1000
@@ -113,21 +118,23 @@ Please provide a comprehensive answer based on the excerpts above. Reference spe
         client = await self._get_client()
         
         try:
-            async with client.stream(
-                "POST", 
-                f"{self.api_url}/api/generate",
-                json={
-                    "model": self.model_name,
-                    "prompt": prompt,
-                    "stream": True
-                }
-            ) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if line:
-                        chunk = json.loads(line)
-                        if not chunk.get("done", False):
-                            yield chunk.get("response", "")
+            # Note: Streaming holds the lock for the duration of generation
+            async with get_gpu_lock().acquire():
+                async with client.stream(
+                    "POST",
+                    f"{self.api_url}/api/generate",
+                    json={
+                        "model": self.model_name,
+                        "prompt": prompt,
+                        "stream": True
+                    }
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if line:
+                            chunk = json.loads(line)
+                            if not chunk.get("done", False):
+                                yield chunk.get("response", "")
         except Exception as e:
             print(f"❌ Ollama streaming error: {e}")
             yield f"Error: {str(e)}"

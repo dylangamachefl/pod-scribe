@@ -35,8 +35,9 @@ RAG_API_PORT = int(os.getenv("RAG_API_PORT", "8000"))
 RAG_FRONTEND_URL = os.getenv("RAG_FRONTEND_URL", "http://localhost:3000")
 
 # Chunking Strategy (for ingestion, not used for chat)
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "500"))  # characters per chunk
-CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "100"))  # overlap between chunks
+# Increased to 2000 chars to better utilize Qwen3 context window (6k+)
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "2000"))  # characters per chunk
+CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))  # overlap between chunks
 
 # Retrieval Configuration
 TOP_K_RESULTS = int(os.getenv("TOP_K_RESULTS", "5"))  # number of chunks to retrieve

@@ -50,6 +50,12 @@ class EpisodeIngested(BaseEvent):
     chunks_created: int
 
 
+class TranscriptionJob(BaseEvent):
+    """Event published to queue a transcription job."""
+    episode_id: str
+    audio_url: Optional[str] = None
+
+
 # =================================================================
 # Redis Streams Client
 # =================================================================
@@ -64,6 +70,8 @@ class EventBus:
     STREAM_TRANSCRIBED = "stream:episodes:transcribed"
     STREAM_SUMMARIZED = "stream:episodes:summarized"
     STREAM_INGESTED = "stream:episodes:ingested"
+    STREAM_TRANSCRIPTION_JOBS = "stream:transcription:jobs"
+    STREAM_DLQ = "stream:dlq"
     
     def __init__(self, redis_url: Optional[str] = None):
         """
@@ -126,19 +134,17 @@ class EventBus:
         stream: str, 
         group_name: str, 
         consumer_name: str, 
-        callback: Callable[[Dict], Awaitable[None]]
+        callback: Callable[[Dict], Awaitable[bool]]
     ):
         """
         Subscribe to a Redis Stream using a consumer group.
-        Provides reliability and persistence: if the service is down,
-        it will pick up missed events when it resumes.
+        Provides reliability and persistence.
         """
         if not self.client:
             await self._connect()
         
         # Create consumer group if it doesn't exist
         try:
-            # Attempt to create group starting from the beginning of the stream ($ for only new events, 0 for all)
             await self.client.xgroup_create(stream, group_name, id='0', mkstream=True)
             print(f"✅ Created consumer group '{group_name}' for stream '{stream}'")
         except redis.ResponseError as e:
@@ -149,22 +155,48 @@ class EventBus:
         
         while not self._shutdown:
             try:
-                # 1. Try to read pending messages first (ID '0')
-                # These are messages that were delivered to this consumer but not acknowledged
-                pending = await self.client.xreadgroup(
-                    groupname=group_name,
-                    consumername=consumer_name,
-                    streams={stream: '0'},
-                    count=10
+                # 1. Process pending messages (recover from crashes)
+                # Instead of simple XREADGROUP '0', we use XPENDING + XCLAIM to ensure
+                # delivery count increments and we can handle retries/DLQ logic.
+
+                # Get info on pending messages for this consumer
+                pending_info = await self.client.xpending_range(
+                    stream, group_name, min='-', max='+', count=20, consumername=consumer_name
                 )
                 
-                if pending:
-                    for stream_name, entries in pending:
-                        for entry_id, entry_data in entries:
-                            print(f"🔄 Resuming pending event {entry_id} from {stream_name}")
-                            await self._process_entry(entry_id, entry_data, callback)
-                            await self.client.xack(stream, group_name, entry_id)
-                    continue # Check for more pending messages before reading new ones
+                if pending_info:
+                    for message_info in pending_info:
+                        entry_id = message_info['message_id']
+                        delivery_count = message_info['delivery_count']
+
+                        # Check DLQ threshold
+                        if delivery_count > 5:
+                            print(f"💀 Moving pending message {entry_id} to DLQ (count: {delivery_count})")
+                            await self._move_to_dlq(stream, group_name, entry_id)
+                            continue
+
+                        # Fetch message data using XCLAIM (re-claim from self to fetch data + ensure ownership)
+                        # Note: XCLAIM usually claims from *others*, but claiming from self works to get data.
+                        # However, to be efficient, we can just use XREADGROUP with ID '0' but we want to know *which* failed.
+
+                        # Force increment delivery count by claiming it again (even from self)
+                        claimed_messages = await self.client.xclaim(
+                            stream, group_name, consumer_name,
+                            min_idle_time=0,
+                            message_ids=[entry_id]
+                        )
+
+                        if claimed_messages:
+                            for _, entry_data in claimed_messages:
+                                print(f"🔄 Resuming pending event {entry_id} (Attempt {delivery_count})")
+                                success = await self._process_entry_safe(entry_id, entry_data, callback)
+
+                                if success:
+                                    await self.client.xack(stream, group_name, entry_id)
+                                else:
+                                    # Failed again. We don't ACK.
+                                    # We wait a bit before retrying to avoid tight loop
+                                    await asyncio.sleep(1)
 
                 # 2. Read only new messages (ID '>')
                 messages = await self.client.xreadgroup(
@@ -178,8 +210,12 @@ class EventBus:
                 if messages:
                     for stream_name, entries in messages:
                         for entry_id, entry_data in entries:
-                            await self._process_entry(entry_id, entry_data, callback)
-                            await self.client.xack(stream, group_name, entry_id)
+                            success = await self._process_entry_safe(entry_id, entry_data, callback)
+
+                            if success:
+                                await self.client.xack(stream, group_name, entry_id)
+                            # If failed, it stays in PEL and will be picked up by pending loop above
+                            # with incremented delivery count next time.
                             
             except (redis.ConnectionError, OSError) as e:
                 print(f"❌ Redis connection error: {e}")
@@ -190,38 +226,53 @@ class EventBus:
                 print(f"❌ Error in stream consumer: {e}")
                 await asyncio.sleep(1)
 
-    async def _process_entry(self, entry_id: str, entry_data: dict, callback: Callable[[Dict], Awaitable[None]]):
-        """Process a single stream entry."""
+    async def _process_entry_safe(self, entry_id: str, entry_data: dict, callback: Callable[[Dict], Awaitable[bool]]) -> bool:
+        """
+        Process a single stream entry with error handling.
+        Returns True if successful, False otherwise.
+        """
         try:
+            result = False
             if inspect.iscoroutinefunction(callback):
-                await callback(entry_data)
+                result = await callback(entry_data)
             else:
                 loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, callback, entry_data)
+                result = await loop.run_in_executor(None, callback, entry_data)
+
+            return result is True
+
         except Exception as e:
             print(f"❌ Error processing event {entry_id}: {e}")
             traceback.print_exc()
-    
-    async def _process_message(self, message_data: str, callback: Callable[[Dict], Awaitable[None]]):
+            return False
+
+    async def _move_to_dlq(self, stream: str, group_name: str, entry_id: str):
         """
-        Process a single message.
+        Move a message to the Dead Letter Queue.
+        We need to fetch the data first since XPENDING only gives metadata.
         """
         try:
-            # Parse event JSON
-            event_data = json.loads(message_data)
+            # Fetch data using XRANGE
+            messages = await self.client.xrange(stream, min=entry_id, max=entry_id, count=1)
             
-            # Check if callback is async
-            if inspect.iscoroutinefunction(callback):
-                await callback(event_data)
-            else:
-                # If sync, run in thread pool to avoid blocking the loop
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, callback, event_data)
+            if messages:
+                _, entry_data = messages[0]
+
+                dlq_entry = entry_data.copy()
+                dlq_entry['original_stream'] = stream
+                dlq_entry['original_id'] = entry_id
+                dlq_entry['failed_at'] = datetime.now().isoformat()
+
+                # Add to DLQ
+                await self.client.xadd(self.STREAM_DLQ, dlq_entry)
+
+            # Ack in original stream so it's removed from PEL
+            await self.client.xack(stream, group_name, entry_id)
+            print(f"✅ Message {entry_id} moved to DLQ and ACKed")
             
         except Exception as e:
-            print(f"❌ Error processing event: {e}")
-            traceback.print_exc()
-    
+            print(f"❌ Error moving {entry_id} to DLQ: {e}")
+
     def register_signal_handlers(self):
         """
         Register signal handlers for graceful shutdown.
@@ -229,8 +280,6 @@ class EventBus:
         """
         import threading
         if threading.current_thread() is not threading.main_thread():
-             # We can't register signals in background threads, so we just ignore/log
-             # This is common in dev servers with reloaders
              print("⚠️  Not registering signal handlers (not main thread)")
              return
         
@@ -246,8 +295,6 @@ class EventBus:
         """Handle shutdown signals gracefully."""
         print(f"\n⚠️  Received signal {signum}, shutting down EventBus...")
         self._shutdown = True
-        # Note: We can't await close() here easily because this is a sync signal handler
-        # But setting _shutdown = True will stop the loops
     
     async def close(self):
         """Close Redis connections."""
