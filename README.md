@@ -4,7 +4,7 @@ A modular, production-ready system for automated podcast transcription with spea
 
 ## 🎯 Overview
 
-This monorepo contains four integrated services:
+This monorepo contains five integrated services:
 
 1. **Transcription API**: Fast API for managing RSS feeds and transcription queue
 2. **Transcription Worker**: Background worker that processes audio using WhisperX + Pyannote
@@ -158,7 +158,7 @@ echo "your_api_key_here" > secrets/gemini_api_key.txt
 start_app.bat
 
 # This will:
-# - Start all Docker services (Frontend, RAG, API, Summarization, Qdrant, Redis, PostgreSQL)
+# - Start all Docker services (Frontend, RAG, Transcription API, Transcription Worker, Summarization, Qdrant, Redis, PostgreSQL)
 # - Start the host listener for transcription triggers
 # - Open your browser to http://localhost:3000
 ```

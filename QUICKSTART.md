@@ -87,7 +87,7 @@ start_app.bat
 ```
 
 This will:
-- Launch Docker containers (Frontend, RAG, Transcription API, Transcription Worker, Summarization, PostgreSQL, Redis)
+- Launch Docker containers (Frontend, RAG, Transcription API, Transcription Worker, Summarization, Qdrant, Redis, PostgreSQL)
 - Open the Web UI in your browser
 
 ### 2. Access the Interface
