@@ -87,8 +87,7 @@ start_app.bat
 ```
 
 This will:
-- Launch Docker containers (Frontend, RAG, API, Summarization, PostgreSQL, Redis)
-- Start the host-side listener for the transcription worker
+- Launch Docker containers (Frontend, RAG, Transcription API, Transcription Worker, Summarization, PostgreSQL, Redis)
 - Open the Web UI in your browser
 
 ### 2. Access the Interface
@@ -102,8 +101,8 @@ This will:
 ## 🎙️ How to Transcribe
 
 The transcription service runs automatically in Docker, processing queued episodes using your GPU.
-
 ### 1. Queue Episodes
+The **Transcription API** handles episode management and enqueues jobs into Redis.
 - Go to `http://localhost:3000`
 - Add RSS feeds in the **Feeds** tab
 - Click "Fetch Episodes" to see available episodes
@@ -111,7 +110,8 @@ The transcription service runs automatically in Docker, processing queued episod
 
 ### 2. Transcription Processing
 
-The Docker transcription worker automatically processes queued episodes. You can monitor progress:
+The **Transcription Worker** (Docker container) automatically processes queued episodes using your GPU.
+ You can monitor progress:
 
 ```bash
 # View transcription worker logs

@@ -6,19 +6,24 @@ A modular, production-ready system for automated podcast transcription with spea
 
 This monorepo contains four integrated services:
 
-1. **Transcription Service**: Downloads and transcribes podcasts using WhisperX + Pyannote
-2. **RAG Service**: Provides semantic search and Q&A over transcripts using Ollama (qwen3:rag)
-3. **Summarization Service**: Generates structured summaries using local Ollama (qwen3:summarizer) or Gemini
-4. **Frontend**: React-based web UI for managing podcasts and viewing results
+1. **Transcription API**: Fast API for managing RSS feeds and transcription queue
+2. **Transcription Worker**: Background worker that processes audio using WhisperX + Pyannote
+3. **RAG Service**: Provides semantic search and Q&A over transcripts using Ollama (qwen3:rag)
+4. **Summarization Service**: Generates structured summaries using local Ollama (qwen3:summarizer) or Gemini
+5. **Frontend**: React-based web UI for managing podcasts and viewing results
 
 ## ✨ Features
 
-### Transcription Service
+### Transcription API
 - 🎙️ **Automatic RSS Feed Processing**: Subscribe to podcast feeds
+- 📋 **Queue Management**: API endpoints for managing the transcription queue
+- 🐳 **FastAPI Backend**: Dockerized REST API for the frontend
+
+### Transcription Worker
 - 🤖 **AI-Powered Transcription**: WhisperX with int8 quantization
 - 👥 **Speaker Diarization**: Pyannote Audio for speaker identification
-- 💾 **PostgreSQL Storage**: Central database for episodes, summaries, and transcripts
-- 📋 **Redis Streams Queue**: Reliable, persistent job queue for transcription
+- ⚡ **GPU Optimized**: NVIDIA GPU acceleration (RTX 3070 tested)
+- 🐳 **Background Daemon**: Dockerized worker polling for new jobs
 
 ### RAG Service  
 - 🔍 **Semantic Search**: Vector-based transcript search with hybrid retrieval
@@ -45,12 +50,12 @@ This monorepo contains four integrated services:
 
 ```
 podcast-transcriber/
-├── transcription-service/      # Podcast transcription
+├── transcription-service/      # Unified source for API and Worker
 │   ├── src/
-│   │   ├── cli.py             # CLI entry point
-│   │   ├── worker_daemon.py   # Background worker
+│   │   ├── worker_daemon.py   # Background worker entry point
 │   │   └── api/               # FastAPI implementation
-│   ├── Dockerfile.api
+│   ├── Dockerfile.api         # For transcription-api container
+│   ├── Dockerfile.transcription-worker # For worker container
 │   └── README.md
 │
 ├── rag-service/                # RAG backend (Ollama-powered)
@@ -227,11 +232,12 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 
 ## 📦 Service Details
 
-### Transcription Service
+### Transcription API & Worker
 
 **Tech Stack:**
-- WhisperX (transcription)
-- Pyannote Audio (diarization)
+- WhisperX (transcription) - Worker
+- Pyannote Audio (diarization) - Worker
+- FastAPI (API server) - API
 - PostgreSQL (state management)
 - Redis Streams (job queue)
 - PyTorch + CUDA

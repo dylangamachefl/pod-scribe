@@ -283,14 +283,14 @@ networks:
 # NOTES
 # =================================================================
 #
-# - The transcription service is NOT included as it requires:
+# - The transcription worker requires:
 #   - NVIDIA GPU with CUDA support
-#   - Large model files (~10GB)
-#   - Native conda environment for optimal performance
+#   - nvidia-container-toolkit installed on host
+#   - Large model files (~10GB) downloaded automatically on first run
 #   
-#   Run transcription service directly on host machine:
+#   Run directly on host (optional):
 #   conda activate podcast_bot
-#   python transcription-service/src/cli.py
+#   python transcription-service/src/worker_daemon.py
 #
 # - The RAG service requires Ollama to be running on the host:
 #   - Install Ollama: https://ollama.ai/download
