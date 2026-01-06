@@ -7,8 +7,8 @@ A modular, production-ready system for automated podcast transcription with spea
 This monorepo contains four integrated services:
 
 1. **Transcription Service**: Downloads and transcribes podcasts using WhisperX + Pyannote
-2. **RAG Service**: Provides semantic search and Q&A over transcripts using Ollama
-3. **Summarization Service**: Generates structured summaries using Google Gemini
+2. **RAG Service**: Provides semantic search and Q&A over transcripts using Ollama (qwen3:rag)
+3. **Summarization Service**: Generates structured summaries using local Ollama (qwen3:summarizer) or Gemini
 4. **Frontend**: React-based web UI for managing podcasts and viewing results
 
 ## ✨ Features
@@ -24,16 +24,17 @@ This monorepo contains four integrated services:
 
 ### RAG Service  
 - 🔍 **Semantic Search**: Vector-based transcript search with hybrid retrieval
-- 💬 **AI Q&A**: Ask questions using Ollama (qwen3:rag)
+- 💬 **AI Q&A**: Ask questions using local Ollama (qwen3:rag)
 - 🔄 **Event-Driven Ingestion**: Automatically ingests new transcripts via event bus
 - 🗃️ **Qdrant Vector DB**: Efficient similarity search with 768-dim embeddings
 - 🧬 **BM25 + Vector Hybrid**: Best of both keyword and semantic search
 
 ### Summarization Service
-- 📊 **Structured Summaries**: Gemini-powered episode summaries
+- 📊 **Structured Summaries**: Local Ollama-powered episode summaries (qwen3:summarizer)
 - 🎯 **Key Takeaways**: Hooks, actionable advice, quotes, and concepts
 - 🔄 **Event-Driven**: Automatically processes new transcripts
 - 💾 **JSON Storage**: Machine-readable structured output
+- 🧪 **Gemini Support**: Optional high-quality alternative via API
 
 ### Frontend
 - 🎨 **Modern React UI**: Fast, responsive interface
@@ -49,37 +50,41 @@ podcast-transcriber/
 ├── transcription-service/      # Podcast transcription
 │   ├── src/
 │   │   ├── cli.py             # CLI entry point
-│   │   ├── config.py          # Configuration
-│   │   ├── core/              # Core processing modules
-│   │   ├── managers/          # State management
-│   │   └── ui/                # Streamlit dashboard
-│   ├── tests/
-│   ├── README.md
-│   └── pyproject.toml
+│   │   ├── worker_daemon.py   # Background worker
+│   │   └── api/               # FastAPI implementation
+│   ├── Dockerfile.api
+│   └── README.md
 │
-├── rag-service/                # RAG backend
+├── rag-service/                # RAG backend (Ollama-powered)
 │   ├── src/
 │   │   ├── main.py            # FastAPI server
-│   │   ├── config.py          # Configuration
-│   │   ├── routers/           # API endpoints
-│   │   ├── services/          # Business logic
-│   │   └── utils/             # Utilities
-│   └── tests/
+│   │   ├── services/          # RAG logic
+│   │   └── event_subscriber   # Event-driven indexing
+│   └── README.md
 │
-├── frontend/                   # React UI (planned)
+├── summarization-service/      # Summarization backend (Ollama/Gemini)
+│   ├── src/
+│   │   ├── main.py            # FastAPI server
+│   │   └── services/          # Two-stage summarization
+│   └── README.md
+│
+├── frontend/                   # React UI
+│
+├── models/                     # Ollama Modelfiles
+│   ├── Modelfile_rag
+│   └── Modelfile_sum
 │
 ├── shared/                     # Shared resources
+│   ├── podcast_transcriber_shared/ # Shared python library
 │   ├── config/                # Configuration files
 │   ├── output/                # Transcripts
-│   ├── summaries/             # Generated summaries
 │   └── logs/                  # Application logs
 │
-├── scripts/                    # Launcher scripts
-│   ├── launch_ui.bat          # Dashboard launcher
-│   └── run_bot.bat            # Transcription runner
+├── docs/                       # Project documentation
+│   ├── archive/               # Historical documents
+│   └── ...
 │
-├── environment.yml             # Transcription conda env
-├── rag-environment.yml         # RAG conda env
+├── docker-compose.yml          # Main orchestration
 └── README.md                   # This file
 ```
 
@@ -248,8 +253,9 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 
 **Tech Stack:**
 - FastAPI (API server)
-- Google Gemini (LLM)
+- Local Ollama (qwen3:summarizer) or Google Gemini
 - Event-driven architecture
+- Instructor (for structured data extraction)
 
 **See:** [summarization-service/README.md](summarization-service/README.md)
 
@@ -314,7 +320,7 @@ pytest tests/
 - [Summarization Service README](summarization-service/README.md)
 - [Event Bus Architecture](EVENT_BUS_ARCHITECTURE.md)
 - [GPU Setup Guide](GPU_SETUP.md)
-- [Historical Documentation](docs/history/README.md)
+- [Historical Documentation](docs/archive/history/README.md)
 
 ## 🛠️ Development
 

@@ -25,72 +25,60 @@ Get up and running with the Podcast Transcriber in minutes!
    cd podcast-transcriber
    ```
 
-2. Create custom Ollama RAG model (Required for RAG/chat):
+### 2. Create Ollama Models (Required)
 
-   This project uses a custom version of `qwen3:8b` optimized for GPUs with 8GB VRAM (RTX 3070). The context window is tuned to **6144 tokens** to maximize document capacity without running out of memory.
+This project uses custom Ollama models optimized for balanced performance and memory usage.
 
-   **a. Pull the base models:**
-   ```bash
-   ollama pull qwen3:8b
-   ollama pull nomic-embed-text
-   ```
+**a. Pull the base models:**
+```bash
+ollama pull qwen3:8b
+ollama pull nomic-embed-text
+```
 
-   **b. Create a `Modelfile`:**
-   
-   Create a file named `Modelfile` (no extension) in your project root with this content:
-   
-   ```dockerfile
-   FROM qwen3:8b
+**b. Create the custom models:**
 
-   # RTX 3070 Optimization (8GB VRAM)
-   # Context window set to 6144 to prevent Out-Of-Memory errors while allowing RAG.
-   PARAMETER num_ctx 6144
+We provide Modelfiles in the `models/` directory for both RAG and Summarization.
 
-   # Model Parameters for Balanced RAG
-   PARAMETER temperature 0.6
-   PARAMETER top_k 20
-   PARAMETER top_p 0.95
-   ```
+```bash
+# Create RAG model (optimized context for 8GB VRAM)
+ollama create qwen3:rag -f models/Modelfile_rag
 
-   **c. Build the custom model:**
-   ```bash
-   ollama create qwen3:rag -f Modelfile
-   ```
+# Create Summarizer model (optimized for extraction)
+ollama create qwen3:summarizer -f models/Modelfile_sum
+```
 
-   **d. Verify installation:**
-   ```bash
-   ollama run qwen3:rag
-   ```
-   Type `/bye` to exit the test chat.
+**c. Verify installation:**
+```bash
+ollama list
+```
+You should see `qwen3:rag` and `qwen3:summarizer` in the list.
 
-   > [!NOTE]
-   > Ensure Ollama is running before starting the application.
+> [!NOTE]
+> Ensure Ollama is running before starting the application.
 
-### 2. Configuration
+### 3. Configuration
 
 1. Create your configuration file:
    ```bash
    copy .env.example .env
    ```
 
-2. Create Docker secrets directory:
+2. Create Docker secrets directory (Recommended for Gemini API Key):
    ```bash
    mkdir secrets
    echo "your_gemini_api_key_here" > secrets/gemini_api_key.txt
    ```
 
 3. Edit `.env` with your API keys:
-   - **HUGGINGFACE_TOKEN** (Required): Get from [HuggingFace Settings](https://huggingface.co/settings/tokens) - Used for speaker diarization
-   - **GEMINI_API_KEY** (Optional): Only if not using Docker secrets - Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - **HUGGINGFACE_TOKEN** (Required): Get from [HuggingFace Settings](https://huggingface.co/settings/tokens) - Used for speaker diarization.
+   - **GEMINI_API_KEY** (Optional): The system now defaults to local Ollama (`qwen3:summarizer`) for summaries, but Gemini remains supported as a high-quality alternative.
 
 > [!NOTE]
-> The app uses **Ollama** (running on your **host machine**, not in Docker) for RAG/chat features and **Gemini API** for creating episode summaries.
+> The app uses **Ollama** (running on your **host machine**) for both RAG/chat features and local summarization.
 
 ---
 
 ## ▶️ Running the App
-
-We use a universal startup script to launch all services.
 
 ### 1. Start the Application
 Double-click `start_app.bat` or run in terminal:
@@ -99,13 +87,15 @@ start_app.bat
 ```
 
 This will:
-- Launch Docker containers (Frontend, RAG, API, Database)
+- Launch Docker containers (Frontend, RAG, API, Summarization, Database)
 - Start the host-side listener for the transcription worker
 - Open the Web UI in your browser
 
 ### 2. Access the Interface
 - **Web UI**: http://localhost:3000
-- **API Docs**: http://localhost:8001/docs
+- **Transcription API**: http://localhost:8001/docs
+- **RAG API**: http://localhost:8000/docs
+- **Summarization API**: http://localhost:8002/docs
 
 ---
 
@@ -126,12 +116,6 @@ The Docker transcription worker automatically processes queued episodes. You can
 ```bash
 # View transcription worker logs
 docker-compose logs -f transcription-worker
-
-# Check worker status
-docker-compose ps transcription-worker
-
-# Restart worker if needed
-docker-compose restart transcription-worker
 ```
 
 > [!TIP]
