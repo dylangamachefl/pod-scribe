@@ -104,6 +104,11 @@ class EventBus:
             # Serialize event to dict for Redis Stream
             event_data = event.model_dump(mode='json')
             
+            # Sanitize booleans for Redis (Redis Streams don't accept bools with decode_responses=True)
+            for key, value in event_data.items():
+                if isinstance(value, bool):
+                    event_data[key] = 1 if value else 0
+            
             # XADD to stream
             # * means auto-generate entry ID
             await self.client.xadd(stream, event_data, id='*')
