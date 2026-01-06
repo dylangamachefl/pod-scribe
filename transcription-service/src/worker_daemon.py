@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from config import TranscriptionConfig
 from core.diarization import apply_pytorch_patch
-from core.processor import process_episode_async, load_history, save_history
+from core.processor import process_episode_async
 from core.audio import TranscriptionWorker
 from podcast_transcriber_shared.database import create_episode, update_episode_status, EpisodeStatus
 from managers.status_monitor import write_status, clear_status
@@ -57,6 +57,17 @@ async def main():
         signal.signal(signal.SIGINT, lambda s, f: shutdown_event.set())
         signal.signal(signal.SIGTERM, lambda s, f: shutdown_event.set())
     
+    # Startup Cleanup: Remove stale temp files
+    download_dir = Path(config.temp_dir)
+    if download_dir.exists():
+        print(f"🧹 Performing startup cleanup in {download_dir}...")
+        for temp_file in download_dir.glob("*.mp3"):
+            try:
+                temp_file.unlink()
+                print(f"   Deleted stale file: {temp_file.name}")
+            except Exception as e:
+                print(f"   ⚠️  Failed to delete {temp_file.name}: {e}")
+
     print("\n")
     print("╔══════════════════════════════════════════════════════════════╗")
     print("║          Podcast Transcription Worker Daemon v2.0           ║")
@@ -98,7 +109,7 @@ async def main():
     print("=" * 64)
     
     job_count = 0
-    history = load_history(config)
+    # Note: Legacy JSON history tracking removed in favor of PostgreSQL state
     
     while not shutdown_event.is_set():
         try:
@@ -176,13 +187,11 @@ async def main():
                     success, episode_id = await process_episode_async(
                         episode_data=episode_data,
                         config=config,
-                        history=history,
                         worker=worker,
                         from_queue=True
                     )
                     
                     if success:
-                        save_history(config, history)
                         print(f"✅ Episode completed successfully: {episode_id}")
                     else:
                         await update_episode_status(episode_id, EpisodeStatus.FAILED)

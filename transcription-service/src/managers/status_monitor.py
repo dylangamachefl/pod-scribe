@@ -99,46 +99,30 @@ def write_status(
 ):
     """Write current transcription status to shared PipelineStatusManager."""
     manager = get_pipeline_status_manager()
-    
-    # Get GPU stats (Transcription specific)
     gpu_stats = get_gpu_stats()
     
-    # Get existing status for logs/start_time
-    existing_status = read_status(episode_id) or {}
-    recent_logs = existing_status.get('recent_logs', [])
-    
-    if is_running and start_time is None:
-        if existing_status.get('is_running'):
-            start_time = existing_status.get('start_time')
-        else:
-            start_time = datetime.now().isoformat()
-            recent_logs = []
-            
-    if log_message:
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        recent_logs.insert(0, f"[{timestamp}] {log_message}")
-        recent_logs = recent_logs[:50]
-    
-    status = {
+    additional_data = {
         "is_running": is_running,
         "current_episode": current_episode,
         "current_podcast": current_podcast,
-        "stage": stage,
-        "progress": progress,
-        "gpu_name": gpu_stats["gpu_name"],
-        "gpu_usage": gpu_stats["gpu_usage"],
-        "vram_used_gb": gpu_stats["vram_used_gb"],
-        "vram_total_gb": gpu_stats["vram_total_gb"],
-        "start_time": start_time,
-        "episodes_completed": episodes_completed,
-        "episodes_total": episodes_total,
-        "recent_logs": recent_logs
+        **gpu_stats
     }
     
-    # Use shared manager
-    manager.set_service_status('transcription', episode_id, status)
+    if start_time:
+        additional_data["start_time"] = start_time
     if episodes_total > 0:
+        additional_data["episodes_completed"] = episodes_completed
+        additional_data["episodes_total"] = episodes_total
         manager.update_stats('transcription', episodes_completed, episodes_total)
+        
+    manager.update_service_status(
+        service='transcription',
+        episode_id=episode_id,
+        stage=stage,
+        progress=progress,
+        log_message=log_message,
+        additional_data=additional_data
+    )
 
 
 def read_status(episode_id: str = "current") -> Optional[Dict]:
@@ -163,19 +147,13 @@ def clear_status(episode_id: str = "current"):
 
 
 def update_progress(stage: str, progress: float = 0.0, log: Optional[str] = None, episode_id: str = "current"):
-    """Update only the stage, progress, and optionally add a log for a specific episode."""
-    existing = read_status(episode_id)
-    if existing:
-        write_status(
-            is_running=existing.get('is_running', False),
-            episode_id=episode_id,
-            current_episode=existing.get('current_episode', ''),
-            current_podcast=existing.get('current_podcast', ''),
-            stage=stage,
-            progress=progress,
-            episodes_completed=existing.get('episodes_completed', 0),
-            episodes_total=existing.get('episodes_total', 0),
-            start_time=existing.get('start_time'),
-            log_message=log
-        )
+    """Update only the stage, progress, and optionally add a log using shared method."""
+    manager = get_pipeline_status_manager()
+    manager.update_service_status(
+        service='transcription',
+        episode_id=episode_id,
+        stage=stage,
+        progress=progress,
+        log_message=log
+    )
 

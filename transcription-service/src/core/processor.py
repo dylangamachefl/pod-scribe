@@ -49,27 +49,25 @@ async def publish_transcription_event(
         # Get event bus
         event_bus = get_event_bus()
         
-        # Create event (no file paths, database lookup by episode_id)
+        # Create event (ID-only, no file paths)
         event = EpisodeTranscribed(
             event_id=f"evt_{uuid.uuid4().hex[:12]}",
             service="transcription",
             episode_id=episode_id,
             episode_title=episode_title,
             podcast_name=podcast_name,
-            audio_url=audio_url,
             diarization_failed=diarization_failed
         )
         
-        # Publish event
-        success = await event_bus.publish(event_bus.CHANNEL_TRANSCRIBED, event)
+        # Publish to Stream
+        success = await event_bus.publish(event_bus.STREAM_TRANSCRIBED, event)
         
         if success:
-            print(f"   📤 Published EpisodeTranscribed event: {event.event_id}")
+            print(f"   📤 Published EpisodeTranscribed event to stream: {event.event_id}")
             if diarization_failed:
                 print(f"   ⚠️  Event flagged: diarization_failed=True")
-            print(f"   ℹ️  RAG and Summarization services will process asynchronously")
         else:
-            print(f"   ⚠️  Failed to publish event (Redis may be unavailable)")
+            print(f"   ⚠️  Failed to publish event (Redis stream entry failed)")
         
         return success
         
@@ -80,42 +78,24 @@ async def publish_transcription_event(
         return False
 
 
-def load_history(config: TranscriptionConfig) -> Dict:
-    """
-    Load processing history to avoid duplicates.
-    DEPRECATED: Should move to database-only checks.
-    Keeping for now to avoid breaking worker_daemon.py immediately if it uses it.
-    """
-    if not config.history_file.exists():
-        return {"processed_episodes": []}
-    
-    with open(config.history_file, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-
-def save_history(config: TranscriptionConfig, history: Dict):
-    """
-    Save updated processing history.
-    DEPRECATED: Should move to database-only checks.
-    """
-    with open(config.history_file, 'w', encoding='utf-8') as f:
-        json.dump(history, f, indent=2)
+# Note: load_history and save_history DELETED in favor of database state
 
 
 def transcribe_episode_task(
     episode_id: str,
     episode_title: str,
-    audio_url: str,
+    temp_audio: Path,
     config: TranscriptionConfig,
     worker: TranscriptionWorker
 ) -> Tuple[Optional[str], bool]:
     """
-    Blocking task for download, transcription, and diarization.
+    Blocking task for transcription and diarization.
     This function should be run in a thread executor.
     
     Args:
+        episode_id: Unique episode identifier
         episode_title: Title of the episode
-        audio_url: URL to audio file
+        temp_audio: Path to the local audio file
         config: Transcription configuration
         worker: Initialized TranscriptionWorker instance
 
@@ -126,23 +106,14 @@ def transcribe_episode_task(
     print(f"📻 Processing: {episode_title}")
     print(f"{'='*60}")
 
+    if not temp_audio.exists():
+        print(f"❌ Processing task failed: Audio file not found: {temp_audio}")
+        return None, False
+
     update_progress("preparing", 0.0, log=f"Starting processing: {episode_title}", episode_id=episode_id)
     update_progress("preparing", 0.0, log=f"Starting processing: {episode_title}", episode_id="current")
 
-    # Determine file extension
-    extension = '.mp3'
-    if '.m4a' in audio_url.lower():
-        extension = '.m4a'
-
-    # Download audio
-    safe_filename = sanitize_filename(episode_title)
-    temp_audio = config.temp_dir / f"{safe_filename}{extension}"
-
-    update_progress("downloading", 0.1, log="Downloading audio file...", episode_id=episode_id)
-    update_progress("downloading", 0.1, log="Downloading audio file...", episode_id="current")
-
-    if not download_audio(audio_url, temp_audio):
-        return None, False
+    # Heavy transcription and diarization work starts here
 
     try:
         # Transcribe using persistent worker
@@ -194,7 +165,6 @@ def transcribe_episode_task(
 async def process_episode_async(
     episode_data: Dict,
     config: TranscriptionConfig,
-    history: Dict,
     worker: TranscriptionWorker,
     from_queue: bool = False
 ) -> Tuple[bool, str]:
@@ -204,7 +174,6 @@ async def process_episode_async(
     Args:
         episode_data: Episode data
         config: Transcription configuration
-        history: Processing history dict
         worker: Initialized TranscriptionWorker instance
         from_queue: True if processing from pending queue
     
@@ -235,22 +204,37 @@ async def process_episode_async(
             if 'youtube.com' in link or 'youtu.be' in link:
                 audio_url = link
     
-    # Check if already processed (Legacy check)
-    if history and guid in history.get('processed_episodes', []):
-        print(f"⏭️  Skipping (already processed): {episode_title}")
-        return False, guid
-    
     if not audio_url:
         print(f"⚠️  No audio found for: {episode_title}")
         return False, guid
     
-    # Run the heavy lifting in a thread pool
+    # 1. Determine local file path
+    extension = '.mp3'
+    if '.m4a' in audio_url.lower():
+        extension = '.m4a'
+    
+    safe_filename = sanitize_filename(episode_title)
+    temp_audio = config.temp_dir / f"{safe_filename}{extension}"
+    
+    # 2. Download audio (Proper Async I/O)
+    update_progress("downloading", 0.1, log="Downloading audio file...", episode_id=guid)
+    update_progress("downloading", 0.1, log="Downloading audio file...", episode_id="current")
+    
+    try:
+        if not await download_audio(audio_url, temp_audio):
+            print(f"❌ Download failed for: {episode_title}")
+            return False, guid
+    except Exception as e:
+        print(f"❌ Exception during download: {e}")
+        return False, guid
+    
+    # 3. Offload the heavy lifting to a thread pool
     loop = asyncio.get_running_loop()
     
     # Execute the blocking transcription task
     transcript_text, diarization_failed = await loop.run_in_executor(
         None,
-        lambda: transcribe_episode_task(guid, episode_title, audio_url, config, worker)
+        lambda: transcribe_episode_task(guid, episode_title, temp_audio, config, worker)
     )
     
     if not transcript_text:
@@ -284,9 +268,4 @@ async def process_episode_async(
         diarization_failed=diarization_failed
     )
 
-    # Update legacy history if provided
-    if history:
-        history.setdefault('processed_episodes', []).append(guid)
-        save_history(config, history)
-    
     return True, guid

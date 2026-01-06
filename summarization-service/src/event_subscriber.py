@@ -35,12 +35,11 @@ async def process_transcription_event(event_data: dict):
         print(f"   Podcast: {event.podcast_name}")
         print(f"{'='*60}")
         
-        # Report status
+        # Report status (Async)
         manager = get_pipeline_status_manager()
-        manager.set_service_status('summarization', event.episode_id, {
+        manager.update_service_status('summarization', event.episode_id, "summarizing", progress=0.1, additional_data={
             "episode_title": event.episode_title,
-            "podcast_name": event.podcast_name,
-            "stage": "summarizing"
+            "podcast_name": event.podcast_name
         })
         
         # Fetch transcript from database
@@ -71,17 +70,14 @@ async def process_transcription_event(event_data: dict):
         print(f"📄 Episode: {metadata.get('episode_title', event.episode_title)}")
         print(f"🎙️  Podcast: {metadata.get('podcast_name', event.podcast_name)}")
         
-        # Generate summary with Ollama (heavy API call - run in executor)
+        # Generate summary with Ollama (Async)
         print(f"🤖 Generating summary with Ollama...")
         ollama_service = get_ollama_service()
         
-        loop = asyncio.get_running_loop()
-        summary_result = await loop.run_in_executor(
-            None,
-            ollama_service.summarize_transcript,
-            content,
-            metadata.get("episode_title", event.episode_title),
-            metadata.get("podcast_name", event.podcast_name)
+        summary_result = await ollama_service.summarize_transcript(
+            transcript_text=content,
+            episode_title=metadata.get("episode_title", event.episode_title),
+            podcast_name=metadata.get("podcast_name", event.podcast_name)
         )
         
         # Prepare summary data
@@ -120,22 +116,15 @@ async def process_transcription_event(event_data: dict):
         try:
             event_bus = get_event_bus()
 
-            # Since we are saving to DB, we don't have a file path.
-            # We can use a virtual path or empty string, or update the event schema.
-            # For now, we'll use a virtual DB path.
-            virtual_summary_path = f"db://summaries/{summary.id}"
-
             summarized_event = EpisodeSummarized(
                 event_id=f"evt_{uuid.uuid4().hex[:12]}",
                 service="summarization",
                 episode_id=event.episode_id,
                 episode_title=event.episode_title,
-                podcast_name=event.podcast_name,
-                summary_path=virtual_summary_path,
-                summary_data=complete_summary_data
+                podcast_name=event.podcast_name
             )
-            await event_bus.publish(event_bus.CHANNEL_SUMMARIZED, summarized_event)
-            print(f"📤 Published EpisodeSummarized event")
+            await event_bus.publish(event_bus.STREAM_SUMMARIZED, summarized_event)
+            print(f"📤 Published EpisodeSummarized event to stream")
         except Exception as e:
             print(f"⚠️  Failed to publish EpisodeSummarized event: {e}")
         
@@ -152,18 +141,16 @@ async def process_transcription_event(event_data: dict):
 async def start_summarization_event_subscriber():
     """Start the summarization event subscriber (async)."""
     print("\n" + "="*60)
-    print("🚀 Starting Summarization Event Subscriber")
+    print("🚀 Starting Summarization Event Subscriber (Streams)")
     print("="*60)
-    print("   Listening for: EpisodeTranscribed events")
-    print("   Channel: episodes:transcribed")
-    print("="*60 + "\n")
     
-    # Get event bus and subscribe
     event_bus = get_event_bus()
     
-    # This is now an awaitable call that runs indefinitely
+    # Use Redis Streams with a consumer group for reliability
     await event_bus.subscribe(
-        channel=event_bus.CHANNEL_TRANSCRIBED,
+        stream=event_bus.STREAM_TRANSCRIBED,
+        group_name="summarization_service_group",
+        consumer_name="summarization_worker_1",
         callback=process_transcription_event
     )
 

@@ -17,7 +17,7 @@ import inspect
 
 
 # =================================================================
-# Event Schemas
+# Event Schemas (Lightweight)
 # =================================================================
 
 class BaseEvent(BaseModel):
@@ -32,22 +32,7 @@ class EpisodeTranscribed(BaseEvent):
     episode_id: str
     episode_title: str
     podcast_name: str
-    audio_url: Optional[str] = None
-    duration_seconds: Optional[float] = None
-    diarization_failed: bool = False  # True if speaker identification failed
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "event_id": "evt_123",
-                "timestamp": "2025-12-10T12:00:00",
-                "service": "transcription",
-                "episode_id": "ep_456",
-                "episode_title": "How to Build Great Software",
-                "podcast_name": "Tech Podcast",
-                "diarization_failed": False
-            }
-        }
+    diarization_failed: bool = False
 
 
 class EpisodeSummarized(BaseEvent):
@@ -55,22 +40,6 @@ class EpisodeSummarized(BaseEvent):
     episode_id: str
     episode_title: str
     podcast_name: str
-    summary_path: str  # Path to summary JSON file
-    summary_data: Dict[str, Any]  # Summary content
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "event_id": "evt_789",
-                "timestamp": "2025-12-10T12:05:00",
-                "service": "summarization",
-                "episode_id": "ep_456",
-                "episode_title": "How to Build Great Software",
-                "podcast_name": "Tech Podcast",
-                "summary_path": "/app/shared/summaries/episode_summary.json",
-                "summary_data": {"hook": "...", "key_takeaways": [...]}
-            }
-        }
 
 
 class EpisodeIngested(BaseEvent):
@@ -79,50 +48,33 @@ class EpisodeIngested(BaseEvent):
     episode_title: str
     podcast_name: str
     chunks_created: int
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "event_id": "evt_012",
-                "timestamp": "2025-12-10T12:10:00",
-                "service": "rag",
-                "episode_id": "ep_456",
-                "episode_title": "How to Build Great Software",
-                "podcast_name": "Tech Podcast",
-                "chunks_created": 50
-            }
-        }
 
 
 # =================================================================
-# Redis Pub/Sub Client
+# Redis Streams Client
 # =================================================================
 
 class EventBus:
     """
-    Redis-based event bus for pub/sub messaging between services.
-    Handles event publishing, subscription, and automatic reconnection.
-    Uses redis.asyncio for non-blocking I/O.
+    Redis-based event bus using Redis Streams for reliable messaging.
+    Handles event publishing, persistent subscription, and consumer groups.
     """
     
-    # Event channel names
-    CHANNEL_TRANSCRIBED = "episodes:transcribed"
-    CHANNEL_SUMMARIZED = "episodes:summarized"
-    CHANNEL_INGESTED = "episodes:ingested"
+    # Stream names
+    STREAM_TRANSCRIBED = "stream:episodes:transcribed"
+    STREAM_SUMMARIZED = "stream:episodes:summarized"
+    STREAM_INGESTED = "stream:episodes:ingested"
     
     def __init__(self, redis_url: Optional[str] = None):
         """
         Initialize event bus connection.
-        
-        Args:
-            redis_url: Redis connection URL (defaults to REDIS_URL env var)
         """
         self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379")
         self.client = None
         self._shutdown = False
     
     async def _connect(self):
-        """Establish Redis connection with retry logic."""
+        """Establish Redis connection."""
         if self.client:
             return
 
@@ -132,121 +84,104 @@ class EventBus:
                 decode_responses=True,
                 health_check_interval=30
             )
-            # Test connection
             await self.client.ping()
-            print(f"✅ Redis EventBus connected: {self.redis_url}")
+            print(f"✅ Redis EventBus (Streams) connected: {self.redis_url}")
         except Exception as e:
             print(f"❌ Failed to connect to Redis: {e}")
-            print(f"   Redis URL: {self.redis_url}")
-            print(f"   Events will not be published/received")
             self.client = None
     
-    async def publish(self, channel: str, event: BaseEvent) -> bool:
+    async def publish(self, stream: str, event: BaseEvent) -> bool:
         """
-        Publish an event to a channel asynchronously.
-        
-        Args:
-            channel: Channel name (use CHANNEL_* constants)
-            event: Event object to publish
-            
-        Returns:
-            True if published successfully, False otherwise
+        Publish an event to a Redis Stream asynchronously.
         """
         if not self.client:
             await self._connect()
 
         if not self.client:
-            print(f"⚠️  EventBus not connected, cannot publish to {channel}")
             return False
         
         try:
-            # Serialize event to JSON
-            event_json = event.model_dump_json()
+            # Serialize event to dict for Redis Stream
+            event_data = event.model_dump(mode='json')
             
-            # Publish to Redis channel
-            num_subscribers = await self.client.publish(channel, event_json)
+            # XADD to stream
+            # * means auto-generate entry ID
+            await self.client.xadd(stream, event_data, id='*')
             
-            print(f"📤 Published event to {channel}: {event.event_id} ({num_subscribers} subscribers)")
+            print(f"📤 Published event to {stream}: {event.event_id}")
             return True
             
         except Exception as e:
-            print(f"❌ Failed to publish event to {channel}: {e}")
-            # Try to reconnect for next time
+            print(f"❌ Failed to publish event to {stream}: {e}")
             self.client = None
             return False
     
-    async def subscribe(self, channel: str, callback: Callable[[Dict], Awaitable[None]]):
+    async def subscribe(
+        self, 
+        stream: str, 
+        group_name: str, 
+        consumer_name: str, 
+        callback: Callable[[Dict], Awaitable[None]]
+    ):
         """
-        Subscribe to a channel and process events with callback.
-        Automatically reconnects on connection failures with exponential backoff.
-        
-        This is a blocking call (awaitable) that runs indefinitely until shutdown.
-        
-        Args:
-            channel: Channel name to subscribe to
-            callback: Async function to call for each event (receives event dict)
+        Subscribe to a Redis Stream using a consumer group.
+        Provides reliability and persistence: if the service is down,
+        it will pick up missed events when it resumes.
         """
-        retry_delay = 1  # Start at 1 second
-        max_retry_delay = 60  # Cap at 60 seconds
+        if not self.client:
+            await self._connect()
         
-        print(f"🔄 Starting async subscriber for channel: {channel}")
+        # Create consumer group if it doesn't exist
+        try:
+            # Attempt to create group starting from the beginning of the stream ($ for only new events, 0 for all)
+            await self.client.xgroup_create(stream, group_name, id='0', mkstream=True)
+            print(f"✅ Created consumer group '{group_name}' for stream '{stream}'")
+        except redis.ResponseError as e:
+            if "BUSYGROUP" not in str(e):
+                print(f"⚠️  Error creating consumer group: {e}")
+        
+        print(f"📥 Subscribed to {stream} as {consumer_name} (Group: {group_name})")
         
         while not self._shutdown:
-            pubsub = None
             try:
-                # Ensure we have a connection
-                await self._connect()
-                if not self.client:
-                    raise redis.ConnectionError("Failed to establish connection")
+                # Read from stream in consumer group
+                # > means read only new messages not delivered to other consumers in the group
+                messages = await self.client.xreadgroup(
+                    groupname=group_name,
+                    consumername=consumer_name,
+                    streams={stream: '>'},
+                    count=1,
+                    block=5000  # Block for 5 seconds
+                )
                 
-                # Subscribe to channel
-                pubsub = self.client.pubsub()
-                await pubsub.subscribe(channel)
-                
-                print(f"📥 Subscribed to channel: {channel}")
-                print(f"   Waiting for events...")
-                
-                # Reset retry delay on successful connection
-                retry_delay = 1
-                
-                # Listen for messages (async generator)
-                async for message in pubsub.listen():
-                    if self._shutdown:
-                        print(f"\n🛑 Shutdown signal received, stopping subscriber")
-                        break
-                    
-                    if message['type'] == 'message':
-                        # Process event in background task (fire and forget)
-                        # This ensures one slow callback doesn't block receiving other messages
-                        asyncio.create_task(self._process_message(message['data'], callback))
-                
+                if messages:
+                    for stream_name, entries in messages:
+                        for entry_id, entry_data in entries:
+                            # Process the entry
+                            await self._process_entry(entry_id, entry_data, callback)
+                            # Acknowledge the message
+                            await self.client.xack(stream, group_name, entry_id)
+                            
             except (redis.ConnectionError, OSError) as e:
-                print(f"\n❌ Lost connection to Redis: {e}")
-                print(f"   Reconnecting in {retry_delay}s...")
-                await asyncio.sleep(retry_delay)
-                retry_delay = min(retry_delay * 2, max_retry_delay)  # Exponential backoff
-                
-                self.client = None # Force reconnect
-                
-            except asyncio.CancelledError:
-                print("🛑 Subscriber task cancelled")
-                break
-                
+                print(f"❌ Redis connection error: {e}")
+                await asyncio.sleep(5)
+                self.client = None
+                await self._connect()
             except Exception as e:
-                print(f"\n❌ Unexpected subscription error on {channel}: {e}")
-                traceback.print_exc()
-                print(f"   Retrying in {retry_delay}s...")
-                await asyncio.sleep(retry_delay)
-                retry_delay = min(retry_delay * 2, max_retry_delay)
+                print(f"❌ Error in stream consumer: {e}")
+                await asyncio.sleep(1)
 
-            finally:
-                if pubsub:
-                    try:
-                        await pubsub.close()
-                    except:
-                        pass
-        
-        print(f"✅ Subscriber stopped for channel: {channel}")
+    async def _process_entry(self, entry_id: str, entry_data: dict, callback: Callable[[Dict], Awaitable[None]]):
+        """Process a single stream entry."""
+        try:
+            if inspect.iscoroutinefunction(callback):
+                await callback(entry_data)
+            else:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, callback, entry_data)
+        except Exception as e:
+            print(f"❌ Error processing event {entry_id}: {e}")
+            traceback.print_exc()
     
     async def _process_message(self, message_data: str, callback: Callable[[Dict], Awaitable[None]]):
         """

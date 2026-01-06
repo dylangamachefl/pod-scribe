@@ -7,7 +7,7 @@ import redis
 class PipelineStatusManager:
     """
     Manages and aggregates status information across the entire podcast processing pipeline.
-    Transcription -> Summarization -> RAG Indexing.
+    Uses Redis Lua scripts for atomic status updates to prevent race conditions.
     """
     
     # Redis Keys
@@ -15,10 +15,51 @@ class PipelineStatusManager:
     SERVICE_STATUS_PREFIX = "status:" # status:{service}:{episode_id}
     SERVICE_STATS_PREFIX = "stats:"   # stats:{service}
     
+    # Lua Scripts for Atomic Operations
+    SET_STATUS_LUA = """
+    -- KEYS[1]: pipeline:active_episodes
+    -- KEYS[2]: status:{service}:{episode_id}
+    -- ARGV[1]: episode_id
+    -- ARGV[2]: status_data_json
+    -- ARGV[3]: ttl
+    
+    redis.call('SADD', KEYS[1], ARGV[1])
+    redis.call('SETEX', KEYS[2], ARGV[3], ARGV[2])
+    return 1
+    """
+    
+    CLEAR_STATUS_LUA = """
+    -- KEYS[1]: pipeline:active_episodes
+    -- KEYS[2]: status:{service}:{episode_id}
+    -- ARGV[1]: episode_id
+    -- ARGV[2]: status_prefix
+    
+    redis.call('DEL', KEYS[2])
+    
+    -- Check if any other service still has status for this episode
+    -- status:transcription:eid, status:summarization:eid, status:rag:eid
+    local services = {'transcription', 'summarization', 'rag'}
+    local active = false
+    for _, svc in ipairs(services) do
+        if redis.call('EXISTS', ARGV[2] .. svc .. ':' .. ARGV[1]) == 1 then
+            active = true
+            break
+        end
+    end
+    
+    if not active then
+        redis.call('SREM', KEYS[1], ARGV[1])
+    end
+    return 1
+    """
+    
     def __init__(self, redis_url: Optional[str] = None):
         self.redis_url = redis_url or os.getenv('REDIS_URL', 'redis://redis:6379')
         try:
             self.redis = redis.from_url(self.redis_url, decode_responses=True)
+            # Register Lua scripts
+            self._set_status_script = self.redis.register_script(self.SET_STATUS_LUA)
+            self._clear_status_script = self.redis.register_script(self.CLEAR_STATUS_LUA)
         except Exception as e:
             print(f"Warning: Failed to initialize Redis in PipelineStatusManager: {e}")
             self.redis = None
@@ -30,30 +71,74 @@ class PipelineStatusManager:
         return f"{self.SERVICE_STATS_PREFIX}{service}"
 
     def set_service_status(self, service: str, episode_id: str, status_data: Dict[str, Any]):
-        """Set the status for a specific episode in a specific service."""
+        """Set the status for a specific episode in a specific service atomically."""
         if not self.redis: return
         
         key = self._get_status_key(service, episode_id)
         status_data['last_updated'] = datetime.now().isoformat()
         
-        # Add to active episodes set
-        self.redis.sadd(self.ACTIVE_EPISODES_KEY, episode_id)
-        # Set detailed status with 1 hour expiration (safety)
-        self.redis.setex(key, 3600, json.dumps(status_data))
+        try:
+            self._set_status_script(
+                keys=[self.ACTIVE_EPISODES_KEY, key],
+                args=[episode_id, json.dumps(status_data), 3600]
+            )
+        except Exception as e:
+            print(f"Error setting status via Lua: {e}")
+            # Fallback simple set
+            self.redis.sadd(self.ACTIVE_EPISODES_KEY, episode_id)
+            self.redis.setex(key, 3600, json.dumps(status_data))
+
+    def update_service_status(
+        self,
+        service: str,
+        episode_id: str,
+        stage: str,
+        progress: float = 0.0,
+        log_message: Optional[str] = None,
+        additional_data: Optional[Dict] = None
+    ):
+        """
+        Update service status with common fields (stage, progress, logs).
+        This is the preferred way to report progress in a DRY manner.
+        """
+        # Get existing status for logs/history
+        existing_status_raw = self.redis.get(self._get_status_key(service, episode_id)) if self.redis else None
+        existing_status = json.loads(existing_status_raw) if existing_status_raw else {}
+        
+        recent_logs = existing_status.get('recent_logs', [])
+        if log_message:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            recent_logs.insert(0, f"[{timestamp}] {log_message}")
+            recent_logs = recent_logs[:50] # Keep last 50 logs
+            
+        status = {
+            **existing_status,
+            "stage": stage,
+            "progress": progress,
+            "recent_logs": recent_logs
+        }
+        
+        if additional_data:
+            status.update(additional_data)
+            
+        self.set_service_status(service, episode_id, status)
 
     def clear_service_status(self, service: str, episode_id: str):
-        """Clear the status for an episode in a service when done."""
+        """Clear the status for an episode in a service atomically."""
         if not self.redis: return
         
-        # Delete detailed status
-        self.redis.delete(self._get_status_key(service, episode_id))
-        
-        # Check if other services are still working on this episode
-        # This is a bit tricky, but for now we'll rely on the API aggregator
-        # to clean up ACTIVE_EPISODES_KEY when appropriate or use a TTL.
+        key = self._get_status_key(service, episode_id)
+        try:
+            self._clear_status_script(
+                keys=[self.ACTIVE_EPISODES_KEY, key],
+                args=[episode_id, self.SERVICE_STATUS_PREFIX]
+            )
+        except Exception as e:
+            print(f"Error clearing status via Lua: {e}")
+            self.redis.delete(key)
 
     def update_stats(self, service: str, completed: int, total: int):
-        """Update overall stats for a service (e.g., 2/5 episodes completed)."""
+        """Update overall stats for a service."""
         if not self.redis: return
         
         key = self._get_stats_key(service)
@@ -68,18 +153,16 @@ class PipelineStatusManager:
         """Initialize a new batch run across all services."""
         if not self.redis: return
         
-        # Clear old stats (optional, depending on desired persistence)
+        pipeline = self.redis.pipeline()
         for service in ['transcription', 'summarization', 'rag']:
-            self.redis.delete(self._get_stats_key(service))
-            # Also clear individual episode statuses for these IDs to be safe
+            pipeline.delete(self._get_stats_key(service))
             for eid in episode_ids:
-                self.redis.delete(self._get_status_key(service, eid))
+                pipeline.delete(self._get_status_key(service, eid))
         
-        # Add all to active set
         if episode_ids:
-            self.redis.sadd(self.ACTIVE_EPISODES_KEY, *episode_ids)
+            pipeline.sadd(self.ACTIVE_EPISODES_KEY, *episode_ids)
+        pipeline.execute()
             
-        # Initialize transcription stats
         self.update_stats('transcription', 0, total_count)
         self.update_stats('summarization', 0, total_count)
         self.update_stats('rag', 0, total_count)
@@ -94,12 +177,10 @@ class PipelineStatusManager:
         stages = {}
         active_episodes_data = []
         
-        # Track stats and active episodes per service
         for service in ['transcription', 'summarization', 'rag']:
             stats_raw = self.redis.get(self._get_stats_key(service))
             stats = json.loads(stats_raw) if stats_raw else {"completed": 0, "total": 0}
             
-            # Find any active episodes for this service
             active_in_service = []
             for eid in active_episode_ids:
                 status_raw = self.redis.get(self._get_status_key(service, eid))
@@ -115,11 +196,8 @@ class PipelineStatusManager:
                 "total": stats['total'],
                 "current": active_in_service[0] if active_in_service else None
             }
-            
-            # Accumulate all active episode data
             active_episodes_data.extend(active_in_service)
 
-        # Group by episode_id for a cleaner view
         episodes_map = {}
         for entry in active_episodes_data:
             eid = entry['episode_id']
@@ -134,32 +212,15 @@ class PipelineStatusManager:
                 }
             episodes_map[eid]['services'][entry['service']] = entry
 
-        # Cleanup: if an episode ID has no status in any service, it's stale
-        # BUT we shouldn't do this here because it causes a race condition
-        # between batch initialization and the first worker status report.
-        # for eid in active_episode_ids:
-        #     if eid not in episodes_map and eid != "current":
-        #         self.redis.srem(self.ACTIVE_EPISODES_KEY, eid)
-
-        # Re-evaluating is_running:
-        # 1. At least one episode is actively being processed in a service
-        # 2. Transcription service is explicitly running (e.g. download, transcribe)
-        # 3. GPU usage is high (optional, but good indicator)
-        
         transcription_status_raw = self.redis.get("transcription:status")
         transcription_status = json.loads(transcription_status_raw) if transcription_status_raw else {}
         service_is_running = transcription_status.get('is_running', False)
         
-        # is_running if: 
-        # 1. Any service reports as running
-        # 2. Any episode is actively mapped
-        # 3. We have active episode IDs (means something is queued)
         is_running = service_is_running or len(episodes_map) > 0 or len(active_episode_ids) > 0
         
-        # Cleanup: if all stages finished and no service is running, clear active episodes
+        # Cleanup stale IDs if nothing is running
         if not is_running and active_episode_ids:
              self.redis.delete(self.ACTIVE_EPISODES_KEY)
-             # Also reset stats if they were "stuck"
              for service in ['transcription', 'summarization', 'rag']:
                  self.redis.delete(self._get_stats_key(service))
 
@@ -175,6 +236,20 @@ class PipelineStatusManager:
             "episodes_completed": transcription_status.get('episodes_completed', 0),
             "episodes_total": transcription_status.get('episodes_total', 0)
         }
+
+    def clear_all_status(self):
+        """Force clear all pipeline status and stats from Redis."""
+        if not self.redis: return
+        
+        self.redis.delete(self.ACTIVE_EPISODES_KEY)
+        
+        keys_to_delete = []
+        keys_to_delete.extend(self.redis.keys(f"{self.SERVICE_STATUS_PREFIX}*"))
+        keys_to_delete.extend(self.redis.keys(f"{self.SERVICE_STATS_PREFIX}*"))
+        keys_to_delete.append("transcription:status")
+        
+        if keys_to_delete:
+            self.redis.delete(*keys_to_delete)
 
     def clear_all_status(self):
         """Force clear all pipeline status and stats from Redis."""

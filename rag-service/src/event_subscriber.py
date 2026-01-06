@@ -58,12 +58,11 @@ async def process_transcription_event(event_data: dict):
         print(f"   Episode: {event.episode_title}")
         print(f"{'='*60}")
         
-        # Report status
+        # Report status (Async)
         manager = get_pipeline_status_manager()
-        manager.set_service_status('rag', event.episode_id, {
+        manager.update_service_status('rag', event.episode_id, "indexing", progress=0.1, additional_data={
             "episode_title": event.episode_title,
-            "podcast_name": event.podcast_name,
-            "stage": "indexing"
+            "podcast_name": event.podcast_name
         })
         
         # === IDEMPOTENCY CHECK ===
@@ -99,15 +98,14 @@ async def process_transcription_event(event_data: dict):
         chunks = chunk_by_speaker_turns(transcript_lines)
         print(f"📄 Extracted {len(chunks)} chunks")
         
-        # Generate embeddings (blocking)
+        # Generate embeddings (Async)
         embedding_service = get_embedding_service()
         chunk_texts = [chunk["text"] for chunk in chunks]
         
-        embeddings = await loop.run_in_executor(
-            None, embedding_service.embed_batch, chunk_texts
-        )
+        embeddings = await embedding_service.embed_batch(chunk_texts)
         
         # Store in Qdrant (blocking)
+        manager.update_service_status('rag', event.episode_id, "indexing", progress=0.7, log_message="Uploading embeddings to vector store...")
         num_inserted = await loop.run_in_executor(
             None, qdrant_service.insert_chunks, chunks, embeddings, metadata
         )
@@ -158,14 +156,16 @@ async def process_transcription_event(event_data: dict):
 async def start_rag_event_subscriber():
     """Start the RAG event subscriber (Async)."""
     print("\n" + "="*60)
-    print("🚀 Starting RAG Event Subscriber")
+    print("🚀 Starting RAG Event Subscriber (Streams)")
     print("="*60)
     
     event_bus = get_event_bus()
     
-    # This is now an awaitable call that runs indefinitely
+    # Use Redis Streams with a consumer group for reliability
     await event_bus.subscribe(
-        channel=event_bus.CHANNEL_TRANSCRIBED,
+        stream=event_bus.STREAM_TRANSCRIBED,
+        group_name="rag_service_group",
+        consumer_name="rag_worker_1",
         callback=process_transcription_event
     )
 

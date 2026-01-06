@@ -12,6 +12,7 @@ torchaudio  # Already installed with PyTorch but explicitly listed
 # Utilities
 feedparser  # For RSS feed parsing
 requests  # For HTTP requests
+httpx>=0.25.0  # For async HTTP requests
 yt-dlp>=2023.0.0  # For audio downloads
 pydub>=0.25.0  # For audio processing
 pydantic  # For data models
