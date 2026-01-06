@@ -65,6 +65,8 @@ async def process_transcription_event(event_data: dict):
             return True
         
         # Fetch episode from database
+        from podcast_transcriber_shared.database import get_episode_by_id, save_summary as db_save_summary
+        
         episode = await get_episode_by_id(event.episode_id, load_transcript=True)
         
         if not episode:

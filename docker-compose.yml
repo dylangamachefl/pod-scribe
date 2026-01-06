@@ -73,7 +73,7 @@ services:
       # Service configuration
       - REDIS_URL=redis://redis:6379
       - DATABASE_URL=${DATABASE_URL}
-      - HUGGINGFACE_TOKEN_FILE=/run/secrets/huggingface_token
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
       - DEVICE=cuda
       - COMPUTE_TYPE=int8
       - BATCH_SIZE=4

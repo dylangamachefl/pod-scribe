@@ -170,8 +170,9 @@ class EventBus:
                 
                 if pending_info:
                     for message_info in pending_info:
-                        entry_id = message_info['message_id']
-                        delivery_count = message_info['delivery_count']
+                        # message_info is a dict with keys: message_id, consumer, time_since_delivered, times_delivered
+                        entry_id = message_info.get('message_id')
+                        delivery_count = message_info.get('times_delivered', 1)  # Use 'times_delivered' not 'delivery_count'
 
                         # Check DLQ threshold
                         if delivery_count > 5:

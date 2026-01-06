@@ -21,3 +21,7 @@ python-dotenv  # For environment config
 # Database dependencies for PostgreSQL access
 asyncpg
 sqlalchemy[asyncio]
+
+# Logging and reliability
+structlog>=23.0.0  # Structured logging
+tenacity>=8.0.0  # Retry logic
