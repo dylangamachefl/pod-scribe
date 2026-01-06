@@ -14,14 +14,12 @@ async def main():
     event = EpisodeTranscribed(
         event_id="evt_test_manual_1",
         service="manual_test",
-        episode_id="test_episode_123",
-        episode_title="Manual Test Episode",
-        podcast_name="Test Podcast",
-        audio_url="http://example.com/test.mp3",
-        duration_seconds=60.0
+        episode_id="yt:video:c5yDkwjZG80",
+        episode_title="Learning Skills with Deepagents",
+        podcast_name="Test Podcast"
     )
     
-    success = await bus.publish(bus.CHANNEL_TRANSCRIBED, event)
+    success = await bus.publish(bus.STREAM_TRANSCRIBED, event)
     
     if success:
         print("✅ Event published successfully!")

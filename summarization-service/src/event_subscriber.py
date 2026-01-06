@@ -91,7 +91,7 @@ async def process_transcription_event(event_data: dict):
             # Add metadata fields
             "speakers": metadata.get("speakers", []),
             "duration": metadata.get("duration"),
-            "audio_url": event.audio_url,
+            "audio_url": episode.url,  # Use URL from database as source of truth
         }
         
         # Save summary to database (async)
