@@ -3,7 +3,9 @@ Audio Processing Module
 Functions for downloading and transcribing audio files.
 Includes TranscriptionWorker class for persistent model loading.
 """
+import asyncio
 import gc
+import os
 import socket
 import ipaddress
 from urllib.parse import urlparse
@@ -14,6 +16,9 @@ import httpx
 import torch
 import whisperx
 import yt_dlp
+
+# Suppress tqdm progress bars in Docker/Non-interactive logs
+os.environ["TQDM_DISABLE"] = "1"
 
 from managers.status_monitor import update_progress
 

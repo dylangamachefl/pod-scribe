@@ -48,120 +48,102 @@ async def _episode_already_ingested(episode_id: str, qdrant_service) -> bool:
         return False
 
 
-async def process_summary_event(event_data: dict) -> bool:
+async def process_batch_summarized_event(event_data: dict):
     """
-    Process an EpisodeSummarized event asynchronously.
-    Returns True if successful, False otherwise.
+    Process a BatchSummarized event asynchronously.
+    Indexes all episodes in the batch sequentially for RAG.
     """
     try:
-        # Parse event
-        event = EpisodeSummarized(**event_data)
+        from podcast_transcriber_shared.events import BatchSummarized
+        event = BatchSummarized(**event_data)
         
-        # Bind correlation ID for tracking
         bind_correlation_id(event.event_id)
-        logger.info("episode_summarized_event_received", 
-                   event_id=event.event_id, 
-                   episode_id=event.episode_id,
-                   episode_title=event.episode_title,
-                   podcast_name=event.podcast_name)
-        
-        # Report status (Async)
-        manager = get_pipeline_status_manager()
-        manager.update_service_status('rag', event.episode_id, "indexing", progress=0.1, additional_data={
-            "episode_title": event.episode_title,
-            "podcast_name": event.podcast_name
-        })
-        
-        # === ATOMIC IDEMPOTENCY CHECK ===
-        from podcast_transcriber_shared.idempotency import get_idempotency_manager
-        
-        idempotency_manager = get_idempotency_manager()
-        idempotency_key = idempotency_manager.make_key("rag", "transcribed", event.episode_id)
-        
-        # Atomic check-and-set: returns True if this is the first time processing
-        is_first_time = await idempotency_manager.check_and_set(idempotency_key, ttl=86400)
-        
-        if not is_first_time:
-            logger.info("episode_already_processed_skipping", 
-                       episode_id=event.episode_id, 
-                       title=event.episode_title,
-                       idempotency_key=idempotency_key)
-            return True
-        
-        # Fetch transcript and summary from database (Async)
+        logger.info("batch_summarized_event_received", 
+                    batch_id=event.batch_id, 
+                    episode_count=len(event.episode_ids))
+
+        # Acquire GPU Lock once for the entire batch (for embeddings)
+        from podcast_transcriber_shared.gpu_lock import get_gpu_lock
+        async with get_gpu_lock().acquire():
+            logger.info("gpu_lock_acquired_for_batch_rag_indexing", batch_id=event.batch_id)
+            
+            for episode_id in event.episode_ids:
+                await index_single_episode(episode_id, event.batch_id)
+
+        logger.info("batch_rag_indexing_complete", batch_id=event.batch_id)
+
+    except Exception as e:
+        logger.error("batch_rag_indexing_error", error=str(e), exc_info=True)
+
+
+async def index_single_episode(episode_id: str, batch_id: str = "default") -> bool:
+    """Helper to index a single episode (refactored from previous process_summary_event)."""
+    try:
         from podcast_transcriber_shared.database import get_episode_by_id, get_summary_by_episode_id
         
-        episode = await get_episode_by_id(event.episode_id, load_transcript=True)
-        summary_record = await get_summary_by_episode_id(event.episode_id)
+        episode = await get_episode_by_id(episode_id, load_transcript=True)
+        summary_record = await get_summary_by_episode_id(episode_id)
         
         if not episode or not episode.transcript_text:
-            logger.error("no_transcript_text_for_episode", episode_id=event.episode_id)
-            return True  # Acknowledge to remove invalid event
-        
+            logger.error("episode_unsuitable_for_rag", episode_id=episode_id)
+            return False
+
+        # Report status
+        manager = get_pipeline_status_manager()
+        manager.update_service_status('rag', episode_id, "indexing", progress=0.1, additional_data={
+            "episode_title": episode.title,
+            "podcast_name": episode.podcast_name
+        })
+
         summary_content = summary_record.content if summary_record else {}
         
-        content = episode.transcript_text
-        metadata = episode.meta_data or {}
-        metadata["source_file"] = f"db://episodes/{event.episode_id}"
-        metadata["episode_title"] = event.episode_title
-        metadata["podcast_name"] = event.podcast_name
-        metadata["episode_id"] = event.episode_id
-        
-        # Include summary fields in metadata for context
-        if summary_content:
-            metadata["summary_hook"] = summary_content.get("hook", "")
-            metadata["key_takeaways"] = summary_content.get("key_takeaways", [])
+        # Prepare metadata
+        metadata = (episode.meta_data or {}).copy()
+        metadata.update({
+            "source_file": f"db://episodes/{episode_id}",
+            "episode_title": episode.title,
+            "podcast_name": episode.podcast_name,
+            "episode_id": episode_id,
+            "summary_hook": summary_content.get("hook", ""),
+            "key_takeaways": summary_content.get("key_takeaways", [])
+        })
         
         # Chunking
-        transcript_lines = get_transcript_body(content)
+        transcript_lines = get_transcript_body(episode.transcript_text)
         chunks = chunk_by_speaker_turns(transcript_lines)
-        logger.info("transcript_chunked", episode_id=event.episode_id, chunk_count=len(chunks))
         
-        # Generate embeddings (Async)
+        # Embed
         embedding_service = get_embedding_service()
         chunk_texts = [chunk["text"] for chunk in chunks]
-        
         embeddings = await embedding_service.embed_batch(chunk_texts)
         
-        # Store in Qdrant (async)
-        manager.update_service_status('rag', event.episode_id, "indexing", progress=0.7, log_message="Uploading embeddings to vector store...")
+        # Qdrant
+        qdrant_service = get_qdrant_service()
         num_inserted = await qdrant_service.insert_chunks(chunks, embeddings, metadata)
-        logger.info("chunks_inserted_to_qdrant", episode_id=event.episode_id, chunk_count=num_inserted)
         
-        # Update BM25 index (blocking)
+        # BM25
         try:
             hybrid_service = get_hybrid_retriever_service(
                 embeddings_service=embedding_service,
                 qdrant_service=qdrant_service
             )
-            
-            new_documents = []
-            for i, chunk in enumerate(chunks):
-                doc = Document(
-                    page_content=chunk["text"],
-                    metadata={
-                        "episode_title": event.episode_title,
-                        "podcast_name": event.podcast_name,
-                        "speaker": chunk.get("speaker", "UNKNOWN"),
-                        "timestamp": chunk.get("timestamp", "00:00:00"),
-                        "chunk_index": i,
-                        "source_file": metadata.get("source_file", "")
-                    }
-                )
-                new_documents.append(doc)
-            
+            new_documents = [
+                Document(page_content=c["text"], metadata={**metadata, "speaker": c.get("speaker", "UNKNOWN"), "timestamp": c.get("timestamp", "00:00:00"), "chunk_index": i})
+                for i, c in enumerate(chunks)
+            ]
             hybrid_service.add_documents(new_documents)
-            logger.info("bm25_index_updated", episode_id=event.episode_id, document_count=len(new_documents))
-            
         except Exception as e:
-            logger.warning("bm25_index_update_failed", episode_id=event.episode_id, error=str(e))
+            logger.warning("bm25_update_failed", episode_id=episode_id, error=str(e))
         
-        # Clear individual status and increment completed count
-        manager.clear_service_status('rag', event.episode_id)
+        # Cleanup
+        manager.clear_service_status('rag', episode_id)
         manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}rag:completed") if manager.redis else None
         
-        logger.info("rag_processing_complete", episode_id=event.episode_id, title=event.episode_title)
         return True
+
+    except Exception as e:
+        logger.error("single_episode_rag_indexing_failed", episode_id=episode_id, error=str(e))
+        return False
         
     except Exception as e:
         logger.error("rag_event_processing_error", episode_id=event.episode_id, error=str(e), exc_info=True)
@@ -176,10 +158,10 @@ async def start_rag_event_subscriber():
     
     # Use Redis Streams with a consumer group for reliability
     await event_bus.subscribe(
-        stream=event_bus.STREAM_SUMMARIZED,
+        stream=event_bus.STREAM_BATCH_SUMMARIZED,
         group_name="rag_service_group",
         consumer_name="rag_worker_1",
-        callback=process_summary_event
+        callback=process_batch_summarized_event
     )
 
 

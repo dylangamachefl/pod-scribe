@@ -19,132 +19,93 @@ configure_logging("summarization-service")
 logger = get_logger(__name__)
 
 
-async def process_transcription_event(event_data: dict):
+async def process_batch_transcribed_event(event_data: dict):
     """
-    Process an EpisodeTranscribed event asynchronously.
-    
-    Called when a new transcript is available.
-    Generates a structured summary using Ollama.
-    
-    Args:
-        event_data: Event data dictionary from Redis
+    Process a BatchTranscribed event asynchronously.
+    Summarizes all episodes in the batch sequentially.
     """
     try:
-        # Parse event
-        event = EpisodeTranscribed(**event_data)
+        from podcast_transcriber_shared.events import BatchTranscribed, EpisodeSummarized
+        event = BatchTranscribed(**event_data)
         
-        # Bind correlation ID for tracking
         bind_correlation_id(event.event_id)
-        logger.info("episode_transcribed_event_received",
-                   event_id=event.event_id,
-                   episode_id=event.episode_id,
-                   episode_title=event.episode_title,
-                   podcast_name=event.podcast_name)
-        
-        # Report status (Async)
-        manager = get_pipeline_status_manager()
-        manager.update_service_status('summarization', event.episode_id, "summarizing", progress=0.1, additional_data={
-            "episode_title": event.episode_title,
-            "podcast_name": event.podcast_name
-        })
-        
-        # === ATOMIC IDEMPOTENCY CHECK ===
-        from podcast_transcriber_shared.idempotency import get_idempotency_manager
-        
-        idempotency_manager = get_idempotency_manager()
-        idempotency_key = idempotency_manager.make_key("summarization", "transcribed", event.episode_id)
-        
-        # Atomic check-and-set: returns True if this is the first time processing
-        is_first_time = await idempotency_manager.check_and_set(idempotency_key, ttl=86400)
-        
-        if not is_first_time:
-            logger.info("episode_already_processed_skipping", 
-                       episode_id=event.episode_id, 
-                       title=event.episode_title,
-                       idempotency_key=idempotency_key)
-            return True
-        
+        logger.info("batch_transcribed_event_received", 
+                    batch_id=event.batch_id, 
+                    episode_count=len(event.episode_ids))
+
+        # Acquire GPU Lock once for the entire batch
+        from podcast_transcriber_shared.gpu_lock import get_gpu_lock
+        async with get_gpu_lock().acquire():
+            logger.info("gpu_lock_acquired_for_batch_summarization", batch_id=event.batch_id)
+            
+            processed_episodes = []
+            for episode_id in event.episode_ids:
+                success = await summarize_single_episode(episode_id, event.batch_id)
+                if success:
+                    processed_episodes.append(episode_id)
+
+            # Publish BatchSummarized event
+            if processed_episodes:
+                from podcast_transcriber_shared.events import BatchSummarized
+                eb = get_event_bus()
+                batch_event = BatchSummarized(
+                    event_id=f"batch_sum_{uuid.uuid4().hex[:8]}",
+                    service="summarization-service",
+                    batch_id=event.batch_id,
+                    episode_ids=processed_episodes
+                )
+                await eb.publish(eb.STREAM_BATCH_SUMMARIZED, batch_event)
+                logger.info("batch_summarized_event_published", batch_id=event.batch_id)
+
+    except Exception as e:
+        logger.error("batch_summarization_error", error=str(e), exc_info=True)
+
+
+async def summarize_single_episode(episode_id: str, batch_id: str = "default") -> bool:
+    """Helper to summarize a single episode (refactored from previous process_transcription_event)."""
+    try:
         # Fetch episode from database
         from podcast_transcriber_shared.database import get_episode_by_id, save_summary as db_save_summary
         
-        episode = await get_episode_by_id(event.episode_id, load_transcript=True)
-        
-        if not episode:
-            logger.error("episode_not_found_in_database", episode_id=event.episode_id)
-            return
-        
-        if not episode.transcript_text:
-            logger.error("no_transcript_text_for_episode", episode_id=event.episode_id)
-            return
-        
-        content = episode.transcript_text
-        metadata = episode.meta_data or {}
-        
-        print(f"📄 Episode: {metadata.get('episode_title', event.episode_title)}")
-        print(f"🎙️  Podcast: {metadata.get('podcast_name', event.podcast_name)}")
-        
-        # Generate summary with Ollama (Async)
-        print(f"🤖 Generating summary with Ollama...")
+        episode = await get_episode_by_id(episode_id, load_transcript=True)
+        if not episode or not episode.transcript_text:
+            logger.error("episode_unsuitable_for_summarization", episode_id=episode_id)
+            return False
+
+        # Report status
+        manager = get_pipeline_status_manager()
+        manager.update_service_status('summarization', episode_id, "summarizing", progress=0.1, additional_data={
+            "episode_title": episode.title,
+            "podcast_name": episode.podcast_name
+        })
+
+        # Summarize
+        logger.info("generating_summary", episode_id=episode_id, title=episode.title)
         ollama_service = get_ollama_service()
-        
         summary_result = await ollama_service.summarize_transcript(
-            transcript_text=content,
-            episode_title=metadata.get("episode_title", event.episode_title),
-            podcast_name=metadata.get("podcast_name", event.podcast_name)
+            transcript_text=episode.transcript_text,
+            episode_title=episode.title,
+            podcast_name=episode.podcast_name
         )
         
-        # Prepare summary data
+        # Save to DB
         complete_summary_data = {
-            "episode_title": metadata.get("episode_title", event.episode_title),
-            "podcast_name": metadata.get("podcast_name", event.podcast_name),
-            "processed_date": metadata.get("processed_date"),
-            "created_at": metadata.get("processed_date"),
-            # Unpack all structured summary fields
+            "episode_title": episode.title,
+            "podcast_name": episode.podcast_name,
             **summary_result.model_dump(),
-            # Add metadata fields
-            "speakers": metadata.get("speakers", []),
-            "duration": metadata.get("duration"),
-            "audio_url": episode.url,  # Use URL from database as source of truth
+            "audio_url": episode.url,
         }
+        await db_save_summary(episode_id, complete_summary_data)
         
-        # Save summary to database (async)
-        summary = await db_save_summary(event.episode_id, complete_summary_data)
-        
-        logger.info("summary_saved_to_database", episode_id=event.episode_id)
-        
-        # Update progress in manager
-        from podcast_transcriber_shared.database import get_session_maker, Episode as EpisodeModel
-        from sqlalchemy import select, func
-        session_maker = get_session_maker()
-        async with session_maker() as session:
-             # This is a bit expensive but accurate for batch progress
-             pass # In a real system we'd use a counter in Redis, but for now let's just clear individual status
-        
-        # Clear individual status for this episode in this service
-        manager.clear_service_status('summarization', event.episode_id)
-        # We also need to increment the completed count for summarization
+        # Cleanup status
+        manager.clear_service_status('summarization', episode_id)
         manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}summarization:completed") if manager.redis else None
         
-        # Publish EpisodeSummarized event
-        try:
-            event_bus = get_event_bus()
+        return True
 
-            summarized_event = EpisodeSummarized(
-                event_id=f"evt_{uuid.uuid4().hex[:12]}",
-                service="summarization",
-                episode_id=event.episode_id,
-                episode_title=event.episode_title,
-                podcast_name=event.podcast_name
-            )
-            await event_bus.publish(event_bus.STREAM_SUMMARIZED, summarized_event)
-            logger.info("episode_summarized_event_published", episode_id=event.episode_id)
-        except Exception as e:
-            logger.warning("failed_to_publish_summarized_event", episode_id=event.episode_id, error=str(e))
-        
-        logger.info("summarization_processing_complete", episode_id=event.episode_id, title=event.episode_title)
-        
     except Exception as e:
-        logger.error("summarization_event_processing_error", error=str(e), exc_info=True)
+        logger.error("single_episode_summarization_failed", episode_id=episode_id, error=str(e))
+        return False
 
 
 async def start_summarization_event_subscriber():
@@ -155,10 +116,10 @@ async def start_summarization_event_subscriber():
     
     # Use Redis Streams with a consumer group for reliability
     await event_bus.subscribe(
-        stream=event_bus.STREAM_TRANSCRIBED,
+        stream=event_bus.STREAM_BATCH_TRANSCRIBED,
         group_name="summarization_service_group",
         consumer_name="summarization_worker_1",
-        callback=process_transcription_event
+        callback=process_batch_transcribed_event
     )
 
 

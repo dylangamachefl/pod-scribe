@@ -676,8 +676,12 @@ async def start_transcription(
         raise HTTPException(status_code=400, detail="No episodes selected for transcription")
         
     # Initialize pipeline batch
+    batch_id = f"batch_{uuid.uuid4().hex[:8]}"
     episode_ids = [ep['id'] for ep in target_episodes]
     manager.initialize_batch(episode_ids, len(episode_ids))
+    
+    # Store batch_id in manager for tracking if needed
+    # (The manager already tracks active_episodes but batch_id helps for staged signaling)
     
     # Alias for consistency with rest of function
     selected_episodes = target_episodes
@@ -705,7 +709,8 @@ async def start_transcription(
                     'timestamp': datetime.now().isoformat(),
                     'service': 'transcription-api',
                     'episode_id': episode_id,
-                    'audio_url': ep.get('audio_url', '')
+                    'audio_url': ep.get('audio_url', ''),
+                    'batch_id': batch_id
                 }
                 
                 # Sanitize None values

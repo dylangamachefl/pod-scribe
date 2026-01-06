@@ -58,6 +58,25 @@ class TranscriptionJob(BaseEvent):
     """Event published to queue a transcription job."""
     episode_id: str
     audio_url: Optional[str] = None
+    batch_id: Optional[str] = None  # Optional batch association
+
+
+class BatchTranscribed(BaseEvent):
+    """Event published when a batch of transcriptions is complete."""
+    batch_id: str
+    episode_ids: list[str]
+
+
+class BatchSummarized(BaseEvent):
+    """Event published when a batch of summaries is complete."""
+    batch_id: str
+    episode_ids: list[str]
+
+
+class BatchIngested(BaseEvent):
+    """Event published when a batch of episodes is ingested into RAG."""
+    batch_id: str
+    episode_ids: list[str]
 
 
 # =================================================================
@@ -75,6 +94,8 @@ class EventBus:
     STREAM_SUMMARIZED = "stream:episodes:summarized"
     STREAM_INGESTED = "stream:episodes:ingested"
     STREAM_TRANSCRIPTION_JOBS = "stream:transcription:jobs"
+    STREAM_BATCH_TRANSCRIBED = "stream:batch:transcribed"
+    STREAM_BATCH_SUMMARIZED = "stream:batch:summarized"
     STREAM_DLQ = "stream:dlq"
     
     def __init__(self, redis_url: Optional[str] = None):
