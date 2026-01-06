@@ -17,15 +17,13 @@ This monorepo contains four integrated services:
 - 🎙️ **Automatic RSS Feed Processing**: Subscribe to podcast feeds
 - 🤖 **AI-Powered Transcription**: WhisperX with int8 quantization
 - 👥 **Speaker Diarization**: Pyannote Audio for speaker identification
-- 💾 **Smart Deduplication**: Tracks processed episodes
-- ⚡ **GPU Optimized**: 8GB VRAM (RTX 3070 tested)
-- 🐳 **Docker Containerized**: Runs as persistent worker service
-- 📋 **Episode Queue**: Redis-based job queue
+- 💾 **PostgreSQL Storage**: Central database for episodes, summaries, and transcripts
+- 📋 **Redis Streams Queue**: Reliable, persistent job queue for transcription
 
 ### RAG Service  
 - 🔍 **Semantic Search**: Vector-based transcript search with hybrid retrieval
 - 💬 **AI Q&A**: Ask questions using local Ollama (qwen3:rag)
-- 🔄 **Event-Driven Ingestion**: Automatically ingests new transcripts via event bus
+- 🔄 **Redis Streams Ingestion**: Reliable event-driven ingestion via consumer groups
 - 🗃️ **Qdrant Vector DB**: Efficient similarity search with 768-dim embeddings
 - 🧬 **BM25 + Vector Hybrid**: Best of both keyword and semantic search
 
@@ -155,7 +153,7 @@ echo "your_api_key_here" > secrets/gemini_api_key.txt
 start_app.bat
 
 # This will:
-# - Start all Docker services (Frontend, RAG, API, Summarization, Qdrant, Redis)
+# - Start all Docker services (Frontend, RAG, API, Summarization, Qdrant, Redis, PostgreSQL)
 # - Start the host listener for transcription triggers
 # - Open your browser to http://localhost:3000
 ```
@@ -234,7 +232,8 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 **Tech Stack:**
 - WhisperX (transcription)
 - Pyannote Audio (diarization)
-- Streamlit (dashboard)
+- PostgreSQL (state management)
+- Redis Streams (job queue)
 - PyTorch + CUDA
 
 **See:** [transcription-service/README.md](transcription-service/README.md)
@@ -244,6 +243,8 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 **Tech Stack:**
 - FastAPI (API server)
 - Qdrant (vector database)
+- PostgreSQL (metadata storage)
+- Redis Streams (event subscriber)
 - Ollama (LLM and embeddings)
 - Hybrid Search (BM25 + Vector)
 
@@ -253,8 +254,9 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 
 **Tech Stack:**
 - FastAPI (API server)
+- PostgreSQL (summary storage)
+- Redis Streams (reliable event handling)
 - Local Ollama (qwen3:summarizer) or Google Gemini
-- Event-driven architecture
 - Instructor (for structured data extraction)
 
 **See:** [summarization-service/README.md](summarization-service/README.md)
@@ -271,16 +273,14 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 
 ```mermaid
 graph LR
-    A[RSS Feed] --> B[Episode Queue]
-    B --> C[User Selection]
-    C --> D[Download Audio]
-    D --> E[Transcribe]
-    E --> F[Diarize]
-    F --> G[Save Transcript]
-    G --> H[shared/output/]
-    H --> I[RAG Auto-Ingest]
-    I --> J[Vector DB]
-    J --> K[Search & Q&A]
+    A[RSS Feed] --> B[(PostgreSQL)]
+    B --> C[Transcription]
+    C --> D{Redis Streams}
+    D --> E[Summarization]
+    E --> B
+    D --> F[RAG Ingestion]
+    F --> G[(Qdrant)]
+    G --> H[Search & Chat]
 ```
 
 ## ⚡ Performance
@@ -367,5 +367,7 @@ MIT License - See [LICENSE](LICENSE)
 
 - [WhisperX](https://github.com/m-bain/whisperx) - Fast speech recognition
 - [Pyannote Audio](https://github.com/pyannote/pyannote-audio) - Speaker diarization
+- [Ollama](https://ollama.ai/) - Local LLMs and embeddings
 - [Qdrant](https://qdrant.tech/) - Vector database
-- [Google Gemini](https://deepmind.google/technologies/gemini/) - LLM & embeddings
+- [PostgreSQL](https://www.postgresql.org/) - Relational database
+- [Google Gemini](https://deepmind.google/technologies/gemini/) - LLM & embeddings (optional)
