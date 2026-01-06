@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional, Dict
 
 import httpx
+import torch
 import whisperx
 import yt_dlp
 
