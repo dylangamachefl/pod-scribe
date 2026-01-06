@@ -3,6 +3,7 @@ Transcription Worker Daemon
 
 Continuously polls Redis for transcription jobs and processes them.
 This replaces the one-shot CLI approach with a long-running worker.
+Now uses Redis Streams for reliable job queuing and Distributed GPU Lock.
 
 Usage:
     python worker_daemon.py
@@ -13,7 +14,6 @@ import time
 import signal
 import sys
 from pathlib import Path
-import redis.asyncio as redis
 import warnings
 
 # Suppress specific torchaudio deprecation warnings
@@ -31,12 +31,121 @@ from config import TranscriptionConfig
 from core.diarization import apply_pytorch_patch
 from core.processor import process_episode_async
 from core.audio import TranscriptionWorker
-from podcast_transcriber_shared.database import create_episode, update_episode_status, EpisodeStatus
+from podcast_transcriber_shared.database import create_episode, update_episode_status, EpisodeStatus, get_episode_by_id
+from podcast_transcriber_shared.events import get_event_bus, EventBus
+from podcast_transcriber_shared.gpu_lock import get_gpu_lock
 from managers.status_monitor import write_status, clear_status
 
 
 # Global flag for graceful shutdown
 shutdown_event = asyncio.Event()
+
+async def process_job(job_data: dict) -> bool:
+    """
+    Process a single transcription job.
+    Returns True if successful, False otherwise.
+    """
+    config = TranscriptionConfig.from_env()
+
+    episode_id = job_data.get('episode_id')
+    if not episode_id:
+        print(f"⚠️  Job contains no episode_id, skipping")
+        return True # Skip invalid jobs (don't retry)
+
+    print(f"\n📋 Processing episode: {episode_id}")
+    write_status(
+        is_running=True,
+        episode_id=episode_id,
+        current_episode=episode_id,
+        stage="preparing",
+        log_message=f"Processing Request: {episode_id}"
+    )
+
+    try:
+        # Fetch full episode data from PostgreSQL
+        episode = await get_episode_by_id(episode_id, load_transcript=False)
+
+        if not episode:
+            print(f"⚠️  Episode {episode_id} not found in database, skipping")
+            return True # Skip missing episodes
+
+        print(f"✅ Retrieved episode from PostgreSQL: {episode.title}")
+        write_status(
+            is_running=True,
+            episode_id=episode_id,
+            current_episode=episode.title,
+            current_podcast=episode.podcast_name,
+            stage="preparing",
+            log_message=f"Found Metadata: {episode.title}"
+        )
+
+        # Convert Episode object to dict for process_episode_async
+        episode_data = {
+            'id': episode.id,
+            'episode_title': episode.title,
+            'feed_title': episode.podcast_name,
+            'audio_url': episode.meta_data.get('audio_url') if episode.meta_data else None,
+            'published_date': episode.meta_data.get('published_date') if episode.meta_data else None,
+        }
+
+        # Update status to PROCESSING
+        await update_episode_status(episode_id, EpisodeStatus.PROCESSING)
+
+        # Acquire GPU Lock and Initialize Worker
+        print("🔒 Waiting for GPU lock...")
+        async with get_gpu_lock().acquire():
+            print("📦 Initializing Transcription Worker (Loading Models)...")
+            worker = None
+            try:
+                loop = asyncio.get_running_loop()
+                worker = await loop.run_in_executor(
+                    None,
+                    lambda: TranscriptionWorker(
+                        whisper_model=config.whisper_model,
+                        device=config.device,
+                        compute_type=config.compute_type,
+                        batch_size=config.batch_size
+                    )
+                )
+
+                # Process Episode
+                success, _ = await process_episode_async(
+                    episode_data=episode_data,
+                    config=config,
+                    worker=worker,
+                    from_queue=True
+                )
+
+                # Unload worker
+                del worker
+                import gc
+                import torch
+                gc.collect()
+                torch.cuda.empty_cache()
+                print("🧹 Worker unloaded and memory freed")
+
+                if success:
+                    print(f"✅ Episode completed successfully: {episode_id}")
+                    return True
+                else:
+                    await update_episode_status(episode_id, EpisodeStatus.FAILED)
+                    print(f"⚠️  Episode processing failed: {episode_id}")
+                    return False
+            except Exception as e:
+                print(f"❌ Worker error: {e}")
+                if worker:
+                    del worker
+                return False
+
+    except Exception as e:
+        print(f"❌ Error processing job: {e}")
+        import traceback
+        traceback.print_exc()
+        await update_episode_status(episode_id, EpisodeStatus.FAILED)
+        return False
+    finally:
+        clear_status(episode_id=episode_id)
+        clear_status(episode_id="current")
 
 
 async def main():
@@ -49,179 +158,41 @@ async def main():
     config = TranscriptionConfig.from_env()
     
     # Setup signal handlers
-    loop = asyncio.get_running_loop()
-    try:
-        loop.add_signal_handler(signal.SIGINT, lambda: shutdown_event.set())
-        loop.add_signal_handler(signal.SIGTERM, lambda: shutdown_event.set())
-    except NotImplementedError:
-        signal.signal(signal.SIGINT, lambda s, f: shutdown_event.set())
-        signal.signal(signal.SIGTERM, lambda s, f: shutdown_event.set())
+    # We can use EventBus signal handlers or ours. EventBus has them.
+    # But we want to control the outer loop.
+    # Actually EventBus.subscribe loops until _shutdown is True.
+    # We should use EventBus instance.
+
+    print("\n")
+    print("╔══════════════════════════════════════════════════════════════╗")
+    print("║          Podcast Transcription Worker Daemon v2.1           ║")
+    print("║          Redis Streams & Distributed Locking                 ║")
+    print("╚══════════════════════════════════════════════════════════════╝")
+
+    event_bus = get_event_bus()
+    event_bus.register_signal_handlers()
     
-    # Startup Cleanup: Remove stale temp files
+    # Startup Cleanup
     download_dir = Path(config.temp_dir)
     if download_dir.exists():
         print(f"🧹 Performing startup cleanup in {download_dir}...")
         for temp_file in download_dir.glob("*.mp3"):
             try:
                 temp_file.unlink()
-                print(f"   Deleted stale file: {temp_file.name}")
-            except Exception as e:
-                print(f"   ⚠️  Failed to delete {temp_file.name}: {e}")
-
-    print("\n")
-    print("╔══════════════════════════════════════════════════════════════╗")
-    print("║          Podcast Transcription Worker Daemon v2.0           ║")
-    print("║          Redis Queue-Based Architecture                      ║")
-    print("╚══════════════════════════════════════════════════════════════╝")
+            except:
+                pass
     
-    # Connect to Redis
-    try:
-        r = redis.from_url(config.redis_url, decode_responses=True)
-        await r.ping()
-        print(f"✅ Redis connection established: {config.redis_url}")
-    except Exception as e:
-        print(f"❌ Failed to connect to Redis: {e}")
-        sys.exit(1)
-
-    # Initialize Persistent Transcription Worker (Heavy Model Load)
-    print(f"\n📦 Initializing Transcription Worker (Loading Models)...")
-    try:
-        # Run worker initialization in executor to avoid blocking the loop
-        worker = await loop.run_in_executor(
-            None,
-            lambda: TranscriptionWorker(
-                whisper_model=config.whisper_model,
-                device=config.device,
-                compute_type=config.compute_type,
-                batch_size=config.batch_size
-            )
-        )
-        print("✅ Worker initialized and models loaded")
-    except Exception as e:
-        print(f"❌ Failed to initialize worker: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    print(f"\n🔄 Worker started. Subscribing to {EventBus.STREAM_TRANSCRIPTION_JOBS}")
     
-    print(f"\n🔄 Worker started in daemon mode")
-    print(f"📋 Polling queue: 'transcription_queue'")
-    clear_status()
-    print("=" * 64)
+    # Start subscribing
+    # This will block until shutdown signal
+    await event_bus.subscribe(
+        stream=EventBus.STREAM_TRANSCRIPTION_JOBS,
+        group_name="transcription_workers",
+        consumer_name="worker-1", # In a real scaled env, use hostname/uuid
+        callback=process_job
+    )
     
-    job_count = 0
-    # Note: Legacy JSON history tracking removed in favor of PostgreSQL state
-    
-    while not shutdown_event.is_set():
-        try:
-            # Poll Redis queue
-            result = await r.blpop('transcription_queue', timeout=5)
-            
-            if result:
-                _, job_data = result
-                job_count += 1
-                
-                print(f"\n📥 Job #{job_count} received from queue")
-                write_status(is_running=True, stage="preparing", log_message=f"Job #{job_count} received from queue", episode_id="current")
-                
-                episode_id = None
-                try:
-                    job_payload = json.loads(job_data)
-                    
-                    # Parse episode_id from simplified job payload
-                    # New format: {"episode_id": "yt:video:123", "timestamp": "..."}
-                    episode_id = job_payload.get('episode_id')
-                    
-                    # Backward compatibility for legacy format: {"episodes": ["yt:video:123"], ...}
-                    if not episode_id and 'episodes' in job_payload:
-                        episodes = job_payload.get('episodes', [])
-                        if episodes and isinstance(episodes, list) and len(episodes) > 0:
-                            episode_id = episodes[0]
-                            print(f"⚠️  Legacy job format detected. Extracted episode_id: {episode_id}")
-
-                    if not episode_id:
-                        print(f"⚠️  Job contains no episode_id, skipping")
-                        continue
-                    
-                    print(f"📋 Processing episode: {episode_id}")
-                    write_status(
-                        is_running=True, 
-                        episode_id=episode_id,
-                        current_episode=episode_id,
-                        stage="preparing", 
-                        log_message=f"Processing Request: {episode_id}"
-                    )
-                    
-                    # Fetch full episode data from PostgreSQL (not SQLite)
-                    from podcast_transcriber_shared.database import get_episode_by_id
-                    episode = await get_episode_by_id(episode_id, load_transcript=False)
-                    
-                    if not episode:
-                        print(f"⚠️  Episode {episode_id} not found in database, skipping")
-                        continue
-                    
-                    print(f"✅ Retrieved episode from PostgreSQL: {episode.title}")
-                    write_status(
-                        is_running=True,
-                        episode_id=episode_id,
-                        current_episode=episode.title,
-                        current_podcast=episode.podcast_name,
-                        stage="preparing",
-                        log_message=f"Found Metadata: {episode.title}"
-                    )
-                    
-                    # Convert Episode object to dict for process_episode_async
-                    episode_data = {
-                        'id': episode.id,
-                        'episode_title': episode.title,
-                        'feed_title': episode.podcast_name,
-                        'audio_url': episode.meta_data.get('audio_url') if episode.meta_data else None,
-                        'published_date': episode.meta_data.get('published_date') if episode.meta_data else None,
-                    }
-                    
-                    # Update status to PROCESSING
-                    await update_episode_status(episode_id, EpisodeStatus.PROCESSING)
-                    print(f"🔄 Updated status to PROCESSING")
-
-                    # Process Episode (Async)
-                    # Worker's process_episode_async will save transcript to PostgreSQL
-                    success, episode_id = await process_episode_async(
-                        episode_data=episode_data,
-                        config=config,
-                        worker=worker,
-                        from_queue=True
-                    )
-                    
-                    if success:
-                        print(f"✅ Episode completed successfully: {episode_id}")
-                    else:
-                        await update_episode_status(episode_id, EpisodeStatus.FAILED)
-                        print(f"⚠️  Episode processing failed: {episode_id}")
-                    
-                    print(f"✅ Job #{job_count} completed successfully")
-                    clear_status(episode_id=episode_id)
-                    clear_status(episode_id="current")
-                    
-                except json.JSONDecodeError:
-                    print(f"❌ Invalid JSON in job data")
-                except Exception as e:
-                    print(f"❌ Error processing job: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    if episode_id:
-                        await update_episode_status(episode_id, EpisodeStatus.FAILED)
-                
-                print("=" * 64)
-            
-        except redis.ConnectionError:
-            print("❌ Redis connection lost, retrying...")
-            await asyncio.sleep(5)
-        except Exception as e:
-            print(f"❌ Unexpected error: {e}")
-            await asyncio.sleep(5)
-
-    # Cleanup
-    await r.close()
-    del worker
     print("\n🛑 Worker daemon shut down")
 
 

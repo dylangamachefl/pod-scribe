@@ -696,17 +696,27 @@ async def start_transcription(
                 # Episode already exists in PostgreSQL (created during fetch)
                 # Just enqueue to Redis - worker will update status to PROCESSING
                 
-                # Create simplified job payload (just episode_id)
-                job = {
+                # Publish to Redis Stream via EventBus
+                # We do this manually here because we want to use the raw redis connection we already have
+                # But to follow the pattern, we should construct the event properly
+
+                job_data = {
+                    'event_id': str(uuid.uuid4()),
+                    'timestamp': datetime.now().isoformat(),
+                    'service': 'transcription-api',
                     'episode_id': episode_id,
-                    'timestamp': datetime.now().isoformat()
+                    'audio_url': ep.get('audio_url', '')
                 }
                 
-                # Enqueue job to Redis
-                r.lpush('transcription_queue', json.dumps(job))
+                # Sanitize None values
+                if job_data['audio_url'] is None:
+                    job_data['audio_url'] = ""
+
+                # Publish to stream: stream:transcription:jobs
+                r.xadd('stream:transcription:jobs', job_data, id='*')
                 enqueued_count += 1
                 
-                logger.info(f"📤 Enqueued episode {episode_id} to transcription queue")
+                logger.info(f"📤 Published transcription job for {episode_id} to stream")
                 
             except Exception as e:
                 logger.error(f"Failed to create/enqueue episode {episode_id}: {e}")

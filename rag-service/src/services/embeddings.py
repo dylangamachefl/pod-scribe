@@ -3,6 +3,7 @@ import httpx
 from typing import List, Optional
 
 from config import OLLAMA_API_URL, OLLAMA_EMBED_MODEL, EMBEDDING_DIMENSION
+from podcast_transcriber_shared.gpu_lock import get_gpu_lock
 
 
 class EmbeddingService:
@@ -53,13 +54,16 @@ class EmbeddingService:
             while retry_count <= max_retries:
                 try:
                     print(f"   Requesting embeddings for batch {i//chunk_size + 1} ({len(batch)} texts, attempt {retry_count + 1})...")
-                    response = await client.post(
-                        f"{self.api_url}/api/embed",
-                        json={
-                            "model": self.model_name,
-                            "input": batch
-                        }
-                    )
+
+                    async with get_gpu_lock().acquire():
+                        response = await client.post(
+                            f"{self.api_url}/api/embed",
+                            json={
+                                "model": self.model_name,
+                                "input": batch
+                            }
+                        )
+
                     response.raise_for_status()
                     result = response.json()
                     all_embeddings.extend(result.get("embeddings", []))

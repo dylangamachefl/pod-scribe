@@ -13,12 +13,14 @@ COPY rag-service/pyproject.toml ./
 COPY rag-service/src/ ./src/
 COPY rag-service/start.sh ./
 
-# Copy shared package for installation
-COPY shared/ /tmp/shared/
+# Optimize build cache: Install shared package dependencies first
+COPY shared/pyproject.toml /tmp/shared/
+RUN pip install --no-cache-dir redis pydantic sqlalchemy[asyncio] asyncpg alembic python-dotenv
 
-# Install dependencies and shared package
-RUN pip install --no-cache-dir -e . && \
-    pip install --no-cache-dir -e /tmp/shared
+# Copy shared package source and install
+COPY shared/ /tmp/shared/
+RUN pip install --no-cache-dir -e /tmp/shared && \
+    pip install --no-cache-dir -e .
 
 # Install Redis client for events
 RUN pip install --no-cache-dir redis

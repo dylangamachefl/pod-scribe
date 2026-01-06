@@ -44,9 +44,10 @@ def _episode_already_ingested(episode_id: str, qdrant_service) -> bool:
         return False
 
 
-async def process_summary_event(event_data: dict):
+async def process_summary_event(event_data: dict) -> bool:
     """
     Process an EpisodeSummarized event asynchronously.
+    Returns True if successful, False otherwise.
     """
     try:
         # Parse event
@@ -75,7 +76,7 @@ async def process_summary_event(event_data: dict):
         
         if already_ingested:
             print(f"⏭️  Episode already ingested, skipping: {event.episode_title}")
-            return
+            return True
         
         # Fetch transcript and summary from database (Async)
         from podcast_transcriber_shared.database import get_episode_by_id, get_summary_by_episode_id
@@ -85,7 +86,7 @@ async def process_summary_event(event_data: dict):
         
         if not episode or not episode.transcript_text:
             print(f"❌ No transcript text for episode: {event.episode_id}")
-            return
+            return True  # Acknowledge to remove invalid event
         
         summary_content = summary_record.content if summary_record else {}
         
@@ -154,11 +155,13 @@ async def process_summary_event(event_data: dict):
         manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}rag:completed") if manager.redis else None
         
         print(f"✅ Processing complete: {event.episode_title}\n")
+        return True
         
     except Exception as e:
         print(f"❌ Error processing event: {e}")
         import traceback
         traceback.print_exc()
+        return False
 
 
 async def start_rag_event_subscriber():
