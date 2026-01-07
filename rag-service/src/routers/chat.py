@@ -41,7 +41,7 @@ async def ask_question_stream(request: ChatRequest):
             await hybrid_service.build_bm25_index()
         
         # 2. Retrieval
-        retrieved_chunks = hybrid_service.search(
+        retrieved_chunks = await hybrid_service.search(
             query=request.question,
             k=5,
             episode_filter=request.episode_title
