@@ -112,8 +112,9 @@ class OllamaSummarizationService:
         for attempt in range(self.stage1_max_retries):
             try:
                 start_time = time.time()
-                async with get_gpu_lock().acquire():
-                    response = await self.stage1_model.generate_content(prompt)
+                start_time = time.time()
+                # GPU lock is now handled by the caller (event subscriber or router)
+                response = await self.stage1_model.generate_content(prompt)
                 print(f"✅ Stage 1 complete ({(time.time() - start_time)*1000:.0f}ms)")
                 return RawSummary(content=response.text)
                 
@@ -141,13 +142,14 @@ class OllamaSummarizationService:
         for attempt in range(self.stage2_max_retries):
             try:
                 start_time = time.time()
-                async with get_gpu_lock().acquire():
-                    structured_data_list = await self.stage2_client.chat.completions.create(
-                        model=self.stage2_model_name,
-                        response_model=List[StructuredSummaryV2],
-                        messages=[{"role": "user", "content": prompt}],
-                        max_retries=2
-                    )
+                start_time = time.time()
+                # GPU lock is now handled by the caller (event subscriber or router)
+                structured_data_list = await self.stage2_client.chat.completions.create(
+                    model=self.stage2_model_name,
+                    response_model=List[StructuredSummaryV2],
+                    messages=[{"role": "user", "content": prompt}],
+                    max_retries=2
+                )
                 
                 if not structured_data_list:
                     raise ValueError("Stage 2: Empty results")

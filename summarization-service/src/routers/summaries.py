@@ -28,12 +28,15 @@ async def generate_summary(request: SummarizeRequest):
     try:
         ollama_service = get_ollama_service()
         
-        # Generate summary (returns StructuredSummary Pydantic model)
-        result = ollama_service.summarize_transcript(
-            request.transcript_text,
-            request.episode_title,
-            request.podcast_name
-        )
+        # Acquire GPU lock for manual generation
+        from podcast_transcriber_shared.gpu_lock import get_gpu_lock
+        async with get_gpu_lock().acquire():
+            # Generate summary (returns StructuredSummary Pydantic model)
+            result = await ollama_service.summarize_transcript(
+                request.transcript_text,
+                request.episode_title,
+                request.podcast_name
+            )
         
         # Save summary with complete structured data
         # Create safe filename from episode title

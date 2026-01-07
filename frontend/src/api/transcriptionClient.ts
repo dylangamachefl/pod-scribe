@@ -19,6 +19,7 @@ import type {
     EpisodeInfo,
     TranscriptionStats,
     TranscriptionHealth,
+    BatchProgressResponse,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_TRANSCRIPTION_API_URL || 'http://localhost:8001';
@@ -178,6 +179,14 @@ export const transcriptionClient = {
         const response = await axiosInstance.post<{ status: string; message: string }>(
             '/transcription/status/clear'
         );
+        return response.data;
+    },
+
+    /**
+     * Get detailed progress for a specific batch
+     */
+    async getBatchProgress(batchId: string): Promise<BatchProgressResponse> {
+        const response = await axiosInstance.get<BatchProgressResponse>(`/batches/${batchId}/progress`);
         return response.data;
     },
 

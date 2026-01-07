@@ -4,7 +4,7 @@ Provides event-driven communication between services.
 """
 from typing import Optional, Dict, Any, Callable, Awaitable
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 import redis.asyncio as redis
 import json
 import os
@@ -66,17 +66,47 @@ class BatchTranscribed(BaseEvent):
     batch_id: str
     episode_ids: list[str]
 
+    @field_validator('episode_ids', mode='before')
+    @classmethod
+    def parse_episode_ids(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                return v
+        return v
+
 
 class BatchSummarized(BaseEvent):
     """Event published when a batch of summaries is complete."""
     batch_id: str
     episode_ids: list[str]
 
+    @field_validator('episode_ids', mode='before')
+    @classmethod
+    def parse_episode_ids(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                return v
+        return v
+
 
 class BatchIngested(BaseEvent):
     """Event published when a batch of episodes is ingested into RAG."""
     batch_id: str
     episode_ids: list[str]
+
+    @field_validator('episode_ids', mode='before')
+    @classmethod
+    def parse_episode_ids(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                return v
+        return v
 
 
 # =================================================================
@@ -134,16 +164,17 @@ class EventBus:
             return False
         
         try:
-            # Serialize event to dict for Redis Stream
-            event_data = event.model_dump(mode='json')
+            # Serialize event to dict for Redis Stream, excluding None values
+            event_data = event.model_dump(mode='json', exclude_none=True)
             
-            # Sanitize booleans for Redis (Redis Streams don't accept bools with decode_responses=True)
+            # Sanitize types for Redis Stream
             for key, value in event_data.items():
                 if isinstance(value, bool):
                     event_data[key] = 1 if value else 0
+                elif isinstance(value, list):
+                    event_data[key] = json.dumps(value)
             
             # XADD to stream
-            # * means auto-generate entry ID
             await self.client.xadd(stream, event_data, id='*')
             
             print(f"📤 Published event to {stream}: {event.event_id}")
@@ -151,7 +182,9 @@ class EventBus:
             
         except Exception as e:
             print(f"❌ Failed to publish event to {stream}: {e}")
-            self.client = None
+            # Don't set self.client = None immediately unless it's a connection error
+            if isinstance(e, (redis.ConnectionError, redis.TimeoutError)):
+                self.client = None
             return False
     
     async def subscribe(
@@ -180,6 +213,11 @@ class EventBus:
         
         while not self._shutdown:
             try:
+                if not self.client:
+                    await self._connect()
+                    if not self.client:
+                        await asyncio.sleep(5)
+                        continue
                 # 1. Process pending messages (recover from crashes)
                 # Instead of simple XREADGROUP '0', we use XPENDING + XCLAIM to ensure
                 # delivery count increments and we can handle retries/DLQ logic.
@@ -217,11 +255,10 @@ class EventBus:
                                 print(f"🔄 Resuming pending event {entry_id} (Attempt {delivery_count})")
                                 success = await self._process_entry_safe(entry_id, entry_data, callback)
 
-                                if success:
+                                if success and self.client:
                                     await self.client.xack(stream, group_name, entry_id)
                                 else:
-                                    # Failed again. We don't ACK.
-                                    # We wait a bit before retrying to avoid tight loop
+                                    # Failed again or connection lost.
                                     await asyncio.sleep(1)
 
                 # 2. Read only new messages (ID '>')
@@ -238,7 +275,7 @@ class EventBus:
                         for entry_id, entry_data in entries:
                             success = await self._process_entry_safe(entry_id, entry_data, callback)
 
-                            if success:
+                            if success and self.client:
                                 await self.client.xack(stream, group_name, entry_id)
                             # If failed, it stays in PEL and will be picked up by pending loop above
                             # with incremented delivery count next time.

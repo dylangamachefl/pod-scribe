@@ -81,10 +81,10 @@ services:
       # Python configuration for logging visibility
       - PYTHONUNBUFFERED=1
     volumes:
-      # Shared directories for config and logging only
       - ./shared/config:/app/shared/config
       - ./shared/logs:/app/shared/logs
       - ./shared:/app/shared  # Shared library for event bus and database
+      - whisper_cache:/root/.cache # Persist Whisper models
     depends_on:
       postgres:
         condition: service_healthy
@@ -277,6 +277,10 @@ volumes:
   
   # Persistent storage for Redis (event queue and cache)
   redis_data:
+    driver: local
+  
+  # Persistent storage for Whisper model cache
+  whisper_cache:
     driver: local
 
 secrets:

@@ -9,6 +9,7 @@ import uuid
 import subprocess
 import threading
 import logging
+import asyncio
 import redis
 from pathlib import Path
 from typing import List, Optional
@@ -29,6 +30,7 @@ from api.models import (
     Episode, EpisodeSelect, BulkSelectRequest, BulkSeenRequest, EpisodeFetchRequest,
     EpisodeFavoriteUpdate,
     TranscriptionStatus, TranscriptionStartRequest, TranscriptionStartResponse,
+    BatchProgressResponse, BatchEpisodeStatus,
     PodcastInfo, EpisodeInfo, TranscriptResponse,
     StatsResponse, HealthResponse
 )
@@ -42,6 +44,7 @@ from podcast_transcriber_shared.database import (
     get_episode_by_id,
     update_episode_status,
     mark_episodes_as_seen,
+    bulk_update_episodes_batch,
     EpisodeStatus
 )
 
@@ -187,6 +190,59 @@ async def read_transcript(episode_id: str) -> Optional[str]:
 # ============================================================================
 # API Endpoints
 # ============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Startup tasks: start the stale job monitor."""
+    # Start stale job monitor in a separate thread
+    threading.Thread(target=stale_job_monitor_wrapper, daemon=True).start()
+    logger.info("⏱️ Stale job monitor started")
+
+def stale_job_monitor_wrapper():
+    """Wrapper to run the async monitor in a thread."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(monitor_stale_jobs())
+
+async def monitor_stale_jobs():
+    """Periodically check for episodes stuck in PROCESSING."""
+    while True:
+        try:
+            from podcast_transcriber_shared.database import get_session_maker, Episode, EpisodeStatus
+            from sqlalchemy import select, update
+            from datetime import datetime, timedelta
+            
+            # Check every 30 minutes
+            await asyncio.sleep(1800)
+            
+            logger.info("🔍 Checking for stale processing episodes...")
+            session_maker = get_session_maker()
+            async with session_maker() as session:
+                # Any episode in PROCESSING for > 2 hours is considered stale
+                stale_threshold = datetime.utcnow() - timedelta(hours=2)
+                
+                query = select(Episode).where(
+                    Episode.status == EpisodeStatus.PROCESSING,
+                    Episode.processed_at < stale_threshold
+                )
+                result = await session.execute(query)
+                stale_episodes = result.scalars().all()
+                
+                if stale_episodes:
+                    logger.warning(f"🔄 Found {len(stale_episodes)} stale episodes. Resetting to PENDING.")
+                    for ep in stale_episodes:
+                        logger.info(f"   - Stale: {ep.id}")
+                    
+                    stmt = (
+                        update(Episode)
+                        .where(Episode.id.in_([ep.id for ep in stale_episodes]))
+                        .values(status=EpisodeStatus.PENDING)
+                    )
+                    await session.execute(stmt)
+                    await session.commit()
+        except Exception as e:
+            logger.error(f"Error in stale job monitor: {e}")
+            await asyncio.sleep(60) # Retry sooner on error
 
 @app.get("/")
 async def root():
@@ -615,6 +671,76 @@ async def get_transcription_status():
         )
 
 
+@app.get("/batches/{batch_id}/progress", response_model=BatchProgressResponse)
+async def get_batch_progress(batch_id: str):
+    """
+    Get detailed progress for all episodes in a batch.
+    """
+    from podcast_transcriber_shared.database import get_session_maker, Episode as EpisodeModel
+    from sqlalchemy import select, func
+    
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        # Fetch all episodes in this batch
+        query = select(EpisodeModel).where(EpisodeModel.batch_id == batch_id)
+        result = await session.execute(query)
+        episodes = result.scalars().all()
+        
+        if not episodes:
+            raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found")
+        
+        total = len(episodes)
+        transcribed_count = 0
+        summarized_count = 0
+        indexed_count = 0
+        completed_count = 0
+        
+        batch_episodes = []
+        for ep in episodes:
+            status = ep.status
+            
+            # Count phases (cumulative logic)
+            if status in (EpisodeStatus.TRANSCRIBED, EpisodeStatus.SUMMARIZING, 
+                         EpisodeStatus.SUMMARIZED, EpisodeStatus.INDEXING, 
+                         EpisodeStatus.INDEXED, EpisodeStatus.COMPLETED):
+                transcribed_count += 1
+                
+            if status in (EpisodeStatus.SUMMARIZED, EpisodeStatus.INDEXING, 
+                         EpisodeStatus.INDEXED, EpisodeStatus.COMPLETED):
+                summarized_count += 1
+                
+            if status in (EpisodeStatus.INDEXED, EpisodeStatus.COMPLETED):
+                indexed_count += 1
+                
+            if status == EpisodeStatus.COMPLETED:
+                completed_count += 1
+                
+            batch_episodes.append(BatchEpisodeStatus(
+                id=ep.id,
+                title=ep.title,
+                status=status.value
+            ))
+            
+        # Determine overall batch status
+        overall_status = "processing"
+        if completed_count == total:
+            overall_status = "completed"
+        elif any(ep.status == EpisodeStatus.FAILED for ep in episodes):
+            overall_status = "failed"
+            
+        return BatchProgressResponse(
+            batch_id=batch_id,
+            total_episodes=total,
+            completed_episodes=completed_count,
+            transcribed_count=transcribed_count,
+            summarized_count=summarized_count,
+            indexed_count=indexed_count,
+            episodes=batch_episodes,
+            status=overall_status,
+            updated_at=datetime.utcnow()
+        )
+
+
 @app.post("/transcription/status/clear")
 async def clear_transcription_status():
     """Manually clear all stale pipeline status and stats."""
@@ -678,7 +804,10 @@ async def start_transcription(
     # Initialize pipeline batch
     batch_id = f"batch_{uuid.uuid4().hex[:8]}"
     episode_ids = [ep['id'] for ep in target_episodes]
-    manager.initialize_batch(episode_ids, len(episode_ids))
+    manager.initialize_batch(episode_ids, len(episode_ids), batch_id)
+    
+    # Associate episodes with batch in database and mark as QUEUED
+    await bulk_update_episodes_batch(episode_ids, batch_id, EpisodeStatus.QUEUED)
     
     # Store batch_id in manager for tracking if needed
     # (The manager already tracks active_episodes but batch_id helps for staged signaling)
@@ -739,7 +868,8 @@ async def start_transcription(
         return TranscriptionStartResponse(
             status="queued",
             message=f"Transcription queued for {enqueued_count} episode(s). Worker will process shortly.",
-            episodes_count=enqueued_count
+            episodes_count=enqueued_count,
+            batch_id=batch_id
         )
         
     except redis.ConnectionError as e:

@@ -4,12 +4,14 @@ import { Episode, TranscriptionStatus } from '../api/types';
 import { ActionBar } from '../components/ActionBar';
 import { FeedList } from '../components/FeedList';
 import { LiveStatusBanner } from '../components/LiveStatusBanner';
+import { BatchProgress } from '../components/BatchProgress';
 import { ChevronDown } from 'lucide-react';
 import './InboxPage.css';
 
 export default function InboxPage() {
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
     const [status, setStatus] = useState<TranscriptionStatus>({
         is_running: false,
         stage: 'idle',
@@ -129,6 +131,12 @@ export default function InboxPage() {
     const handleTranscribe = async () => {
         try {
             const response = await transcriptionApi.startTranscription({ episode_ids: selectedIds });
+
+            // Set active batch ID to show dashboard
+            if (response.batch_id) {
+                setActiveBatchId(response.batch_id);
+            }
+
             // Auto mark as seen when transcribing
             await transcriptionApi.bulkSeenEpisodes(selectedIds, true);
             setSelectedIds([]); // Clear selection after start
@@ -166,6 +174,13 @@ export default function InboxPage() {
                 isSyncing={isSyncing}
                 isProcessing={status.is_running}
             />
+
+            {activeBatchId && (
+                <BatchProgress
+                    batchId={activeBatchId}
+                    onClose={() => setActiveBatchId(null)}
+                />
+            )}
 
             <LiveStatusBanner status={status} />
 

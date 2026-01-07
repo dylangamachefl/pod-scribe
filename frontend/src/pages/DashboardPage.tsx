@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { transcriptionApi } from '../api';
 import type { TranscriptionStats, TranscriptionStatus } from '../api/types';
 import { RefreshCw, Trash2 } from 'lucide-react';
+import { BatchProgress } from '../components/BatchProgress';
 import './DashboardPage.css';
 
 function DashboardPage() {
@@ -112,6 +113,7 @@ function DashboardPage() {
                 </div>
             </header>
 
+
             {/* Statistics Cards */}
             <div className="stats-grid">
                 <div className="stat-card" onClick={() => navigate('/feeds')} style={{ cursor: 'pointer' }}>
@@ -151,124 +153,43 @@ function DashboardPage() {
                 </div>
             </div>
 
-            {/* Pipeline Overview */}
-            <div className="status-grid" style={{ marginBottom: '40px' }}>
-                {/* GPU Status */}
-                <div className="status-card">
-                    <h3>System Resources</h3>
-                    <div className="gpu-info">
-                        <div className="metric">
-                            <span className="metric-label">GPU</span>
-                            <span className="metric-value">{status?.gpu_name && status.gpu_name !== 'Unknown' ? status.gpu_name : 'No GPU Detected'}</span>
-                        </div>
-                        <div className="metric">
-                            <span className="metric-label">Utilization</span>
-                            <span className="metric-value">{status?.gpu_usage ?? 0}%</span>
-                        </div>
-                        <div className="progress-bar">
-                            <div
-                                className="progress-fill gpu"
-                                style={{ width: `${status?.gpu_usage ?? 0}%` }}
-                            />
-                        </div>
-                        {status && status.vram_total_gb > 0 ? (
-                            <>
-                                <div className="metric">
-                                    <span className="metric-label">VRAM Usage</span>
-                                    <span className="metric-value">
-                                        {status.vram_used_gb.toFixed(1)} /{' '}
-                                        {status.vram_total_gb.toFixed(1)} GB
-                                    </span>
-                                </div>
-                                <div className="progress-bar">
-                                    <div
-                                        className="progress-fill vram"
-                                        style={{
-                                            width: `${(status.vram_used_gb / status.vram_total_gb) * 100}%`,
-                                        }}
-                                    />
-                                </div>
-                            </>
-                        ) : (
-                            <div className="metric" style={{ opacity: 0.5 }}>
-                                <span className="metric-label">VRAM Usage</span>
-                                <span className="metric-value">N/A</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
+            {/* Active Batch Progress (Inline) */}
+            {status?.current_batch_id ? (
+                <BatchProgress
+                    batchId={status.current_batch_id}
+                    isInline={true}
+                    onClose={() => {
+                        // Optional: Clear the active batch from backend?
+                        // For now just let it persist until new one starts
+                    }}
+                />
+            ) : null}
 
-                {/* Batch Progress */}
-                <div className="status-card">
-                    <h3>Pipeline Sync</h3>
-                    <div className="batch-info">
-                        <div className="metric">
-                            <span className="metric-label">Current Task</span>
-                            <span className="metric-value" style={{ color: status?.is_running ? 'var(--color-accent-secondary)' : 'var(--color-text-tertiary)' }}>
-                                {status?.is_running ? 'Processing Queue' : 'Idle'}
-                            </span>
-                        </div>
-                        <div className="metric">
-                            <span className="metric-label">Batch Progress</span>
-                            <span className="metric-value">
-                                {status?.episodes_completed ?? 0} / {status?.episodes_total ?? 0}
-                            </span>
-                        </div>
-                        <div className="progress-bar">
-                            <div
-                                className="progress-fill batch"
-                                style={{
-                                    width:
-                                        status && status.episodes_total > 0
-                                            ? `${(status.episodes_completed / status.episodes_total) * 100}%`
-                                            : '0%',
-                                }}
-                            />
-                        </div>
-                        <div className="progress-label">
-                            {status && status.episodes_total > 0
-                                ? `${Math.round((status.episodes_completed / status.episodes_total) * 100)}% complete`
-                                : 'Ready'}
+            {/* Fallback System Resources (only if no batch is active) */}
+            {!status?.current_batch_id && (
+                <div className="status-grid" style={{ marginBottom: '40px' }}>
+                    <div className="status-card">
+                        <h3>System Resources</h3>
+                        <div className="gpu-info">
+                            <div className="metric">
+                                <span className="metric-label">GPU</span>
+                                <span className="metric-value">{status?.gpu_name && status.gpu_name !== 'Unknown' ? status.gpu_name : 'No GPU Detected'}</span>
+                            </div>
+                            <div className="metric">
+                                <span className="metric-label">Utilization</span>
+                                <span className="metric-value">{status?.gpu_usage ?? 0}%</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-
-            {/* Processing Queue */}
-            {status?.active_episodes && status.active_episodes.length > 0 && (
-                <div className="processing-queue">
-                    <h2><span style={{ fontSize: '1.2rem' }}>⚡</span> Active Processing ({status.active_episodes.length})</h2>
-                    <div className="queue-grid">
-                        {status.active_episodes.map((ep) => (
-                            <div key={ep.episode_id} className="queue-item">
-                                <div className="queue-item-header">
-                                    <div className="queue-item-info">
-                                        <div className="queue-item-title">{ep.title}</div>
-                                        <div className="queue-item-podcast">{ep.podcast}</div>
-                                    </div>
-                                    <div className="queue-item-stage">{ep.stage === 'unknown' ? 'Ready' : ep.stage}</div>
-                                </div>
-
-                                <div className="queue-item-pipeline">
-                                    <div className={`pipeline-step ${ep.services?.transcription ? (ep.services.transcription.stage === 'saving' && ep.services.transcription.progress === 1.0 ? 'completed' : 'active') : ''}`} title="Transcription" />
-                                    <div className={`pipeline-step ${ep.services?.summarization ? 'active' : (ep.services?.transcription?.progress === 1.0 ? (ep.services?.summarization ? 'active' : 'pending') : '')}`} title="Summarization" />
-                                    <div className={`pipeline-step ${ep.services?.rag ? 'active' : ''}`} title="RAG Ingestion" />
-                                </div>
-
-                                <div className="progress-bar">
-                                    <div
-                                        className="progress-fill"
-                                        style={{ width: `${Math.round((ep.progress ?? 0) * 100)}%` }}
-                                    />
-                                </div>
-
-                                <div className="queue-item-progress">
-                                    <span>{ep.stage === 'unknown' ? 'Initializing...' : ep.stage}</span>
-                                    <span>{Math.round((ep.progress ?? 0) * 100)}%</span>
-                                </div>
+                    <div className="status-card">
+                        <h3>Pipeline Status</h3>
+                        <div className="batch-info">
+                            <div className="metric">
+                                <span className="metric-label">State</span>
+                                <span className="metric-value">Idle</span>
                             </div>
-                        ))}
+                            <div className="progress-label">Ready for new batch</div>
+                        </div>
                     </div>
                 </div>
             )}

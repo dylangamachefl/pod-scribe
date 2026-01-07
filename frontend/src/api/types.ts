@@ -149,6 +149,7 @@ export interface PipelineStatus {
 
 export interface TranscriptionStatus {
     is_running: boolean;
+    current_batch_id?: string;
     current_episode?: string;
     current_podcast?: string;
     stage: string;
@@ -173,6 +174,25 @@ export interface TranscriptionStartResponse {
     status: string;
     message: string;
     episodes_count: number;
+    batch_id?: string;
+}
+
+export interface BatchEpisodeStatus {
+    id: string;
+    title: string;
+    status: string;
+}
+
+export interface BatchProgressResponse {
+    batch_id: string;
+    total_episodes: number;
+    completed_episodes: number;
+    transcribed_count: number;
+    summarized_count: number;
+    indexed_count: number;
+    episodes: BatchEpisodeStatus[];
+    status: string;
+    updated_at: string;
 }
 
 export interface PodcastInfo {

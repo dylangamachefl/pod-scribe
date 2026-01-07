@@ -80,11 +80,11 @@ class PipelineStage(BaseModel):
     current: Optional[dict] = None
 
 class PipelineStatus(BaseModel):
-    is_running: bool
+    is_running: bool = False
     stages: dict[str, PipelineStage]
 
 class TranscriptionStatus(BaseModel):
-    is_running: bool
+    is_running: bool = False
     current_episode: Optional[str] = None
     current_podcast: Optional[str] = None
     stage: str = "idle"  # idle, preparing, downloading, transcribing, diarizing, saving
@@ -109,6 +109,25 @@ class TranscriptionStartResponse(BaseModel):
     status: str
     message: str
     episodes_count: int
+    batch_id: Optional[str] = None
+
+
+class BatchEpisodeStatus(BaseModel):
+    id: str
+    title: str
+    status: str
+
+
+class BatchProgressResponse(BaseModel):
+    batch_id: str
+    total_episodes: int
+    completed_episodes: int
+    transcribed_count: int
+    summarized_count: int
+    indexed_count: int
+    episodes: List[BatchEpisodeStatus] = []
+    status: str  # processing, completed, failed
+    updated_at: datetime
 
 
 # Transcript Models

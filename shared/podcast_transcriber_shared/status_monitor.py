@@ -10,6 +10,7 @@ class PipelineStatusManager:
     Uses Redis Lua scripts for atomic status updates to prevent race conditions.
     """
     
+
     # Redis Keys
     ACTIVE_EPISODES_KEY = "pipeline:active_episodes"
     SERVICE_STATUS_PREFIX = "status:" # status:{service}:{episode_id}
@@ -155,7 +156,7 @@ class PipelineStatusManager:
         }
         self.redis.set(key, json.dumps(data))
 
-    def initialize_batch(self, episode_ids: List[str], total_count: int):
+    def initialize_batch(self, episode_ids: List[str], total_count: int, batch_id: str):
         """Initialize a new batch run across all services."""
         if not self.redis: return
         
@@ -167,6 +168,10 @@ class PipelineStatusManager:
         
         if episode_ids:
             pipeline.sadd(self.ACTIVE_EPISODES_KEY, *episode_ids)
+            
+        # Store current batch ID for persistent UI state
+        pipeline.set("pipeline:current_batch_id", batch_id)
+        
         pipeline.execute()
             
         self.update_stats('transcription', 0, total_count)
@@ -192,6 +197,18 @@ class PipelineStatusManager:
                 status_raw = self.redis.get(self._get_status_key(service, eid))
                 if status_raw:
                     status_data = json.loads(status_raw)
+                    
+                    # Check for staleness (ignore if older than 10 minutes)
+                    last_updated_str = status_data.get('last_updated')
+                    if last_updated_str:
+                        try:
+                            last_updated = datetime.fromisoformat(last_updated_str)
+                            time_diff = (datetime.now() - last_updated).total_seconds()
+                            if time_diff > 600: # 10 minutes
+                                continue
+                        except ValueError:
+                            pass # If date parsing fails, keep it (safer)
+
                     status_data['episode_id'] = eid
                     status_data['service'] = service
                     active_in_service.append(status_data)
@@ -224,11 +241,19 @@ class PipelineStatusManager:
         
         is_running = service_is_running or len(episodes_map) > 0 or len(active_episode_ids) > 0
         
-        # Cleanup stale IDs if nothing is running
+        # Cleanup stale IDs and status if nothing is running
         if not is_running and active_episode_ids:
              self.redis.delete(self.ACTIVE_EPISODES_KEY)
              for service in ['transcription', 'summarization', 'rag']:
                  self.redis.delete(self._get_stats_key(service))
+        
+        # If nothing is active but transcription:status says is_running=True, it's stale
+        if not active_episode_ids and not episodes_map and service_is_running:
+            # Check if this has been the case for a while? For now just clear it
+             transcription_status['is_running'] = False
+             self.redis.set("transcription:status", json.dumps(transcription_status))
+             service_is_running = False
+             is_running = False
 
         # Helper function to get value with fallback to "current"
         def get_service_value(key_name, default=None):
@@ -241,8 +266,28 @@ class PipelineStatusManager:
                     return current_data.get(key_name, default)
             return val if val is not None else default
 
+        # Fetch stats for overall progress from stats:transcription
+        # This is more reliable than transcription:status which depends on worker heartbeat
+        transcription_stats_raw = self.redis.get(self._get_stats_key('transcription'))
+        transcription_stats = json.loads(transcription_stats_raw) if transcription_stats_raw else {}
+        
+        ep_total = transcription_stats.get('total', 0) or get_service_value('episodes_total', 0)
+        ep_completed = transcription_stats.get('completed', 0) or get_service_value('episodes_completed', 0)
+
+        if not is_running:
+             # If completely idle, clear the current batch ID so UI resets
+             # But keep it if there are stale "active" episodes that we just filtered out?
+             # For now, simplistic clearing:
+             # self.redis.delete("pipeline:current_batch_id")
+             # Actually, let's KEEP it until explicitly cleared or replaced, so we can show "Last Batch" status?
+             # User wants persistent display. Let's return it regardless of running state.
+             pass
+
+        current_batch_id = self.redis.get("pipeline:current_batch_id")
+
         return {
             "is_running": is_running,
+            "current_batch_id": current_batch_id,
             "stages": stages,
             "active_episodes": list(episodes_map.values()),
             "gpu_name": get_service_value('gpu_name', 'Unknown'),
@@ -250,8 +295,8 @@ class PipelineStatusManager:
             "vram_used_gb": get_service_value('vram_used_gb', 0.0),
             "vram_total_gb": get_service_value('vram_total_gb', 0.0),
             "recent_logs": get_service_value('recent_logs', []),
-            "episodes_completed": get_service_value('episodes_completed', 0),
-            "episodes_total": get_service_value('episodes_total', 0)
+            "episodes_completed": ep_completed,
+            "episodes_total": ep_total
         }
 
     def clear_all_status(self):

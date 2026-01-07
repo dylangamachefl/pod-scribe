@@ -24,7 +24,13 @@ Base = declarative_base()
 class EpisodeStatus(str, Enum):
     """Episode processing status"""
     PENDING = "PENDING"
-    PROCESSING = "PROCESSING"
+    QUEUED = "QUEUED"
+    TRANSCRIBING = "TRANSCRIBING"
+    TRANSCRIBED = "TRANSCRIBED"
+    SUMMARIZING = "SUMMARIZING"
+    SUMMARIZED = "SUMMARIZED"
+    INDEXING = "INDEXING"
+    INDEXED = "INDEXED"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
@@ -45,6 +51,9 @@ class Episode(Base):
     url = Column(String(2048), unique=True, nullable=False, index=True)
     title = Column(String(512), nullable=False)
     podcast_name = Column(String(255), nullable=False, index=True)
+    
+    # Batch association
+    batch_id = Column(String(255), nullable=True, index=True)
     
     # Processing status
     status = Column(
@@ -367,7 +376,7 @@ async def save_transcript(
             return None
         
         episode.transcript_text = transcript_text
-        episode.status = EpisodeStatus.COMPLETED
+        episode.status = EpisodeStatus.TRANSCRIBED
         episode.processed_at = datetime.utcnow()
         
         if metadata:
@@ -377,6 +386,45 @@ async def save_transcript(
         await session.commit()
         await session.refresh(episode)
         return episode
+
+
+async def bulk_update_episodes_batch(
+    episode_ids: List[str],
+    batch_id: str,
+    status: Optional[EpisodeStatus] = None
+) -> int:
+    """
+    Bulk update episodes' batch_id and status.
+    
+    Args:
+        episode_ids: List of episode IDs to update
+        batch_id: Batch identifier to assign
+        status: Optional new status
+    
+    Returns:
+        Number of updated rows
+    """
+    if not episode_ids:
+        return 0
+        
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        values = {"batch_id": batch_id}
+        if status:
+            values["status"] = status
+            
+        # For batch operations, setting the processed_at tracks when it entered this pipeline stage
+        if status in (EpisodeStatus.TRANSCRIBING, EpisodeStatus.QUEUED):
+            values["processed_at"] = datetime.utcnow()
+                
+        query = (
+            update(Episode)
+            .where(Episode.id.in_(episode_ids))
+            .values(**values)
+        )
+        result = await session.execute(query)
+        await session.commit()
+        return result.rowcount
 
 
 # ============================================================================

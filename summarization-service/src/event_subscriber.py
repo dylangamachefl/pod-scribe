@@ -40,8 +40,20 @@ async def process_batch_transcribed_event(event_data: dict):
             
             processed_episodes = []
             for episode_id in event.episode_ids:
+                # result of True means "handled" (either summarized or gracefully skipped)
+                # result of False means "failed" (infrastructure/model error)
                 success = await summarize_single_episode(episode_id, event.batch_id)
                 if success:
+                    # Check if it was actually summarized (by checking DB or state)
+                    # For now, we only add to processed_episodes if it was a real success.
+                    # We'll use a slightly different return pattern in summarize_single_episode.
+                    pass 
+
+            # Refactored: check which ones actually have summaries in DB now
+            from podcast_transcriber_shared.database import get_summary_by_episode_id
+            for episode_id in event.episode_ids:
+                summary = await get_summary_by_episode_id(episode_id)
+                if summary:
                     processed_episodes.append(episode_id)
 
             # Publish BatchSummarized event
@@ -55,24 +67,49 @@ async def process_batch_transcribed_event(event_data: dict):
                     episode_ids=processed_episodes
                 )
                 await eb.publish(eb.STREAM_BATCH_SUMMARIZED, batch_event)
-                logger.info("batch_summarized_event_published", batch_id=event.batch_id)
+                logger.info("batch_summarized_event_published", batch_id=event.batch_id, count=len(processed_episodes))
+            else:
+                logger.info("batch_summarization_complete_no_episodes_processed", batch_id=event.batch_id)
+            
+            return True
 
     except Exception as e:
         logger.error("batch_summarization_error", error=str(e), exc_info=True)
+        return False
 
 
 async def summarize_single_episode(episode_id: str, batch_id: str = "default") -> bool:
-    """Helper to summarize a single episode (refactored from previous process_transcription_event)."""
+    """Helper to summarize a single episode. Returns True if handled (even if skipped)."""
     try:
         # Fetch episode from database
-        from podcast_transcriber_shared.database import get_episode_by_id, save_summary as db_save_summary
+        from podcast_transcriber_shared.database import (
+            get_episode_by_id, 
+            save_summary as db_save_summary, 
+            get_summary_by_episode_id,
+            update_episode_status,
+            EpisodeStatus
+        )
         
+        # Check if already summarized
+        existing = await get_summary_by_episode_id(episode_id)
+        if existing:
+            logger.info("episode_already_summarized", episode_id=episode_id)
+            return True
+
         episode = await get_episode_by_id(episode_id, load_transcript=True)
-        if not episode or not episode.transcript_text:
-            logger.error("episode_unsuitable_for_summarization", episode_id=episode_id)
-            return False
+        if not episode:
+            logger.warning("episode_not_found", episode_id=episode_id)
+            return True # Skip missing episodes gracefully
+
+        if not episode.transcript_text or len(episode.transcript_text.split()) < 50:
+            logger.warning("episode_unsuitable_for_summarization", 
+                           episode_id=episode_id, 
+                           reason="transcript_missing_or_too_short",
+                           status=episode.status)
+            return True # Handle gracefully by skipping
 
         # Report status
+        await update_episode_status(episode_id, EpisodeStatus.SUMMARIZING)
         manager = get_pipeline_status_manager()
         manager.update_service_status('summarization', episode_id, "summarizing", progress=0.1, additional_data={
             "episode_title": episode.title,
@@ -96,6 +133,7 @@ async def summarize_single_episode(episode_id: str, batch_id: str = "default") -
             "audio_url": episode.url,
         }
         await db_save_summary(episode_id, complete_summary_data)
+        await update_episode_status(episode_id, EpisodeStatus.SUMMARIZED)
         
         # Cleanup status
         manager.clear_service_status('summarization', episode_id)
@@ -123,6 +161,43 @@ async def start_summarization_event_subscriber():
     )
 
 
+async def recover_stuck_episodes():
+    """
+    Recover episodes that were transcribed but not summarized (e.g. due to restart).
+    Also picks up 'SUMMARIZING' episodes effectively resetting them.
+    """
+    try:
+        from podcast_transcriber_shared.database import list_episodes, EpisodeStatus
+        from podcast_transcriber_shared.gpu_lock import get_gpu_lock
+        
+        logger.info("checking_for_stuck_episodes")
+        
+        # Find episodes that are ready for summarization or got stuck during it
+        stuck_transcribed = await list_episodes(status=EpisodeStatus.TRANSCRIBED)
+        stuck_summarizing = await list_episodes(status=EpisodeStatus.SUMMARIZING)
+        
+        stuck_episodes = stuck_transcribed + stuck_summarizing
+        
+        if not stuck_episodes:
+            logger.info("no_stuck_episodes_found")
+            return
+
+        logger.info("found_stuck_episodes", count=len(stuck_episodes), ids=[e.id for e in stuck_episodes])
+        
+        # Acquire GPU lock for the recovery batch
+        async with get_gpu_lock().acquire():
+            logger.info("gpu_lock_acquired_for_recovery")
+            
+            for episode in stuck_episodes:
+                logger.info("recovering_episode", episode_id=episode.id, status=episode.status)
+                await summarize_single_episode(episode.id, batch_id="recovery_startup")
+                
+        logger.info("recovery_batch_complete")
+            
+    except Exception as e:
+        logger.error("recovery_failed", error=str(e), exc_info=True)
+
+
 if __name__ == "__main__":
     import asyncio
     
@@ -131,8 +206,12 @@ if __name__ == "__main__":
     get_ollama_service()
     logger.info("services_initialized")
     
-    # Run async subscriber
+    # Run recovery and then subscriber
+    async def main():
+        await recover_stuck_episodes()
+        await start_summarization_event_subscriber()
+
     try:
-        asyncio.run(start_summarization_event_subscriber())
+        asyncio.run(main())
     except KeyboardInterrupt:
         pass

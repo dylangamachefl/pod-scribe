@@ -71,15 +71,22 @@ async def process_batch_summarized_event(event_data: dict):
                 await index_single_episode(episode_id, event.batch_id)
 
         logger.info("batch_rag_indexing_complete", batch_id=event.batch_id)
+        return True
 
     except Exception as e:
         logger.error("batch_rag_indexing_error", error=str(e), exc_info=True)
+        return False
 
 
 async def index_single_episode(episode_id: str, batch_id: str = "default") -> bool:
     """Helper to index a single episode (refactored from previous process_summary_event)."""
     try:
-        from podcast_transcriber_shared.database import get_episode_by_id, get_summary_by_episode_id
+        from podcast_transcriber_shared.database import (
+            get_episode_by_id, 
+            get_summary_by_episode_id,
+            update_episode_status,
+            EpisodeStatus
+        )
         
         episode = await get_episode_by_id(episode_id, load_transcript=True)
         summary_record = await get_summary_by_episode_id(episode_id)
@@ -89,6 +96,7 @@ async def index_single_episode(episode_id: str, batch_id: str = "default") -> bo
             return False
 
         # Report status
+        await update_episode_status(episode_id, EpisodeStatus.INDEXING)
         manager = get_pipeline_status_manager()
         manager.update_service_status('rag', episode_id, "indexing", progress=0.1, additional_data={
             "episode_title": episode.title,
@@ -135,7 +143,9 @@ async def index_single_episode(episode_id: str, batch_id: str = "default") -> bo
         except Exception as e:
             logger.warning("bm25_update_failed", episode_id=episode_id, error=str(e))
         
-        # Cleanup
+        # Cleanup and finalize
+        await update_episode_status(episode_id, EpisodeStatus.INDEXED)
+        await update_episode_status(episode_id, EpisodeStatus.COMPLETED) # Final stage
         manager.clear_service_status('rag', episode_id)
         manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}rag:completed") if manager.redis else None
         
@@ -165,14 +175,55 @@ async def start_rag_event_subscriber():
     )
 
 
+async def recover_stuck_episodes():
+    """
+    Recover episodes that were summarized but not indexed (e.g. due to restart).
+    Also picks up 'INDEXING' episodes effectively resetting them.
+    """
+    try:
+        from podcast_transcriber_shared.database import list_episodes, EpisodeStatus
+        from podcast_transcriber_shared.gpu_lock import get_gpu_lock
+        
+        logger.info("checking_for_stuck_rag_episodes")
+        
+        # Find episodes that are ready for indexing or got stuck during it
+        stuck_summarized = await list_episodes(status=EpisodeStatus.SUMMARIZED)
+        stuck_indexing = await list_episodes(status=EpisodeStatus.INDEXING)
+        
+        stuck_episodes = stuck_summarized + stuck_indexing
+        
+        if not stuck_episodes:
+            logger.info("no_stuck_rag_episodes_found")
+            return
+
+        logger.info("found_stuck_rag_episodes", count=len(stuck_episodes), ids=[e.id for e in stuck_episodes])
+        
+        # Acquire GPU lock for the recovery batch
+        async with get_gpu_lock().acquire():
+            logger.info("gpu_lock_acquired_for_rag_recovery")
+            
+            for episode in stuck_episodes:
+                logger.info("recovering_rag_episode", episode_id=episode.id, status=episode.status)
+                await index_single_episode(episode.id, batch_id="recovery_startup")
+                
+        logger.info("rag_recovery_batch_complete")
+            
+    except Exception as e:
+        logger.error("rag_recovery_failed", error=str(e), exc_info=True)
+
+
 if __name__ == "__main__":
     # Initialize services
     logger.info("initializing_rag_services")
     get_embedding_service()
     get_qdrant_service()
     
-    # Run async subscriber
+    # Run recovery and then subscriber
+    async def main():
+        await recover_stuck_episodes()
+        await start_rag_event_subscriber()
+
     try:
-        asyncio.run(start_rag_event_subscriber())
+        asyncio.run(main())
     except KeyboardInterrupt:
         pass

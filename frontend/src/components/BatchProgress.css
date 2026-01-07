@@ -1,0 +1,296 @@
+.batch-progress-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(10, 10, 15, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+/* Base container styles */
+.batch-progress-container {
+    width: 100%;
+    max-width: 800px;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+}
+
+/* Inline Mode Overrides */
+.batch-progress-container.inline {
+    max-width: 100%;
+    box-shadow: none;
+    border: 1px solid var(--color-border-primary);
+    background: transparent;
+    max-height: none;
+    margin-bottom: 24px;
+}
+
+.batch-progress-container.inline .batch-progress-header {
+    background: transparent;
+    border-bottom: 1px solid var(--color-border-primary);
+    padding: 24px;
+}
+
+.batch-progress-container.inline .batch-progress-body {
+    padding: 24px;
+}
+
+.batch-progress-container.inline .batch-progress-footer {
+    display: none;
+}
+
+.batch-progress-header {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 32px;
+    border-bottom: 1px solid var(--color-border-primary);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.batch-title-group h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    background: linear-gradient(135deg, #fff 0%, #a5a5a5 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.batch-subtitle {
+    font-size: 0.875rem;
+    color: var(--color-text-tertiary);
+    margin-top: 4px;
+}
+
+.batch-status-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.batch-status-badge.processing {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.batch-status-badge.completed {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.batch-progress-body {
+    padding: 32px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Pipeline Overview */
+.pipeline-overview {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.pipeline-phase {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--color-border-primary);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.pipeline-phase.active {
+    background: rgba(59, 130, 246, 0.05);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.pipeline-phase.completed {
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.phase-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    background: var(--color-bg-primary);
+    color: var(--color-text-tertiary);
+}
+
+.active .phase-icon {
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+    animation: pulse-blue 2s infinite;
+}
+
+.completed .phase-icon {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.phase-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin-bottom: 4px;
+}
+
+.phase-count {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+/* Episode List */
+.episode-progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.episode-progress-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--color-border-primary);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ep-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ep-title {
+    font-weight: 500;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ep-status-text {
+    font-size: 0.75rem;
+    color: var(--color-text-tertiary);
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.status-dot.pending {
+    background: #64748b;
+}
+
+.status-dot.queud {
+    background: #3b82f6;
+}
+
+.status-dot.transcribing {
+    background: #3b82f6;
+    animation: blink 1.5s infinite;
+}
+
+.status-dot.summarizing {
+    background: #a855f7;
+    animation: blink 1.5s infinite;
+}
+
+.status-dot.indexing {
+    background: #eab308;
+    animation: blink 1.5s infinite;
+}
+
+.status-dot.completed {
+    background: #10b981;
+}
+
+.status-dot.failed {
+    background: #ef4444;
+}
+
+.batch-progress-footer {
+    padding: 24px 32px;
+    border-top: 1px solid var(--color-border-primary);
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.btn-dismiss {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border-primary);
+    color: var(--color-text-primary);
+    padding: 10px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-dismiss:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes pulse-blue {
+    0% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+}
+
+@keyframes blink {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
