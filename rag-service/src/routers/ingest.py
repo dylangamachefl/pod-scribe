@@ -85,7 +85,10 @@ async def _process_ingestion(content: str, metadata: dict) -> IngestResponse:
     # Generate embeddings
     embedding_service = get_embedding_service()
     chunk_texts = [chunk["text"] for chunk in chunks]
-    embeddings = embedding_service.embed_batch(chunk_texts)
+    
+    from podcast_transcriber_shared.gpu_lock import get_gpu_lock
+    async with get_gpu_lock().acquire():
+        embeddings = await embedding_service.embed_batch(chunk_texts)
     
     # Store in Qdrant
     qdrant_service = get_qdrant_service()

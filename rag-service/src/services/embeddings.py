@@ -57,14 +57,14 @@ class EmbeddingService:
                    batch_num=batch_num, 
                    batch_size=len(batch))
         
-        async with get_gpu_lock().acquire():
-            response = await client.post(
-                f"{self.api_url}/api/embed",
-                json={
-                    "model": self.model_name,
-                    "input": batch
-                }
-            )
+        # GPU lock is now handled by the caller (event subscriber or router)
+        response = await client.post(
+            f"{self.api_url}/api/embed",
+            json={
+                "model": self.model_name,
+                "input": batch
+            }
+        )
         
         response.raise_for_status()
         result = response.json()

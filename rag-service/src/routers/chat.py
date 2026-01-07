@@ -167,16 +167,20 @@ async def ask_question(request: ChatRequest):
             print("📊 BM25 index not available, building from Qdrant...")
             hybrid_service.build_bm25_index()
         
+        from podcast_transcriber_shared.gpu_lock import get_gpu_lock
+        
         # Perform hybrid search (episode-scoped or global)
         print(f"🔍 Searching for relevant chunks...")
         try:
-            retrieved_chunks = hybrid_service.search(
-                query=request.question,
-                k=5,
-                bm25_weight=request.bm25_weight,
-                qdrant_weight=request.faiss_weight,
-                episode_filter=request.episode_title  # May be None for global search
-            )
+            # Acquire lock for embedding query inside search
+            async with get_gpu_lock().acquire():
+                retrieved_chunks = await hybrid_service.search(
+                    query=request.question,
+                    k=5,
+                    bm25_weight=request.bm25_weight,
+                    qdrant_weight=request.faiss_weight,
+                    episode_filter=request.episode_title  # May be None for global search
+                )
             print(f"✅ Found {len(retrieved_chunks)} relevant chunks")
         except Exception as e:
             print(f"❌ Search failed: {e}")

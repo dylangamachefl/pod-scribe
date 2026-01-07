@@ -135,7 +135,7 @@ class HybridRetrieverService:
         print(f"✅ BM25 index updated: now {self._document_count} documents")
     
 
-    def search(
+    async def search(
         self,
         query: str,
         k: int = HYBRID_TOP_K,
@@ -165,8 +165,8 @@ class HybridRetrieverService:
         # Qdrant Search with pre-filtering
         qdrant_results = []
         try:
-            query_vector = self.embeddings_service.embed_text(query)
-            qdrant_results = self.qdrant_service.search(
+            query_vector = await self.embeddings_service.embed_text(query)
+            qdrant_results = await self.qdrant_service.search(
                 query_vector=query_vector,
                 limit=k,
                 episode_filter=episode_filter
