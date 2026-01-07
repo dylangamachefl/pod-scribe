@@ -15,7 +15,7 @@ from config import (
 from models import HealthResponse
 from routers import summaries
 from services.ollama_service import get_ollama_service
-from event_subscriber import start_summarization_event_subscriber
+from event_subscriber import start_summarization_event_subscriber, recover_stuck_episodes
 
 
 
@@ -45,6 +45,10 @@ async def lifespan(app: FastAPI):
         print(f"❌ Service initialization failed: {e}")
         raise
     
+    
+    # Run recovery for stuck episodes (if any)
+    await recover_stuck_episodes()
+
     # Start event subscriber in background (async task)
     print("\n📡 Starting event subscriber as background task...")
     subscriber_task = asyncio.create_task(start_summarization_event_subscriber())

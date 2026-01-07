@@ -144,18 +144,18 @@ class OllamaSummarizationService:
                 start_time = time.time()
                 start_time = time.time()
                 # GPU lock is now handled by the caller (event subscriber or router)
-                structured_data_list = await self.stage2_client.chat.completions.create(
+                structured_data = await self.stage2_client.chat.completions.create(
                     model=self.stage2_model_name,
-                    response_model=List[StructuredSummaryV2],
+                    response_model=StructuredSummaryV2,
                     messages=[{"role": "user", "content": prompt}],
                     max_retries=2
                 )
                 
-                if not structured_data_list:
+                if not structured_data:
                     raise ValueError("Stage 2: Empty results")
                 
                 print(f"✅ Stage 2 complete ({(time.time() - start_time)*1000:.0f}ms)")
-                return structured_data_list[0]
+                return structured_data
                 
             except Exception as e:
                 if attempt < self.stage2_max_retries - 1:

@@ -35,10 +35,10 @@ async def ask_question_stream(request: ChatRequest):
                 qdrant_service=qdrant_service
             )
             if not hybrid_service._loaded_from_disk:
-                hybrid_service.build_bm25_index()
+                await hybrid_service.build_bm25_index()
         
         if hybrid_service.bm25_retriever is None:
-            hybrid_service.build_bm25_index()
+            await hybrid_service.build_bm25_index()
         
         # 2. Retrieval
         retrieved_chunks = hybrid_service.search(
@@ -153,7 +153,7 @@ async def ask_question(request: ChatRequest):
                 # If not available, it will be built on first search or manually
                 if not hybrid_service._loaded_from_disk:
                     print("📊 Building BM25 index from Qdrant...")
-                    hybrid_service.build_bm25_index()
+                    await hybrid_service.build_bm25_index()
                     print("✅ BM25 index built and saved")
             except Exception as e:
                 print(f"❌ Failed to initialize hybrid retriever: {e}")
@@ -165,7 +165,7 @@ async def ask_question(request: ChatRequest):
         # Ensure BM25 index exists before search
         if hybrid_service.bm25_retriever is None:
             print("📊 BM25 index not available, building from Qdrant...")
-            hybrid_service.build_bm25_index()
+            await hybrid_service.build_bm25_index()
         
         from podcast_transcriber_shared.gpu_lock import get_gpu_lock
         

@@ -45,7 +45,11 @@ async def lifespan(app: FastAPI):
     
     # Start event subscriber in background
     print("\n📡 Starting event subscriber as background task...")
-    from event_subscriber import start_rag_event_subscriber
+    from event_subscriber import start_rag_event_subscriber, recover_stuck_episodes
+    
+    # Run recovery for stuck episodes (if any)
+    await recover_stuck_episodes()
+
     subscriber_task = asyncio.create_task(start_rag_event_subscriber())
     print("✅ Event subscriber started in background")
     

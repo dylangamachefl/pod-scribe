@@ -41,7 +41,7 @@ class HybridRetrieverService:
         
         print("✅ HybridRetrieverService initialized")
     
-    def build_bm25_index(self, force_rebuild: bool = False) -> Dict:
+    async def build_bm25_index(self, force_rebuild: bool = False) -> Dict:
         """
         Build BM25 index from all documents in Qdrant using scrolling/pagination.
         Avoids loading all docs into memory at once during fetch,
@@ -62,7 +62,7 @@ class HybridRetrieverService:
             # Scroll through Qdrant
             # Returns (points, next_page_offset)
             # We must use with_vectors=False to save memory!
-            points, offset = self.qdrant_service.client.scroll(
+            points, offset = await self.qdrant_service.client.scroll(
                 collection_name=self.qdrant_service.collection_name,
                 limit=batch_size,
                 offset=offset,
