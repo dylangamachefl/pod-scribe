@@ -66,7 +66,7 @@ async def ask_question_stream(request: ChatRequest):
         ]
         
         # 4. Stream Generator
-        def stream_generator():
+        async def stream_generator():
             try:
                 chat_client = get_ollama_chat_client()
                 
@@ -74,7 +74,7 @@ async def ask_question_stream(request: ChatRequest):
                 yield f"METADATA:{json.dumps({'sources': sources})}\n"
                 
                 # Send answer chunks
-                for chunk in chat_client.generate_answer_stream(
+                async for chunk in chat_client.generate_answer_stream(
                     question=request.question,
                     retrieved_chunks=retrieved_chunks,
                     conversation_history=request.conversation_history
