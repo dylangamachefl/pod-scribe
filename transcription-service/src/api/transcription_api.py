@@ -19,7 +19,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import select, func
 import feedparser
 
 # Add parent directory to path for imports
@@ -45,7 +45,9 @@ from podcast_transcriber_shared.database import (
     update_episode_status,
     mark_episodes_as_seen,
     bulk_update_episodes_batch,
-    EpisodeStatus
+    get_session_maker,
+    EpisodeStatus,
+    Summary as SummaryModel
 )
 
 # RSS feed parsing utility
@@ -271,11 +273,18 @@ async def get_stats():
     subscriptions = load_subscriptions()
     podcasts = await get_available_podcasts()
     
-    # Get pending and completed episode counts from PostgreSQL
+    # Get pending episodes
     pending_episodes = await list_episodes(status=EpisodeStatus.PENDING)
-    completed_episodes = await list_episodes(status=EpisodeStatus.COMPLETED)
     
-    # Count selected episodes across all statuses (including FAILED)
+    # Count processed episodes as the number of summaries created
+    # This ensures exact alignment with the library view
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        summary_query = select(func.count()).select_from(SummaryModel)
+        summary_result = await session.execute(summary_query)
+        processed_count = summary_result.scalar() or 0
+    
+    # Count selected episodes across all statuses
     all_episodes = await list_episodes()
     selected_count = sum(1 for ep in all_episodes if ep.meta_data and ep.meta_data.get('selected'))
     
@@ -283,7 +292,7 @@ async def get_stats():
         active_feeds=sum(1 for s in subscriptions if s.get('active', True)),
         total_feeds=len(subscriptions),
         total_podcasts=len(podcasts),
-        total_episodes_processed=len(completed_episodes),
+        total_episodes_processed=processed_count,
         pending_episodes=len(pending_episodes),
         selected_episodes=selected_count
     )
@@ -658,17 +667,59 @@ async def get_transcription_status():
     
     active_episodes = pipeline_status.get('active_episodes', [])
     
+    # Base response derived from pipeline manager
+    response_data = {
+        "is_running": pipeline_status['is_running'],
+        "is_stopped": pipeline_status.get('is_stopped', False),
+        "current_batch_id": pipeline_status.get('current_batch_id'),
+        "pipeline": pipeline_status,
+        "active_episodes": active_episodes,
+        "gpu_name": pipeline_status.get('gpu_name'),
+        "gpu_usage": pipeline_status.get('gpu_usage', 0),
+        "vram_used_gb": pipeline_status.get('vram_used_gb', 0.0),
+        "vram_total_gb": pipeline_status.get('vram_total_gb', 0.0),
+        "recent_logs": pipeline_status.get('recent_logs', []),
+        "episodes_completed": pipeline_status.get('episodes_completed', 0),
+        "episodes_total": pipeline_status.get('episodes_total', 0)
+    }
+    
     if status:
-        status['pipeline'] = pipeline_status
-        status['active_episodes'] = active_episodes
-        return TranscriptionStatus(**status)
+        # Overlay episode-specific status
+        response_data.update({
+            "stage": status.get('stage', 'idle'),
+            "progress": status.get('progress', 0.0),
+            "current_episode": status.get('current_episode'),
+            "current_podcast": status.get('current_podcast'),
+        })
     else:
-        return TranscriptionStatus(
-            is_running=pipeline_status['is_running'],
-            stage="idle",
-            pipeline=pipeline_status,
-            active_episodes=active_episodes
-        )
+        response_data.update({
+            "stage": "idle",
+            "progress": 0.0
+        })
+
+    return TranscriptionStatus(**response_data)
+
+
+@app.post("/transcription/stop")
+async def stop_transcription():
+    """Stop the transcription pipeline, clear pending job queues, and reset status."""
+    manager = get_pipeline_status_manager()
+    manager.set_stop_signal(True)
+    
+    # Purge pending job streams from Redis
+    from podcast_transcriber_shared.events import get_event_bus, EventBus
+    eb = get_event_bus()
+    await eb.purge_stream(EventBus.STREAM_TRANSCRIPTION_JOBS)
+    await eb.purge_stream(EventBus.STREAM_BATCH_TRANSCRIBED)
+    await eb.purge_stream(EventBus.STREAM_BATCH_SUMMARIZED)
+    
+    # Clear all status and stats to return to idle state
+    manager.clear_all_status()
+    
+    return {"status": "reset", "message": "Pipeline reset to idle state and pending job queues cleared. Busy workers will abort shortly."}
+
+
+# Removed resume_transcription as per user request for simpler "reset to idle" flow.
 
 
 @app.get("/batches/{batch_id}/progress", response_model=BatchProgressResponse)
@@ -765,8 +816,11 @@ async def start_transcription(
     from podcast_transcriber_shared.database import create_episode, EpisodeStatus
     from podcast_transcriber_shared.status_monitor import get_pipeline_status_manager
     
-    # Check if already running
+    # Reset stop signal at start
     manager = get_pipeline_status_manager()
+    manager.set_stop_signal(False)
+    
+    # Check if already running
     pipeline_status = manager.get_pipeline_status()
     if pipeline_status and pipeline_status.get('is_running'):
         raise HTTPException(status_code=400, detail="Transcription pipeline already in progress")
@@ -826,9 +880,24 @@ async def start_transcription(
             episode_id = ep.get('id')
             
             try:
-                # Episode already exists in PostgreSQL (created during fetch)
-                # Just enqueue to Redis - worker will update status to PROCESSING
-                
+                # Update metadata to set selected=False as we are now processing
+                episode = await get_episode_by_id(episode_id, load_transcript=False)
+                if episode:
+                    updated_meta = (episode.meta_data or {}).copy()
+                    updated_meta['selected'] = False
+                    
+                    from sqlalchemy import update
+                    from podcast_transcriber_shared.database import Episode as EpisodeModel
+                    session_maker = get_session_maker()
+                    async with session_maker() as session:
+                        stmt = (
+                            update(EpisodeModel)
+                            .where(EpisodeModel.id == episode_id)
+                            .values(meta_data=updated_meta)
+                        )
+                        await session.execute(stmt)
+                        await session.commit()
+
                 # Publish to Redis Stream via EventBus
                 # We do this manually here because we want to use the raw redis connection we already have
                 # But to follow the pattern, we should construct the event properly

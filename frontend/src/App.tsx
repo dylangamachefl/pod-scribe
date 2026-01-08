@@ -7,11 +7,28 @@ import SmartLibraryPage from './pages/SmartLibraryPage';
 import EpisodeExecBrief from './pages/EpisodeExecBrief';
 import DashboardPage from './pages/DashboardPage';
 import FeedManagerPage from './pages/FeedManagerPage';
+import { transcriptionApi } from './api';
 import './App.css';
+import { Activity } from 'lucide-react';
 
 function App() {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [chatContext, setChatContext] = useState<any>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    useEffect(() => {
+        const checkStatus = async () => {
+            try {
+                const status = await transcriptionApi.getTranscriptionStatus();
+                setIsProcessing(status.is_running);
+            } catch (error) {
+                console.error('Failed to get status in App:', error);
+            }
+        };
+        checkStatus();
+        const interval = setInterval(checkStatus, 10000);
+        return () => clearInterval(interval);
+    }, []);
 
     // Expose toggle to window for simple cross-component triggering
     useEffect(() => {
@@ -30,18 +47,13 @@ function App() {
             <main className="main-content">
                 <header className="top-header glass">
                     <div className="header-search">
-                        {/* Global Search could go here */}
+                        {isProcessing && (
+                            <div className="header-processing-indicator">
+                                <Activity size={16} className="spin text-accent" />
+                                <span>Processing Pipeline</span>
+                            </div>
+                        )}
                     </div>
-                    <button
-                        className="chat-trigger-btn"
-                        onClick={() => {
-                            setChatContext(null); // Reset to global context
-                            setIsChatOpen(true);
-                        }}
-                    >
-                        <span>Ask AI Assistant</span>
-                        <span className="kbd-shortcut">⌘K</span>
-                    </button>
                 </header>
 
                 <div className="content-scroll-area">

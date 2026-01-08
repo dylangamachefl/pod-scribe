@@ -149,6 +149,7 @@ export interface PipelineStatus {
 
 export interface TranscriptionStatus {
     is_running: boolean;
+    is_stopped?: boolean;
     current_batch_id?: string;
     current_episode?: string;
     current_podcast?: string;

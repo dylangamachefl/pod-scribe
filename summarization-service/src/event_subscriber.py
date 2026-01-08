@@ -18,12 +18,19 @@ from config import SUMMARY_OUTPUT_PATH
 configure_logging("summarization-service")
 logger = get_logger(__name__)
 
+# Global state for cancellation
+_active_batch_task = None
+_active_episode_id = None
+_shutdown_event = asyncio.Event()
+
 
 async def process_batch_transcribed_event(event_data: dict):
     """
     Process a BatchTranscribed event asynchronously.
     Summarizes all episodes in the batch sequentially.
     """
+    global _active_batch_task, _active_episode_id
+    _active_batch_task = asyncio.current_task()
     try:
         from podcast_transcriber_shared.events import BatchTranscribed, EpisodeSummarized
         event = BatchTranscribed(**event_data)
@@ -39,7 +46,21 @@ async def process_batch_transcribed_event(event_data: dict):
             logger.info("gpu_lock_acquired_for_batch_summarization", batch_id=event.batch_id)
             
             processed_episodes = []
+            manager = get_pipeline_status_manager()
             for episode_id in event.episode_ids:
+                _active_episode_id = episode_id
+                # Check for cancellation signals
+                # Check for cancellation signals
+                if manager.is_stopped():
+                    logger.info("pipeline_stopped_skipping_summarization", episode_id=episode_id)
+                    manager.update_service_status('summarization', episode_id, "stopped", progress=0.0, log_message="Pipeline stopped by user")
+                    continue
+
+                if manager.is_batch_cancelled(event.batch_id):
+                    logger.info("batch_cancelled_skipping_summarization", episode_id=episode_id, batch_id=event.batch_id)
+                    manager.update_service_status('summarization', episode_id, "cancelled", progress=0.0, log_message=f"Batch {event.batch_id} cancelled by user")
+                    continue
+
                 # result of True means "handled" (either summarized or gracefully skipped)
                 # result of False means "failed" (infrastructure/model error)
                 success = await summarize_single_episode(episode_id, event.batch_id)
@@ -73,6 +94,9 @@ async def process_batch_transcribed_event(event_data: dict):
             
             return True
 
+    except asyncio.CancelledError:
+        logger.info("batch_summarization_cancelled", batch_id=event.batch_id)
+        raise
     except Exception as e:
         logger.error("batch_summarization_error", error=str(e), exc_info=True)
         return False
@@ -111,7 +135,7 @@ async def summarize_single_episode(episode_id: str, batch_id: str = "default") -
         # Report status
         await update_episode_status(episode_id, EpisodeStatus.SUMMARIZING)
         manager = get_pipeline_status_manager()
-        manager.update_service_status('summarization', episode_id, "summarizing", progress=0.1, additional_data={
+        manager.update_service_status('summarization', episode_id, "summarizing", progress=0.1, log_message=f"Generating summary for: {episode.title}", additional_data={
             "episode_title": episode.title,
             "podcast_name": episode.podcast_name
         })
@@ -136,6 +160,7 @@ async def summarize_single_episode(episode_id: str, batch_id: str = "default") -
         await update_episode_status(episode_id, EpisodeStatus.SUMMARIZED)
         
         # Cleanup status
+        manager.update_service_status('summarization', episode_id, "completed", progress=1.0, log_message=f"Summarization complete: {episode.title}")
         manager.clear_service_status('summarization', episode_id)
         manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}summarization:completed") if manager.redis else None
         
@@ -159,6 +184,31 @@ async def start_summarization_event_subscriber():
         consumer_name="summarization_worker_1",
         callback=process_batch_transcribed_event
     )
+
+async def stop_monitor():
+    """Background monitor to cancel active task on stop signal."""
+    while not _shutdown_event.is_set():
+        await asyncio.sleep(2)
+        try:
+            manager = get_pipeline_status_manager()
+            if manager.is_stopped():
+                global _active_batch_task, _active_episode_id
+                if _active_batch_task and not _active_batch_task.done():
+                    logger.critical("cancelling_summarization_due_to_stop_signal", episode_id=_active_episode_id)
+                    
+                    # Mark current episode as failed
+                    if _active_episode_id:
+                        try:
+                            from podcast_transcriber_shared.database import update_episode_status, EpisodeStatus
+                            await update_episode_status(_active_episode_id, EpisodeStatus.FAILED)
+                        except Exception as e:
+                            logger.error("failed_to_update_episode_status_during_cancel", error=str(e))
+                        
+                        manager.update_service_status('summarization', _active_episode_id, "cancelled", progress=0.0, log_message="Aborted: Stop signal received")
+
+                    _active_batch_task.cancel()
+        except Exception as e:
+            logger.error("stop_monitor_error", error=str(e))
 
 
 async def recover_stuck_episodes():
@@ -208,8 +258,14 @@ if __name__ == "__main__":
     
     # Run recovery and then subscriber
     async def main():
-        await recover_stuck_episodes()
-        await start_summarization_event_subscriber()
+        monitor_task = asyncio.create_task(stop_monitor())
+        try:
+            await recover_stuck_episodes()
+            await start_summarization_event_subscriber()
+        finally:
+            _shutdown_event.set()
+            monitor_task.cancel()
+            await monitor_task
 
     try:
         asyncio.run(main())

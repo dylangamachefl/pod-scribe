@@ -183,6 +183,26 @@ export const transcriptionClient = {
     },
 
     /**
+     * Stop the transcription pipeline gracefully
+     */
+    async stopTranscription(): Promise<{ status: string; message: string }> {
+        const response = await axiosInstance.post<{ status: string; message: string }>(
+            '/transcription/stop'
+        );
+        return response.data;
+    },
+
+    /**
+     * Resume the transcription pipeline (clear stop signal)
+     */
+    async resumeTranscription(): Promise<{ status: string; message: string }> {
+        const response = await axiosInstance.post<{ status: string; message: string }>(
+            '/transcription/resume'
+        );
+        return response.data;
+    },
+
+    /**
      * Get detailed progress for a specific batch
      */
     async getBatchProgress(batchId: string): Promise<BatchProgressResponse> {

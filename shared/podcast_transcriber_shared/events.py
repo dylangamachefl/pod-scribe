@@ -186,6 +186,24 @@ class EventBus:
             if isinstance(e, (redis.ConnectionError, redis.TimeoutError)):
                 self.client = None
             return False
+
+    async def purge_stream(self, stream: str):
+        """
+        Purge all messages from a Redis Stream.
+        Useful for stopping/clearing the pipeline.
+        """
+        if not self.client:
+            await self._connect()
+        
+        if not self.client:
+            return
+            
+        try:
+            # XTRIM with MAXLEN 0 effectively deletes all messages
+            await self.client.xtrim(stream, maxlen=0)
+            print(f"🗑️ Purged stream: {stream}")
+        except Exception as e:
+            print(f"❌ Failed to purge stream {stream}: {e}")
     
     async def subscribe(
         self, 

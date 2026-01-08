@@ -1,30 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { transcriptionApi, BatchProgressResponse } from '../api';
-import { Cpu, FileText, Search, CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react';
+import { TranscriptionStatus } from '../api/types';
+import { Cpu, FileText, Search, CheckCircle2, AlertCircle, Loader2, X, CircuitBoard, Activity } from 'lucide-react';
 import './BatchProgress.css';
 
 interface BatchProgressProps {
-    batchId: string;
+    batchId: string | null;
+    status?: TranscriptionStatus | null;
     onClose?: () => void;
     isInline?: boolean;
 }
 
-export const BatchProgress: React.FC<BatchProgressProps> = ({ batchId, onClose, isInline = false }) => {
+export const BatchProgress: React.FC<BatchProgressProps> = ({ batchId, status, onClose, isInline = false }) => {
     const [progress, setProgress] = useState<BatchProgressResponse | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        if (!batchId) {
+            setProgress(null);
+            return;
+        }
+
         const fetchProgress = async () => {
             try {
-                // If we have data and it's completed, stop polling eventually?
-                // For now, keep polling to show updates until dismissed or replaced
+                setLoading(true);
                 const data = await transcriptionApi.getBatchProgress(batchId);
                 setProgress(data);
                 setError(null);
             } catch (err) {
                 console.error('Failed to fetch batch progress:', err);
-                // If 404, it might mean the batch hasn't registered yet or was cleared
                 setError('Waiting for batch updates...');
             } finally {
                 setLoading(false);
@@ -67,7 +72,43 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({ batchId, onClose, 
         return 'pending';
     };
 
-    if (loading && !progress) {
+    const renderResourceMonitor = () => {
+        if (!status) return null;
+
+        return (
+            <div className="resource-monitor">
+                <div className="resource-item">
+                    <CircuitBoard size={16} className="resource-icon" />
+                    <div className="resource-info">
+                        <span className="resource-label">GPU</span>
+                        <span className="resource-value">
+                            {status.gpu_name && status.gpu_name !== 'Unknown' ? status.gpu_name : 'No GPU Detected'}
+                        </span>
+                    </div>
+                </div>
+                <div className="resource-item">
+                    <Activity size={16} className="resource-icon" />
+                    <div className="resource-info">
+                        <span className="resource-label">Utilization</span>
+                        <span className="resource-value">{status.gpu_usage ?? 0}%</span>
+                    </div>
+                </div>
+                {status.vram_total_gb > 0 && (
+                    <div className="resource-item">
+                        <Cpu size={16} className="resource-icon" />
+                        <div className="resource-info">
+                            <span className="resource-label">VRAM</span>
+                            <span className="resource-value">
+                                {status.vram_used_gb?.toFixed(1)} / {status.vram_total_gb?.toFixed(0)} GB
+                            </span>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    if (loading && !progress && batchId) {
         return (
             <div className="batch-progress-overlay">
                 <div className="batch-progress-container">
@@ -84,30 +125,49 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({ batchId, onClose, 
         <div className={`batch-progress-container ${isInline ? 'inline' : ''}`}>
             <div className="batch-progress-header">
                 <div className="batch-title-group">
-                    <h2>Batch Processing</h2>
-                    <div className="batch-subtitle">ID: {batchId} • Last updated {progress ? new Date(progress.updated_at).toLocaleTimeString() : '...'}</div>
+                    <h2>{batchId ? 'Batch Processing' : (status?.is_running ? 'Pipeline Active' : 'System Status')}</h2>
+                    {batchId ? (
+                        <div className="batch-subtitle">ID: {batchId} • Last updated {progress ? new Date(progress.updated_at).toLocaleTimeString() : '...'}</div>
+                    ) : status?.is_running ? (
+                        <div className="batch-subtitle">Processing batch task • Tracking progress...</div>
+                    ) : (
+                        <div className="batch-subtitle">Pipeline is idle • Ready for new tasks</div>
+                    )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    {progress && (
-                        <div className={`batch-status-badge ${progress.status}`}>
-                            {progress.status}
-                        </div>
-                    )}
-                    {onClose && (
-                        <button className="btn-icon" onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}>
-                            <X size={24} />
-                        </button>
-                    )}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        {progress && (
+                            <div className={`batch-status-badge ${progress.status}`}>
+                                {progress.status}
+                            </div>
+                        )}
+                        {!batchId && status?.is_running && (
+                            <div className="batch-status-badge processing">
+                                Processing
+                            </div>
+                        )}
+                        {!batchId && !status?.is_running && (
+                            <div className="batch-status-badge idle">
+                                Idle
+                            </div>
+                        )}
+                        {onClose && (
+                            <button className="btn-icon" onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}>
+                                <X size={24} />
+                            </button>
+                        )}
+                    </div>
+                    {renderResourceMonitor()}
                 </div>
             </div>
 
             <div className="batch-progress-body">
-                {error && !progress ? (
+                {error && !progress && batchId ? (
                     <div className="error-state" style={{ textAlign: 'center', padding: '40px' }}>
                         <AlertCircle size={48} color="#ef4444" style={{ marginBottom: '16px' }} />
                         <p>{error}</p>
                     </div>
-                ) : progress && (
+                ) : progress ? (
                     <>
                         <div className="pipeline-overview">
                             {renderPhase(
@@ -153,6 +213,22 @@ export const BatchProgress: React.FC<BatchProgressProps> = ({ batchId, onClose, 
                             ))}
                         </div>
                     </>
+                ) : status?.is_running ? (
+                    <div className="idle-state">
+                        <div className="idle-content">
+                            <Loader2 size={48} className="idle-icon spin" />
+                            <h3>Initializing Batch...</h3>
+                            <p>Handshaking with services and preparing resources. Progress will appear shortly.</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="idle-state">
+                        <div className="idle-content">
+                            <Activity size={48} className="idle-icon" />
+                            <h3>No Active Batch</h3>
+                            <p>Select episodes from the Inbox and click "Run Transcription" to start a new batch.</p>
+                        </div>
+                    </div>
                 )}
             </div>
 

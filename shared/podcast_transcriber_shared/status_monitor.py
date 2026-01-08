@@ -13,6 +13,9 @@ class PipelineStatusManager:
 
     # Redis Keys
     ACTIVE_EPISODES_KEY = "pipeline:active_episodes"
+    STOP_SIGNAL_KEY = "pipeline:stop_signal"
+    CANCELLED_BATCHES_KEY = "pipeline:cancelled_batches"
+    PIPELINE_LOGS_KEY = "pipeline:logs"
     SERVICE_STATUS_PREFIX = "status:" # status:{service}:{episode_id}
     SERVICE_STATS_PREFIX = "stats:"   # stats:{service}
     
@@ -129,6 +132,17 @@ class PipelineStatusManager:
             status.update(additional_data)
             
         self.set_service_status(service, episode_id, status)
+        
+        # Also append to global pipeline logs for unified live activity
+        if log_message and self.redis:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            # Format: [HH:MM:SS] [SERVICE] Message
+            global_log = f"[{timestamp}] [{service.upper()}] {log_message}"
+            try:
+                self.redis.lpush(self.PIPELINE_LOGS_KEY, global_log)
+                self.redis.ltrim(self.PIPELINE_LOGS_KEY, 0, 99) # Keep last 100
+            except Exception as e:
+                print(f"Error updating global logs: {e}")
 
     def clear_service_status(self, service: str, episode_id: str):
         """Clear the status for an episode in a service atomically."""
@@ -177,6 +191,31 @@ class PipelineStatusManager:
         self.update_stats('transcription', 0, total_count)
         self.update_stats('summarization', 0, total_count)
         self.update_stats('rag', 0, total_count)
+
+    def set_stop_signal(self, active: bool):
+        """Set or clear the global stop signal."""
+        if not self.redis: return
+        if active:
+            self.redis.set(self.STOP_SIGNAL_KEY, "1", ex=3600) # Auto-expire in 1h
+        else:
+            self.redis.delete(self.STOP_SIGNAL_KEY)
+
+    def is_stopped(self) -> bool:
+        """Check if the global stop signal is active."""
+        if not self.redis: return False
+        return self.redis.exists(self.STOP_SIGNAL_KEY) == 1
+
+    def cancel_batch(self, batch_id: str):
+        """Mark a specific batch as cancelled."""
+        if not self.redis: return
+        self.redis.sadd(self.CANCELLED_BATCHES_KEY, batch_id)
+        self.redis.expire(self.CANCELLED_BATCHES_KEY, 3600)
+
+    def is_batch_cancelled(self, batch_id: str) -> bool:
+        """Check if a specific batch has been cancelled."""
+        if not self.redis: return False
+        if not batch_id: return False
+        return self.redis.sismember(self.CANCELLED_BATCHES_KEY, batch_id) == 1
 
     def get_pipeline_status(self) -> Dict[str, Any]:
         """Aggregate all status info into a single pipeline view."""
@@ -287,6 +326,7 @@ class PipelineStatusManager:
 
         return {
             "is_running": is_running,
+            "is_stopped": self.is_stopped(),
             "current_batch_id": current_batch_id,
             "stages": stages,
             "active_episodes": list(episodes_map.values()),
@@ -294,24 +334,10 @@ class PipelineStatusManager:
             "gpu_usage": get_service_value('gpu_usage', 0),
             "vram_used_gb": get_service_value('vram_used_gb', 0.0),
             "vram_total_gb": get_service_value('vram_total_gb', 0.0),
-            "recent_logs": get_service_value('recent_logs', []),
+            "recent_logs": self.redis.lrange(self.PIPELINE_LOGS_KEY, 0, 49) if self.redis else [],
             "episodes_completed": ep_completed,
             "episodes_total": ep_total
         }
-
-    def clear_all_status(self):
-        """Force clear all pipeline status and stats from Redis."""
-        if not self.redis: return
-        
-        self.redis.delete(self.ACTIVE_EPISODES_KEY)
-        
-        keys_to_delete = []
-        keys_to_delete.extend(self.redis.keys(f"{self.SERVICE_STATUS_PREFIX}*"))
-        keys_to_delete.extend(self.redis.keys(f"{self.SERVICE_STATS_PREFIX}*"))
-        keys_to_delete.append("transcription:status")
-        
-        if keys_to_delete:
-            self.redis.delete(*keys_to_delete)
 
     def clear_all_status(self):
         """Force clear all pipeline status and stats from Redis."""
@@ -325,6 +351,10 @@ class PipelineStatusManager:
         keys_to_delete.extend(self.redis.keys(f"{self.SERVICE_STATUS_PREFIX}*"))
         keys_to_delete.extend(self.redis.keys(f"{self.SERVICE_STATS_PREFIX}*"))
         keys_to_delete.append("transcription:status")
+        keys_to_delete.append(self.STOP_SIGNAL_KEY)
+        keys_to_delete.append(self.CANCELLED_BATCHES_KEY)
+        keys_to_delete.append("pipeline:current_batch_id")
+        keys_to_delete.append("pipeline:logs")
         
         if keys_to_delete:
             self.redis.delete(*keys_to_delete)

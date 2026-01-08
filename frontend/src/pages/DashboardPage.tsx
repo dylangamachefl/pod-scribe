@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { transcriptionApi } from '../api';
 import type { TranscriptionStats, TranscriptionStatus } from '../api/types';
-import { RefreshCw, Trash2 } from 'lucide-react';
+import { RefreshCw, Trash2, Square } from 'lucide-react';
 import { BatchProgress } from '../components/BatchProgress';
 import './DashboardPage.css';
 
@@ -13,6 +13,7 @@ function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isClearing, setIsClearing] = useState(false);
+    const [isStopping, setIsStopping] = useState(false);
 
     const loadData = async () => {
         try {
@@ -70,6 +71,25 @@ function DashboardPage() {
         }
     };
 
+    const handleStopTranscription = async () => {
+        if (!window.confirm('Are you sure you want to stop processing? This will immediately clear the queue and reset the pipeline.')) {
+            return;
+        }
+
+        setIsStopping(true);
+        try {
+            await transcriptionApi.stopTranscription();
+            // Full refresh to ensure we go back to idle
+            await loadData();
+        } catch (err) {
+            console.error('Failed to stop transcription:', err);
+            alert('Failed to stop transcription');
+        } finally {
+            setIsStopping(false);
+        }
+    };
+
+
     if (loading) {
         return (
             <div className="dashboard-page">
@@ -116,101 +136,82 @@ function DashboardPage() {
 
             {/* Statistics Cards */}
             <div className="stats-grid">
-                <div className="stat-card" onClick={() => navigate('/feeds')} style={{ cursor: 'pointer' }}>
-                    <div className="stat-icon">📡</div>
-                    <div className="stat-content">
+                <div className="stat-card" onClick={() => navigate('/feeds')}>
+                    <div className="stat-header">
+                        <div className="stat-icon-bg"><span className="stat-icon">📡</span></div>
                         <div className="stat-label">Active Feeds</div>
-                        <div className="stat-value">{stats?.active_feeds ?? 0}</div>
-                        <div className="stat-sublabel">of {stats?.total_feeds ?? 0} total</div>
                     </div>
+                    <div className="stat-value">{stats?.active_feeds ?? 0}</div>
+                    <div className="stat-sublabel">of {stats?.total_feeds ?? 0} total</div>
                 </div>
 
-                <div className="stat-card" onClick={() => navigate('/library')} style={{ cursor: 'pointer' }}>
-                    <div className="stat-icon">🎙️</div>
-                    <div className="stat-content">
+                <div className="stat-card" onClick={() => navigate('/library')}>
+                    <div className="stat-header">
+                        <div className="stat-icon-bg"><span className="stat-icon">🎙️</span></div>
                         <div className="stat-label">Podcasts</div>
-                        <div className="stat-value">{stats?.total_podcasts ?? 0}</div>
-                        <div className="stat-sublabel">with transcripts</div>
                     </div>
+                    <div className="stat-value">{stats?.total_podcasts ?? 0}</div>
+                    <div className="stat-sublabel">with transcripts</div>
                 </div>
 
-                <div className="stat-card" onClick={() => navigate('/library')} style={{ cursor: 'pointer' }}>
-                    <div className="stat-icon">📝</div>
-                    <div className="stat-content">
+                <div className="stat-card" onClick={() => navigate('/library')}>
+                    <div className="stat-header">
+                        <div className="stat-icon-bg"><span className="stat-icon">📝</span></div>
                         <div className="stat-label">Processed</div>
-                        <div className="stat-value">{stats?.total_episodes_processed ?? 0}</div>
-                        <div className="stat-sublabel">all time</div>
                     </div>
+                    <div className="stat-value">{stats?.total_episodes_processed ?? 0}</div>
+                    <div className="stat-sublabel">all time</div>
                 </div>
 
-                <div className="stat-card" onClick={() => navigate('/inbox')} style={{ cursor: 'pointer', borderColor: (stats?.selected_episodes ?? 0) > 0 ? 'var(--color-accent-primary)' : '' }}>
-                    <div className="stat-icon">⌛</div>
-                    <div className="stat-content">
+                <div className="stat-card highlight" onClick={() => navigate('/inbox')} style={{ borderColor: (stats?.selected_episodes ?? 0) > 0 ? 'var(--color-accent-primary)' : '' }}>
+                    <div className="stat-header">
+                        <div className="stat-icon-bg"><span className="stat-icon">⌛</span></div>
                         <div className="stat-label">Selected</div>
-                        <div className="stat-value">{stats?.selected_episodes ?? 0}</div>
-                        <div className="stat-sublabel">in inbox queue</div>
                     </div>
+                    <div className="stat-value">{stats?.selected_episodes ?? 0}</div>
+                    <div className="stat-sublabel">in inbox queue</div>
                 </div>
             </div>
 
-            {/* Active Batch Progress (Inline) */}
-            {status?.current_batch_id ? (
-                <BatchProgress
-                    batchId={status.current_batch_id}
-                    isInline={true}
-                    onClose={() => {
-                        // Optional: Clear the active batch from backend?
-                        // For now just let it persist until new one starts
-                    }}
-                />
-            ) : null}
-
-            {/* Fallback System Resources (only if no batch is active) */}
-            {!status?.current_batch_id && (
-                <div className="status-grid" style={{ marginBottom: '40px' }}>
-                    <div className="status-card">
-                        <h3>System Resources</h3>
-                        <div className="gpu-info">
-                            <div className="metric">
-                                <span className="metric-label">GPU</span>
-                                <span className="metric-value">{status?.gpu_name && status.gpu_name !== 'Unknown' ? status.gpu_name : 'No GPU Detected'}</span>
-                            </div>
-                            <div className="metric">
-                                <span className="metric-label">Utilization</span>
-                                <span className="metric-value">{status?.gpu_usage ?? 0}%</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="status-card">
-                        <h3>Pipeline Status</h3>
-                        <div className="batch-info">
-                            <div className="metric">
-                                <span className="metric-label">State</span>
-                                <span className="metric-value">Idle</span>
-                            </div>
-                            <div className="progress-label">Ready for new batch</div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Unified Batch & System Progress */}
+            <BatchProgress
+                batchId={status?.current_batch_id || null}
+                status={status}
+                isInline={true}
+            />
 
             {/* Run Transcription Section */}
-            <div className="run-section">
-                <h2>Ready to Transcribe?</h2>
-                <p>Process your selected episodes through the Whisper & Ollama pipeline</p>
+            <div className="run-section glass-panel">
+                <div className="section-header">
+                    <h2>Ready to Transcribe?</h2>
+                    <p>Process your selected episodes through the Whisper & Ollama pipeline</p>
+                </div>
 
                 <div className="run-controls">
-                    <button
-                        className="btn-primary-lg"
-                        onClick={handleStartTranscription}
-                        disabled={
-                            status?.is_running || (stats?.selected_episodes || 0) === 0
-                        }
-                    >
-                        {status?.is_running
-                            ? 'Processing...'
-                            : `🚀 Run Transcription (${stats?.selected_episodes ?? 0})`}
-                    </button>
+                    <div className="run-controls-main">
+                        <button
+                            className="btn-primary-lg"
+                            onClick={handleStartTranscription}
+                            disabled={
+                                status?.is_running || (stats?.selected_episodes || 0) === 0
+                            }
+                        >
+                            {status?.is_running
+                                ? 'Processing...'
+                                : `🚀 Run Transcription (${stats?.selected_episodes ?? 0})`}
+                        </button>
+
+                        {status?.is_running && (
+                            <button
+                                className="btn-secondary-lg stop-btn"
+                                onClick={handleStopTranscription}
+                                disabled={isStopping}
+                            >
+                                <Square size={18} fill="currentColor" />
+                                Stop Processing
+                            </button>
+                        )}
+                    </div>
 
                     {(stats?.selected_episodes || 0) === 0 && !status?.is_running && (
                         <div className="warning clickable" onClick={() => navigate('/inbox')} style={{ cursor: 'pointer' }}>
@@ -218,7 +219,6 @@ function DashboardPage() {
                             No episodes selected. Click here to go to your <strong>Inbox</strong> and select episodes to transcribe.
                         </div>
                     )}
-
                     {(stats?.selected_episodes || 0) > 0 && !status?.is_running && (
                         <div className="info">
                             <span>✅</span>

@@ -85,6 +85,8 @@ class PipelineStatus(BaseModel):
 
 class TranscriptionStatus(BaseModel):
     is_running: bool = False
+    is_stopped: bool = False
+    current_batch_id: Optional[str] = None
     current_episode: Optional[str] = None
     current_podcast: Optional[str] = None
     stage: str = "idle"  # idle, preparing, downloading, transcribing, diarizing, saving

@@ -19,7 +19,7 @@ export function SmartCard({ summary, onChat, onOpen }: SmartCardProps) {
                     <div className="card-podcast">{summary.podcast_name}</div>
                     <div className="card-date">
                         <Calendar size={12} />
-                        <span>{new Date(summary.created_at).toLocaleDateString()}</span>
+                        <span>{new Date(summary.created_at || Date.now()).toLocaleDateString()}</span>
                     </div>
                 </div>
                 {summary.is_favorite && (

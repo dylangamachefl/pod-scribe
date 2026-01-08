@@ -3,7 +3,6 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
     Inbox,
     Library,
-    Activity,
     Radio,
     Layout,
     BarChart3
@@ -14,7 +13,6 @@ import './Sidebar.css';
 export function Sidebar() {
     const location = useLocation();
     const [queueCount, setQueueCount] = useState(0);
-    const [isProcessing, setIsProcessing] = useState(false);
     const [feeds, setFeeds] = useState<{ id: string, title: string }[]>([]);
 
     useEffect(() => {
@@ -24,10 +22,6 @@ export function Sidebar() {
                 const allEpisodes = await transcriptionApi.getAllEpisodes();
                 const unseenCount = allEpisodes.filter(ep => !ep.is_seen).length;
                 setQueueCount(unseenCount);
-
-                // Get processing status
-                const status = await transcriptionApi.getTranscriptionStatus();
-                setIsProcessing(status.is_running);
 
                 // Get feeds instead of tags
                 const feedsList = await transcriptionApi.getFeeds();
@@ -71,13 +65,6 @@ export function Sidebar() {
                         <span className="nav-text">New Arrivals</span>
                         {queueCount > 0 && <span className="badge count">{queueCount}</span>}
                     </NavLink>
-                    {isProcessing && (
-                        <div className="nav-item processing">
-                            <Activity size={18} className="spin" />
-                            <span className="nav-text">Processing...</span>
-                            <span className="status-dot pulse"></span>
-                        </div>
-                    )}
                 </div>
 
                 <div className="nav-section">

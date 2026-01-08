@@ -82,9 +82,12 @@ async def list_summaries():
                     content = summary_row.content.copy()
                     content['episode_id'] = summary_row.episode_id
                     content['is_favorite'] = is_favorite
+                    # Include timestamp from DB
+                    if summary_row.created_at:
+                        content['created_at'] = summary_row.created_at.isoformat()
                     response.append(SummaryResponse(**content))
                 except Exception as e:
-                    print(f"⚠️ Error parsing summary {s.id}: {e}")
+                    print(f"⚠️ Error parsing summary {summary_row.id}: {e}")
                     continue
             
             return response
@@ -117,6 +120,9 @@ async def get_summary(episode_title: str):
             content = summary_row.content.copy()
             content['episode_id'] = summary_row.episode_id
             content['is_favorite'] = is_favorite
+            # Include timestamp from DB
+            if summary_row.created_at:
+                content['created_at'] = summary_row.created_at.isoformat()
             return SummaryResponse(**content)
             
     except HTTPException:

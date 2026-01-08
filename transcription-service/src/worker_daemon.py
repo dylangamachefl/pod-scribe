@@ -51,14 +51,16 @@ _active_lock_ctx = None
 _last_job_time = 0
 _batch_episodes = {} # batch_id -> list[episode_id]
 _job_in_progress = False
+_current_episode_id = None
 
 async def process_job(job_data: dict) -> bool:
     """
     Process a single transcription job.
     Returns True if successful, False otherwise.
     """
-    global _job_in_progress
+    global _job_in_progress, _current_episode_id
     _job_in_progress = True
+    _current_episode_id = job_data.get('episode_id')
     try:
         config = TranscriptionConfig.from_env()
 
@@ -134,6 +136,20 @@ async def process_job(job_data: dict) -> bool:
                     )
                 )
 
+            # Check for cancellation signals before starting work
+            manager = get_pipeline_status_manager()
+            if manager.is_stopped():
+                logger.info("pipeline_stopped_skipping_job", episode_id=episode_id)
+                await update_episode_status(episode_id, EpisodeStatus.FAILED)
+                manager.update_service_status('transcription', episode_id, "stopped", progress=0.0, log_message="Pipeline stopped by user")
+                return True # Acknowledge the job as handled (skipped)
+
+            if manager.is_batch_cancelled(batch_id):
+                logger.info("batch_cancelled_skipping_job", episode_id=episode_id, batch_id=batch_id)
+                await update_episode_status(episode_id, EpisodeStatus.FAILED)
+                manager.update_service_status('transcription', episode_id, "cancelled", progress=0.0, log_message=f"Batch {batch_id} cancelled by user")
+                return True # Acknowledge the job as handled (skipped)
+
             # 2. Process Episode using persistent worker
             try:
                 success, _ = await process_episode_async(
@@ -167,6 +183,7 @@ async def process_job(job_data: dict) -> bool:
             clear_status(episode_id="current")
     finally:
         _job_in_progress = False
+        _current_episode_id = None
 
 
 async def main():
@@ -215,6 +232,34 @@ async def main():
         consumer_name="worker-1",
         callback=process_job
     ))
+
+    async def stop_monitor():
+        """Background monitor to force process exit on stop signal."""
+        while not shutdown_event.is_set():
+            await asyncio.sleep(2)
+            try:
+                manager = get_pipeline_status_manager()
+                if manager.is_stopped():
+                    global _job_in_progress, _current_episode_id
+                    if _job_in_progress and _current_episode_id:
+                        logger.critical("aborting_transcription_due_to_stop_signal", episode_id=_current_episode_id)
+                        # Mark episode as failed in DB
+                        try:
+                            from podcast_transcriber_shared.database import update_episode_status, EpisodeStatus
+                            await update_episode_status(_current_episode_id, EpisodeStatus.FAILED)
+                        except Exception as e:
+                            logger.error("failed_to_update_episode_status_during_abort", error=str(e))
+                        
+                        manager.update_service_status('transcription', _current_episode_id, "aborted", progress=0.0, log_message="Aborted: Stop signal received")
+                        
+                        # Force exit to clear GPU context immediately
+                        logger.info("force_restarting_process_to_clear_gpu")
+                        import os
+                        os._exit(1) 
+            except Exception as e:
+                logger.error("stop_monitor_error", error=str(e))
+
+    monitor_task = asyncio.create_task(stop_monitor())
 
     try:
         # Monitor for idle and release GPU if no new jobs come in

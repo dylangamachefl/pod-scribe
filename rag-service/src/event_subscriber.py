@@ -24,6 +24,11 @@ from qdrant_client.models import Filter, FieldCondition, MatchValue
 configure_logging("rag-service")
 logger = get_logger(__name__)
 
+# Global state for cancellation
+_active_batch_task = None
+_active_episode_id = None
+_shutdown_event = asyncio.Event()
+
 
 async def _episode_already_ingested(episode_id: str, qdrant_service) -> bool:
     """Check if episode already exists in Qdrant (async)."""
@@ -53,6 +58,8 @@ async def process_batch_summarized_event(event_data: dict):
     Process a BatchSummarized event asynchronously.
     Indexes all episodes in the batch sequentially for RAG.
     """
+    global _active_batch_task, _active_episode_id
+    _active_batch_task = asyncio.current_task()
     try:
         from podcast_transcriber_shared.events import BatchSummarized
         event = BatchSummarized(**event_data)
@@ -67,12 +74,24 @@ async def process_batch_summarized_event(event_data: dict):
         async with get_gpu_lock().acquire():
             logger.info("gpu_lock_acquired_for_batch_rag_indexing", batch_id=event.batch_id)
             
+            manager = get_pipeline_status_manager()
             for episode_id in event.episode_ids:
+                _active_episode_id = episode_id
+                # Checks for cancellation signals are now handled by stop_monitor task
+                # but we leave a check here as a fast-path for the next episode in queue
+                if manager.is_stopped():
+                    logger.info("pipeline_stopped_skipping_rag", episode_id=episode_id)
+                    manager.update_service_status('rag', episode_id, "stopped", progress=0.0, log_message="Pipeline stopped by user")
+                    continue
+
                 await index_single_episode(episode_id, event.batch_id)
 
         logger.info("batch_rag_indexing_complete", batch_id=event.batch_id)
         return True
 
+    except asyncio.CancelledError:
+        logger.info("batch_rag_indexing_cancelled", batch_id=event.batch_id)
+        raise
     except Exception as e:
         logger.error("batch_rag_indexing_error", error=str(e), exc_info=True)
         return False
@@ -98,7 +117,7 @@ async def index_single_episode(episode_id: str, batch_id: str = "default") -> bo
         # Report status
         await update_episode_status(episode_id, EpisodeStatus.INDEXING)
         manager = get_pipeline_status_manager()
-        manager.update_service_status('rag', episode_id, "indexing", progress=0.1, additional_data={
+        manager.update_service_status('rag', episode_id, "indexing", progress=0.1, log_message=f"Indexing (RAG) for: {episode.title}", additional_data={
             "episode_title": episode.title,
             "podcast_name": episode.podcast_name
         })
@@ -146,6 +165,8 @@ async def index_single_episode(episode_id: str, batch_id: str = "default") -> bo
         # Cleanup and finalize
         await update_episode_status(episode_id, EpisodeStatus.INDEXED)
         await update_episode_status(episode_id, EpisodeStatus.COMPLETED) # Final stage
+        # Cleanup status
+        manager.update_service_status('rag', episode_id, "completed", progress=1.0, log_message=f"Indexing complete: {episode.title}")
         manager.clear_service_status('rag', episode_id)
         manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}rag:completed") if manager.redis else None
         
@@ -173,6 +194,31 @@ async def start_rag_event_subscriber():
         consumer_name="rag_worker_1",
         callback=process_batch_summarized_event
     )
+
+async def stop_monitor():
+    """Background monitor to cancel active task on stop signal."""
+    while not _shutdown_event.is_set():
+        await asyncio.sleep(2)
+        try:
+            manager = get_pipeline_status_manager()
+            if manager.is_stopped():
+                global _active_batch_task, _active_episode_id
+                if _active_batch_task and not _active_batch_task.done():
+                    logger.critical("cancelling_rag_due_to_stop_signal", episode_id=_active_episode_id)
+                    
+                    # Mark current episode as failed
+                    if _active_episode_id:
+                        try:
+                            from podcast_transcriber_shared.database import update_episode_status, EpisodeStatus
+                            await update_episode_status(_active_episode_id, EpisodeStatus.FAILED)
+                        except Exception as e:
+                            logger.error("failed_to_update_episode_status_during_cancel", error=str(e))
+                        
+                        manager.update_service_status('rag', _active_episode_id, "cancelled", progress=0.0, log_message="Aborted: Stop signal received")
+
+                    _active_batch_task.cancel()
+        except Exception as e:
+            logger.error("stop_monitor_error", error=str(e))
 
 
 async def recover_stuck_episodes():
@@ -220,8 +266,14 @@ if __name__ == "__main__":
     
     # Run recovery and then subscriber
     async def main():
-        await recover_stuck_episodes()
-        await start_rag_event_subscriber()
+        monitor_task = asyncio.create_task(stop_monitor())
+        try:
+            await recover_stuck_episodes()
+            await start_rag_event_subscriber()
+        finally:
+            _shutdown_event.set()
+            monitor_task.cancel()
+            await monitor_task
 
     try:
         asyncio.run(main())
