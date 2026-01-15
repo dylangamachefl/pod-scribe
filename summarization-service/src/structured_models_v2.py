@@ -68,7 +68,7 @@ class StructuredSummaryV2(BaseModel):
     summary: str = Field(
         ..., 
         min_length=200,
-        description="A comprehensive 2-3 paragraph overview of the entire episode"
+        description="A comprehensive summary of the entire episode"
     )
     key_topics: List[str] = Field(
         ..., 

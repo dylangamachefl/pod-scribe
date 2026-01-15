@@ -19,7 +19,7 @@ stage1_prompt_template: |
   4. **Notable Quotes**: What were 2-5 memorable or insightful quotes (verbatim)?
   5. **Concepts & Definitions**: Any technical terms, books, frameworks, or jargon that need defining?
   6. **Perspectives**: How did the speakers interact? Agreement, debate, complementary views?
-  7. **Overview**: A comprehensive 2-3 paragraph summary of the entire discussion.
+  7. **Summary**: A comprehensive summary of the entire discussion.
   8. **Key Topics**: What were the main subjects discussed?
 
   Focus on:
@@ -48,7 +48,7 @@ stage2_prompt_template: |
   - quotes: Array of 2-5 verbatim quotes
   - concepts: Array of objects with "term" and "definition" (if any technical terms were mentioned)
   - perspectives: Text describing how speakers interacted
-  - summary: A comprehensive 2-3 paragraph overview
+  - summary: A comprehensive summary of the discussion.
   - key_topics: Array of 3+ main topics discussed
 
   Be precise and thorough. Extract all relevant information from the analysis above.
