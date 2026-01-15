@@ -8,6 +8,7 @@ export interface SourceCitation {
     speaker: string;
     timestamp: string;
     text_snippet: string;
+    audio_url: string;
     relevance_score: number;
 }
 

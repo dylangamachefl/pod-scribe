@@ -72,6 +72,7 @@ class HybridRetrieverService:
                         "timestamp": point.payload.get("timestamp", "00:00:00"),
                         "chunk_index": point.payload.get("chunk_index", 0),
                         "source_file": point.payload.get("source_file", ""),
+                        "audio_url": point.payload.get("audio_url", ""),
                         "point_id": str(point.id)
                     }
                 )
@@ -195,7 +196,8 @@ class HybridRetrieverService:
                 "speaker": doc.metadata.get("speaker", "UNKNOWN"),
                 "timestamp": doc.metadata.get("timestamp", "00:00:00"),
                 "chunk_index": doc.metadata.get("chunk_index", 0),
-                "source_file": doc.metadata.get("source_file", "")
+                "source_file": doc.metadata.get("source_file", ""),
+                "audio_url": doc.metadata.get("audio_url", "")
             }
             entry = get_doc_entry(text, metadata, "bm25")
             entry["score"] += 1.0 / (rrf_k + rank + 1)
@@ -209,7 +211,8 @@ class HybridRetrieverService:
                 "speaker": doc.get("speaker", "UNKNOWN"),
                 "timestamp": doc.get("timestamp", "00:00:00"),
                 "chunk_index": doc.get("chunk_index", 0),
-                "source_file": doc.get("source_file", "")
+                "source_file": doc.get("source_file", ""),
+                "audio_url": doc.get("audio_url", "")
             }
             entry = get_doc_entry(text, metadata, "qdrant")
             entry["score"] += 1.0 / (rrf_k + rank + 1)

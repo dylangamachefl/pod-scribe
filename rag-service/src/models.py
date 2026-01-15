@@ -30,6 +30,7 @@ class SourceCitation(BaseModel):
     speaker: str
     timestamp: str
     text_snippet: str
+    audio_url: str
     relevance_score: float
 
 

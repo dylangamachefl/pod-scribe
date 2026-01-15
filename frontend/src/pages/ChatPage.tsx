@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import './ChatPage.css';
-import { api, ChatMessage } from '../api';
 import MessageBubble from '../components/MessageBubble';
+import { useChatStream } from '../hooks/useChatStream';
 
 function ChatPage() {
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    const { messages, loading: isLoading, sendMessage } = useChatStream();
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -19,45 +18,8 @@ function ChatPage() {
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
-
-        const userMessage: ChatMessage = {
-            role: 'user',
-            content: input,
-            timestamp: new Date(),
-        };
-
-        setMessages(prev => [...prev, userMessage]);
+        await sendMessage(input);
         setInput('');
-        setIsLoading(true);
-
-        try {
-            // Build conversation history
-            const history = messages.map(msg => ({
-                role: msg.role,
-                content: msg.content,
-            }));
-
-            const response = await api.chat(input, history);
-
-            const assistantMessage: ChatMessage = {
-                role: 'assistant',
-                content: response.answer,
-                sources: response.sources,
-                timestamp: new Date(),
-            };
-
-            setMessages(prev => [...prev, assistantMessage]);
-        } catch (error) {
-            console.error('Chat error:', error);
-            const errorMessage: ChatMessage = {
-                role: 'assistant',
-                content: 'Sorry, I encountered an error while processing your question. Please try again.',
-                timestamp: new Date(),
-            };
-            setMessages(prev => [...prev, errorMessage]);
-        } finally {
-            setIsLoading(false);
-        }
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {

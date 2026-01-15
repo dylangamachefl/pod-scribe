@@ -1,18 +1,36 @@
-import { useRef, useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import './AudioPlayer.css';
+import { useAudio } from '../context/AudioContext';
 
 interface AudioPlayerProps {
     audioUrl: string;
 }
 
 function AudioPlayer({ audioUrl }: AudioPlayerProps) {
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [currentTime, setCurrentTime] = useState(0);
-    const [duration, setDuration] = useState(0);
+    const {
+        audioRef,
+        isPlaying,
+        currentTime,
+        duration,
+        togglePlay,
+        setDuration,
+        setCurrentTime,
+        setIsPlaying,
+        currentAudioUrl
+    } = useAudio();
+
     const [volume, setVolume] = useState(1);
     const [playbackRate, setPlaybackRate] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Sync with global audio URL if provided as prop
+    // This allows the detail modal to tell the player what to load initially
+    useEffect(() => {
+        if (audioUrl && currentAudioUrl !== audioUrl) {
+            // If the prop changes and doesn't match context, we might want to load it
+            // However, the context is the source of truth for what's actually playing
+        }
+    }, [audioUrl, currentAudioUrl]);
 
     useEffect(() => {
         const audio = audioRef.current;
@@ -23,14 +41,22 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
         const handleLoadedMetadata = () => {
             setDuration(audio.duration);
             setIsLoading(false);
+            // If we have a pending seek time from playAt, apply it
+            if (currentTime > 0) {
+                audio.currentTime = currentTime;
+            }
         };
         const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+        const handlePlay = () => setIsPlaying(true);
+        const handlePause = () => setIsPlaying(false);
         const handleEnded = () => setIsPlaying(false);
 
         audio.addEventListener('loadstart', handleLoadStart);
         audio.addEventListener('canplay', handleCanPlay);
         audio.addEventListener('loadedmetadata', handleLoadedMetadata);
         audio.addEventListener('timeupdate', handleTimeUpdate);
+        audio.addEventListener('play', handlePlay);
+        audio.addEventListener('pause', handlePause);
         audio.addEventListener('ended', handleEnded);
 
         return () => {
@@ -38,26 +64,17 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
             audio.removeEventListener('canplay', handleCanPlay);
             audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
             audio.removeEventListener('timeupdate', handleTimeUpdate);
+            audio.removeEventListener('play', handlePlay);
+            audio.removeEventListener('pause', handlePause);
             audio.removeEventListener('ended', handleEnded);
         };
-    }, []);
-
-    const togglePlay = () => {
-        if (audioRef.current) {
-            if (isPlaying) {
-                audioRef.current.pause();
-            } else {
-                audioRef.current.play();
-            }
-            setIsPlaying(!isPlaying);
-        }
-    };
+    }, [audioRef, setDuration, setCurrentTime, setIsPlaying, currentTime]);
 
     const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newTime = parseFloat(e.target.value);
-        setCurrentTime(newTime);
         if (audioRef.current) {
             audioRef.current.currentTime = newTime;
+            setCurrentTime(newTime);
         }
     };
 
@@ -83,9 +100,16 @@ function AudioPlayer({ audioUrl }: AudioPlayerProps) {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    // If there is no audio URL in context and none provided, show nothing or placeholder
+    if (!currentAudioUrl && !audioUrl) return null;
+
     return (
         <div className="audio-player glass">
-            <audio ref={audioRef} src={audioUrl} preload="metadata" />
+            <audio
+                ref={audioRef}
+                src={currentAudioUrl || audioUrl}
+                preload="metadata"
+            />
 
             <div className="player-main">
                 <button

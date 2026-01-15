@@ -60,7 +60,8 @@ async def ask_question_stream(request: ChatRequest):
             {
                 "speaker": c["speaker"], 
                 "timestamp": c["timestamp"], 
-                "episode": c["episode_title"]
+                "episode": c["episode_title"],
+                "audio_url": c.get("audio_url", "")
             } 
             for c in retrieved_chunks
         ]
@@ -222,6 +223,7 @@ async def ask_question(request: ChatRequest):
                 speaker=chunk["speaker"],
                 timestamp=chunk["timestamp"],
                 text_snippet=chunk["text"][:200] + "...",  # Truncate for display
+                audio_url=chunk.get("audio_url", ""),
                 relevance_score=1.0  # Ensemble doesn't return individual scores
             )
             for chunk in retrieved_chunks

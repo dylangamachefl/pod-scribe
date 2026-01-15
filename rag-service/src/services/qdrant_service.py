@@ -96,7 +96,8 @@ class QdrantService:
                 
                 # Indexing metadata
                 "created_at": datetime.now().isoformat(),
-                "source_file": metadata.get("source_file", "")
+                "source_file": metadata.get("source_file", ""),
+                "audio_url": metadata.get("audio_url", "")
             }
             
             points.append(
@@ -184,7 +185,8 @@ class QdrantService:
                 "speaker": result.payload["speaker"],
                 "timestamp": result.payload["timestamp"],
                 "relevance_score": float(result.score),
-                "chunk_index": result.payload.get("chunk_index", 0)
+                "chunk_index": result.payload.get("chunk_index", 0),
+                "audio_url": result.payload.get("audio_url", "")
             })
         
         return formatted_results

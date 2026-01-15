@@ -197,6 +197,7 @@ async def index_single_episode(episode_id: str, batch_id: str = "default") -> bo
                 "episode_title": episode.title,
                 "podcast_name": episode.podcast_name,
                 "episode_id": episode_id,
+                "audio_url": episode.url,
                 "summary_hook": summary_content.get("hook", ""),
                 "key_takeaways": summary_content.get("key_takeaways", [])
             })
