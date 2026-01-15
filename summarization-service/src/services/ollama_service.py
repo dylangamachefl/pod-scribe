@@ -102,29 +102,48 @@ class OllamaSummarizationService:
         episode_title: str,
         podcast_name: str
     ) -> RawSummary:
-        """Stage 1: Generate high-fidelity unstructured summary."""
-        prompt = self.prompts['stage1_prompt_template'].format(
-            podcast_name=podcast_name,
-            episode_title=episode_title,
-            transcript_text=transcript_text[:50000]
-        )
+        """Stage 1: Generate high-fidelity unstructured summary using Map-Reduce Synthesis."""
+        from utils.chunking import chunk_transcript
+        import torch
         
-        for attempt in range(self.stage1_max_retries):
-            try:
-                start_time = time.time()
-                start_time = time.time()
-                # GPU lock is now handled by the caller (event subscriber or router)
-                response = await self.stage1_model.generate_content(prompt)
-                print(f"✅ Stage 1 complete ({(time.time() - start_time)*1000:.0f}ms)")
-                return RawSummary(content=response.text)
-                
-            except httpx.HTTPError as e:
-                if attempt < self.stage1_max_retries - 1:
-                    delay = self.stage1_base_delay * (2 ** attempt)
-                    print(f"⚠️  Stage 1 retry {attempt + 1} in {delay}s...")
-                    await asyncio.sleep(delay)
-                    continue
-                raise RuntimeError(f"Stage 1 failed after {self.stage1_max_retries} attempts: {e}")
+        chunks = chunk_transcript(transcript_text)
+        distilled_notes = []
+        rolling_state = "The podcast has just begun."
+
+        for i, chunk in enumerate(chunks):
+            print(f"  - Processing Chunk {i+1}/{len(chunks)}...")
+            
+            # 1. Map: Extract notes using rolling state
+            map_prompt = self.prompts['chunk_map_prompt'].format(
+                rolling_state=rolling_state,
+                chunk_text=chunk
+            )
+            notes_resp = await self.stage1_model.generate_content(map_prompt)
+            chunk_notes = notes_resp.text
+            distilled_notes.append(chunk_notes)
+
+            # 2. Update Rolling State: Keep the narrative thread alive
+            state_prompt = self.prompts['rolling_state_update_prompt'].format(
+                rolling_state=rolling_state,
+                chunk_notes=chunk_notes
+            )
+            state_resp = await self.stage1_model.generate_content(state_prompt)
+            rolling_state = state_resp.text
+
+            # 3. VRAM Guard: Cleanup between chunks to prevent OOM
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+                torch.cuda.empty_cache()
+
+        # 4. Reduce: Final Synthesis
+        print(f"  - Synthesizing {len(distilled_notes)} sections into final raw summary...")
+        reduce_prompt = self.prompts['stage1_reduce_prompt'].format(
+            all_distilled_notes="\n---\n".join(distilled_notes)
+        )
+        final_resp = await self.stage1_model.generate_content(reduce_prompt)
+        
+        return RawSummary(content=final_resp.text)
+
     
     async def _stage2_extract_structure(
         self,

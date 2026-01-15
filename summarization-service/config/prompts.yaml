@@ -52,3 +52,31 @@ stage2_prompt_template: |
   - key_topics: Array of 3+ main topics discussed
 
   Be precise and thorough. Extract all relevant information from the analysis above.
+# Map-Reduce Synthesis Prompts
+
+chunk_map_prompt: |
+  Current Narrative Thread (History): {rolling_state}
+
+  Below is a segment of a podcast transcript. Extract the key insights, technical details, 
+  and narrative developments. Focus on how this segment advances the topics mentioned in the History.
+
+  Segment:
+  {chunk_text}
+
+  Output format: Detailed bullet points.
+
+rolling_state_update_prompt: |
+  Previous History: {rolling_state}
+  New Content Summary: {chunk_notes}
+
+  Based on the above, provide a concise 2-sentence update to the "Rolling State" of this 
+  podcast. What is the current status of the conversation or argument?
+
+stage1_reduce_prompt: |
+  You are a master synthesizer. Below are distilled notes from an entire podcast episode, 
+  processed in sections. Synthesize these into one cohesive, high-fidelity Raw Summary.
+  
+  Identify recurring themes, resolved arguments, and final conclusions.
+  
+  Notes:
+  {all_distilled_notes}
