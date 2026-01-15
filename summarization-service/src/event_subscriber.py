@@ -24,6 +24,63 @@ _active_episode_id = None
 _shutdown_event = asyncio.Event()
 
 
+def gpu_cleanup():
+    """Explicitly clear GPU cache if torch is available."""
+    try:
+        import torch
+        import gc
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
+            logger.info("gpu_cleanup_completed")
+    except ImportError:
+        # Expected if torch is not installed in this service
+        pass
+    except Exception as e:
+        logger.warning("gpu_cleanup_failed", error=str(e))
+
+
+async def heartbeat_reaper():
+    """Background task to reset stuck SUMMARIZING episodes with stale heartbeats."""
+    logger.info("heartbeat_reaper_started")
+    while not _shutdown_event.is_set():
+        try:
+            from datetime import datetime, timedelta
+            from sqlalchemy import select, update
+            from podcast_transcriber_shared.database import get_session_maker, Episode, EpisodeStatus
+            
+            # Check for episodes stuck in SUMMARIZING for > 5 minutes
+            five_mins_ago = datetime.utcnow() - timedelta(minutes=5)
+            
+            session_maker = get_session_maker()
+            async with session_maker() as session:
+                query = select(Episode).where(
+                    (Episode.status == EpisodeStatus.SUMMARIZING) & 
+                    ((Episode.heartbeat < five_mins_ago) | (Episode.heartbeat == None))
+                )
+                result = await session.execute(query)
+                stuck_episodes = result.scalars().all()
+                
+                if stuck_episodes:
+                    stuck_ids = [ep.id for ep in stuck_episodes]
+                    logger.warning("heartbeat_reaper_found_stuck_summarization_jobs", count=len(stuck_ids), ids=stuck_ids)
+                    
+                    # Reset to TRANSCRIBED so they can be re-enqueued/picked up
+                    stmt = (
+                        update(Episode)
+                        .where(Episode.id.in_(stuck_ids))
+                        .values(status=EpisodeStatus.TRANSCRIBED, heartbeat=None)
+                    )
+                    await session.execute(stmt)
+                    await session.commit()
+                    logger.info("heartbeat_reaper_reset_jobs_to_transcribed", count=len(stuck_ids))
+        except Exception as e:
+            logger.error("heartbeat_reaper_error", error=str(e))
+            
+        await asyncio.sleep(60) # Run every minute
+
+
 async def process_batch_transcribed_event(event_data: dict):
     """
     Process a BatchTranscribed event asynchronously.
@@ -40,59 +97,58 @@ async def process_batch_transcribed_event(event_data: dict):
                     batch_id=event.batch_id, 
                     episode_count=len(event.episode_ids))
 
-        # Acquire GPU Lock once for the entire batch
+        processed_episodes = []
+        manager = get_pipeline_status_manager()
         from podcast_transcriber_shared.gpu_lock import get_gpu_lock
-        async with get_gpu_lock().acquire():
-            logger.info("gpu_lock_acquired_for_batch_summarization", batch_id=event.batch_id)
+
+        for episode_id in event.episode_ids:
+            _active_episode_id = episode_id
             
-            processed_episodes = []
-            manager = get_pipeline_status_manager()
-            for episode_id in event.episode_ids:
-                _active_episode_id = episode_id
-                # Check for cancellation signals
-                # Check for cancellation signals
-                if manager.is_stopped():
-                    logger.info("pipeline_stopped_skipping_summarization", episode_id=episode_id)
-                    manager.update_service_status('summarization', episode_id, "stopped", progress=0.0, log_message="Pipeline stopped by user")
-                    continue
+            # Check for cancellation signals
+            if manager.is_stopped():
+                logger.info("pipeline_stopped_skipping_summarization", episode_id=episode_id)
+                manager.update_service_status('summarization', episode_id, "stopped", progress=0.0, log_message="Pipeline stopped by user")
+                continue
 
-                if manager.is_batch_cancelled(event.batch_id):
-                    logger.info("batch_cancelled_skipping_summarization", episode_id=episode_id, batch_id=event.batch_id)
-                    manager.update_service_status('summarization', episode_id, "cancelled", progress=0.0, log_message=f"Batch {event.batch_id} cancelled by user")
-                    continue
+            if manager.is_batch_cancelled(event.batch_id):
+                logger.info("batch_cancelled_skipping_summarization", episode_id=episode_id, batch_id=event.batch_id)
+                manager.update_service_status('summarization', episode_id, "cancelled", progress=0.0, log_message=f"Batch {event.batch_id} cancelled by user")
+                continue
 
+            # Acquire GPU Lock PER EPISODE (Deterministic Lifecycle Guarding)
+            async with get_gpu_lock().acquire():
+                logger.info("gpu_lock_acquired_for_episode_summarization", episode_id=episode_id, batch_id=event.batch_id)
+                
                 # result of True means "handled" (either summarized or gracefully skipped)
                 # result of False means "failed" (infrastructure/model error)
-                success = await summarize_single_episode(episode_id, event.batch_id)
-                if success:
-                    # Check if it was actually summarized (by checking DB or state)
-                    # For now, we only add to processed_episodes if it was a real success.
-                    # We'll use a slightly different return pattern in summarize_single_episode.
-                    pass 
+                await summarize_single_episode(episode_id, event.batch_id)
+                
+                # Explicit GPU cleanup after EACH episode
+                gpu_cleanup()
 
-            # Refactored: check which ones actually have summaries in DB now
-            from podcast_transcriber_shared.database import get_summary_by_episode_id
-            for episode_id in event.episode_ids:
-                summary = await get_summary_by_episode_id(episode_id)
-                if summary:
-                    processed_episodes.append(episode_id)
+        # Refactored: check which ones actually have summaries in DB now
+        from podcast_transcriber_shared.database import get_summary_by_episode_id
+        for episode_id in event.episode_ids:
+            summary = await get_summary_by_episode_id(episode_id)
+            if summary:
+                processed_episodes.append(episode_id)
 
-            # Publish BatchSummarized event
-            if processed_episodes:
-                from podcast_transcriber_shared.events import BatchSummarized
-                eb = get_event_bus()
-                batch_event = BatchSummarized(
-                    event_id=f"batch_sum_{uuid.uuid4().hex[:8]}",
-                    service="summarization-service",
-                    batch_id=event.batch_id,
-                    episode_ids=processed_episodes
-                )
-                await eb.publish(eb.STREAM_BATCH_SUMMARIZED, batch_event)
-                logger.info("batch_summarized_event_published", batch_id=event.batch_id, count=len(processed_episodes))
-            else:
-                logger.info("batch_summarization_complete_no_episodes_processed", batch_id=event.batch_id)
-            
-            return True
+        # Publish BatchSummarized event
+        if processed_episodes:
+            from podcast_transcriber_shared.events import BatchSummarized
+            eb = get_event_bus()
+            batch_event = BatchSummarized(
+                event_id=f"batch_sum_{uuid.uuid4().hex[:8]}",
+                service="summarization-service",
+                batch_id=event.batch_id,
+                episode_ids=processed_episodes
+            )
+            await eb.publish(eb.STREAM_BATCH_SUMMARIZED, batch_event)
+            logger.info("batch_summarized_event_published", batch_id=event.batch_id, count=len(processed_episodes))
+        else:
+            logger.info("batch_summarization_complete_no_episodes_processed", batch_id=event.batch_id)
+        
+        return True
 
     except asyncio.CancelledError:
         logger.info("batch_summarization_cancelled", batch_id=event.batch_id)
@@ -100,6 +156,24 @@ async def process_batch_transcribed_event(event_data: dict):
     except Exception as e:
         logger.error("batch_summarization_error", error=str(e), exc_info=True)
         return False
+
+
+async def _heartbeat_loop(episode_id: str, stop_event: asyncio.Event):
+    """Internal loop to update heartbeat every 30 seconds."""
+    from podcast_transcriber_shared.database import update_episode_heartbeat
+    logger.debug("background_heartbeat_started", episode_id=episode_id)
+    while not stop_event.is_set():
+        try:
+            await update_episode_heartbeat(episode_id)
+        except Exception as e:
+            logger.warning("heartbeat_update_failed", episode_id=episode_id, error=str(e))
+        
+        # Wait for 30 seconds or until stopped
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=30)
+        except asyncio.TimeoutError:
+            continue
+    logger.debug("background_heartbeat_stopped", episode_id=episode_id)
 
 
 async def summarize_single_episode(episode_id: str, batch_id: str = "default") -> bool:
@@ -140,31 +214,40 @@ async def summarize_single_episode(episode_id: str, batch_id: str = "default") -
             "podcast_name": episode.podcast_name
         })
 
-        # Summarize
-        logger.info("generating_summary", episode_id=episode_id, title=episode.title)
-        ollama_service = get_ollama_service()
-        summary_result = await ollama_service.summarize_transcript(
-            transcript_text=episode.transcript_text,
-            episode_title=episode.title,
-            podcast_name=episode.podcast_name
-        )
-        
-        # Save to DB
-        complete_summary_data = {
-            "episode_title": episode.title,
-            "podcast_name": episode.podcast_name,
-            **summary_result.model_dump(),
-            "audio_url": episode.url,
-        }
-        await db_save_summary(episode_id, complete_summary_data)
-        await update_episode_status(episode_id, EpisodeStatus.SUMMARIZED)
-        
-        # Cleanup status
-        manager.update_service_status('summarization', episode_id, "completed", progress=1.0, log_message=f"Summarization complete: {episode.title}")
-        manager.clear_service_status('summarization', episode_id)
-        manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}summarization:completed") if manager.redis else None
-        
-        return True
+        # Start background heartbeat during LLM inference
+        heartbeat_stop = asyncio.Event()
+        heartbeat_task = asyncio.create_task(_heartbeat_loop(episode_id, heartbeat_stop))
+
+        try:
+            # Summarize
+            logger.info("generating_summary", episode_id=episode_id, title=episode.title)
+            ollama_service = get_ollama_service()
+            summary_result = await ollama_service.summarize_transcript(
+                transcript_text=episode.transcript_text,
+                episode_title=episode.title,
+                podcast_name=episode.podcast_name
+            )
+            
+            # Save to DB
+            complete_summary_data = {
+                "episode_title": episode.title,
+                "podcast_name": episode.podcast_name,
+                **summary_result.model_dump(),
+                "audio_url": episode.url,
+            }
+            await db_save_summary(episode_id, complete_summary_data)
+            await update_episode_status(episode_id, EpisodeStatus.SUMMARIZED)
+            
+            # Cleanup status
+            manager.update_service_status('summarization', episode_id, "completed", progress=1.0, log_message=f"Summarization complete: {episode.title}")
+            manager.clear_service_status('summarization', episode_id)
+            manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}summarization:completed") if manager.redis else None
+            
+            return True
+        finally:
+            # Stop heartbeat task
+            heartbeat_stop.set()
+            await heartbeat_task
 
     except Exception as e:
         logger.error("single_episode_summarization_failed", episode_id=episode_id, error=str(e))

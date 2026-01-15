@@ -15,7 +15,7 @@ from config import (
 from models import HealthResponse
 from routers import summaries
 from services.ollama_service import get_ollama_service
-from event_subscriber import start_summarization_event_subscriber, recover_stuck_episodes
+from event_subscriber import start_summarization_event_subscriber, heartbeat_reaper
 
 
 
@@ -46,13 +46,12 @@ async def lifespan(app: FastAPI):
         raise
     
     
-    # Run recovery for stuck episodes (if any)
-    await recover_stuck_episodes()
-
-    # Start event subscriber in background (async task)
-    print("\n📡 Starting event subscriber as background task...")
+    # Start continuous tasks
+    print("\n📡 Starting background tasks...")
     subscriber_task = asyncio.create_task(start_summarization_event_subscriber())
+    reaper_task = asyncio.create_task(heartbeat_reaper())
     print("✅ Event subscriber started (listening for EpisodeTranscribed events)")
+    print("✅ Heartbeat reaper started (continuous)")
     
     print("\n" + "="*60)
     print("✅ Summarization Service is ready!")
@@ -64,12 +63,14 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     print("\n🛑 Shutting down Summarization Service...")
-    # Cancel subscriber task
+    # Cancel tasks
     subscriber_task.cancel()
+    reaper_task.cancel()
     try:
-        await subscriber_task
-    except asyncio.CancelledError:
-        print("✅ Event subscriber stopped")
+        await asyncio.gather(subscriber_task, reaper_task, return_exceptions=True)
+        print("✅ Background tasks stopped")
+    except Exception:
+        pass
 
 
 
