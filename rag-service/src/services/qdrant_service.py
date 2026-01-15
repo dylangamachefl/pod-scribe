@@ -74,8 +74,13 @@ class QdrantService:
         
         points = []
         
+        # Define a namespace for RAG chunks
+        CHUNK_NAMESPACE = uuid.UUID('f0000000-0000-0000-0000-000000000000')
+        
         for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-            point_id = str(uuid.uuid4())
+            episode_id = metadata.get("episode_id", "unknown")
+            # Create a deterministic UUID based on episode_id and chunk_index
+            point_id = str(uuid.uuid5(CHUNK_NAMESPACE, f"{episode_id}_{i}"))
             
             payload = {
                 # Chunk content

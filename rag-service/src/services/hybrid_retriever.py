@@ -5,12 +5,7 @@ FAISS removed to eliminate O(N) memory loading at startup.
 """
 from typing import List, Dict, Optional
 from pathlib import Path
-import pickle
-import json
-import os
-import shutil
 
-from filelock import FileLock, Timeout
 from langchain_core.documents import Document
 from langchain_community.retrievers import BM25Retriever
 
@@ -32,12 +27,6 @@ class HybridRetrieverService:
         
         self.bm25_retriever: Optional[BM25Retriever] = None
         self._document_count: int = 0
-        
-        # Ensure indexes directory exists
-        INDEXES_PATH.mkdir(parents=True, exist_ok=True)
-        
-        # Try to load BM25 index from disk
-        self._loaded_from_disk = self.load_bm25_index()
         
         print("✅ HybridRetrieverService initialized")
     
@@ -107,9 +96,6 @@ class HybridRetrieverService:
         self.bm25_retriever.k = HYBRID_TOP_K
         self._document_count = len(temp_documents)
         
-        # Save to disk
-        self.save_bm25_index()
-        
         return {
             "status": "success",
             "documents_indexed": self._document_count
@@ -131,7 +117,6 @@ class HybridRetrieverService:
         self.bm25_retriever.k = HYBRID_TOP_K
         self._document_count = len(all_docs)
         
-        self.save_bm25_index()
         print(f"✅ BM25 index updated: now {self._document_count} documents")
     
 
@@ -148,6 +133,10 @@ class HybridRetrieverService:
             bm25_weight = BM25_WEIGHT
         if qdrant_weight is None:
             qdrant_weight = QDRANT_WEIGHT
+        
+        # Ensure BM25 index is built if missing
+        if self.bm25_retriever is None:
+            await self.build_bm25_index()
         
         # BM25 Search
         bm25_results = []
@@ -230,68 +219,6 @@ class HybridRetrieverService:
         return sorted_results[:k]
 
     
-    def save_bm25_index(self):
-        """Save BM25 index to disk atomically using temporary file."""
-        if not self.bm25_retriever:
-            return
-        
-        print(f"Saving BM25 index to {INDEXES_PATH}...")
-        
-        lock_path = INDEXES_PATH / "bm25_retriever.pkl.lock"
-        lock = FileLock(lock_path, timeout=10)
-        
-        try:
-            with lock:
-                bm25_path = INDEXES_PATH / "bm25_retriever.pkl"
-                temp_path = INDEXES_PATH / "bm25_retriever.pkl.tmp"
-
-                # Write to temp file
-                with open(temp_path, 'wb') as f:
-                    pickle.dump(self.bm25_retriever, f)
-                
-                # Atomic rename
-                os.replace(temp_path, bm25_path)
-            
-            print(f"✅ BM25 index saved atomically (count: {self._document_count})")
-        except Exception as e:
-            print(f"⚠️  Error saving BM25 index: {e}")
-            # Try to cleanup temp file
-            try:
-                if (INDEXES_PATH / "bm25_retriever.pkl.tmp").exists():
-                    os.remove(INDEXES_PATH / "bm25_retriever.pkl.tmp")
-            except:
-                pass
-    
-    def load_bm25_index(self) -> bool:
-        """Load BM25 index from disk."""
-        try:
-            bm25_path = INDEXES_PATH / "bm25_retriever.pkl"
-            
-            if not bm25_path.exists():
-                return False
-            
-            lock_path = INDEXES_PATH / "bm25_retriever.pkl.lock"
-            lock = FileLock(lock_path, timeout=10)
-            
-            try:
-                with lock:
-                    with open(bm25_path, 'rb') as f:
-                        self.bm25_retriever = pickle.load(f)
-                
-                if hasattr(self.bm25_retriever, 'docs'):
-                    self._document_count = len(self.bm25_retriever.docs)
-                else:
-                    self._document_count = 0
-                
-                print(f"✅ BM25 index loaded: {self._document_count} documents")
-                return True
-            except Timeout:
-                print(f"⚠️  Could not acquire lock to load BM25 index")
-                return False
-            
-        except Exception as e:
-            print(f"⚠️  Error loading BM25 index: {str(e)}")
-            return False
 
 
 _hybrid_retriever_service = None

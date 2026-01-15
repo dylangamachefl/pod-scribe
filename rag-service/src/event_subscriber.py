@@ -30,6 +30,67 @@ _active_episode_id = None
 _shutdown_event = asyncio.Event()
 
 
+async def heartbeat_loop(episode_id: str, stop_event: asyncio.Event):
+    """Background heartbeat loop for an active RAG indexing job."""
+    from podcast_transcriber_shared.database import update_episode_heartbeat
+    while not stop_event.is_set():
+        try:
+            await update_episode_heartbeat(episode_id)
+            logger.debug("heartbeat_pulse", episode_id=episode_id)
+        except Exception as e:
+            logger.warning("heartbeat_pulse_failed", episode_id=episode_id, error=str(e))
+        
+        # Wait for 30 seconds or until stop event is set
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=30)
+        except asyncio.TimeoutError:
+            pass
+
+
+async def heartbeat_reaper():
+    """Background task to reset stuck INDEXING jobs."""
+    logger.info("heartbeat_reaper_starting")
+    while not _shutdown_event.is_set():
+        try:
+            from podcast_transcriber_shared.database import get_session_maker, Episode, EpisodeStatus
+            from sqlalchemy import select, and_
+            from datetime import datetime, timedelta
+            
+            session_maker = get_session_maker()
+            async with session_maker() as session:
+                stale_threshold = datetime.utcnow() - timedelta(minutes=5)
+                
+                # Query for INDEXING episodes with stale heartbeat
+                # Use scalar_one_or_none handles cases where no heartbeat is set at all
+                query = select(Episode).where(
+                    and_(
+                        Episode.status == EpisodeStatus.INDEXING,
+                        (Episode.heartbeat < stale_threshold) | (Episode.heartbeat == None)
+                    )
+                )
+                
+                result = await session.execute(query)
+                stale_episodes = result.scalars().all()
+                
+                if stale_episodes:
+                    logger.info("reaper_found_stale_indexing_jobs", count=len(stale_episodes))
+                    for ep in stale_episodes:
+                        logger.info("reaper_resetting_stale_job", episode_id=ep.id)
+                        ep.status = EpisodeStatus.SUMMARIZED  # Reset to SUMMARIZED to allow retry
+                        ep.heartbeat = None
+                    await session.commit()
+            
+        except Exception as e:
+            logger.error("heartbeat_reaper_error", error=str(e))
+        
+        # Check every 60 seconds
+        try:
+            await asyncio.wait_for(_shutdown_event.wait(), timeout=60)
+        except asyncio.TimeoutError:
+            pass
+    logger.info("heartbeat_reaper_stopped")
+
+
 async def _episode_already_ingested(episode_id: str, qdrant_service) -> bool:
     """Check if episode already exists in Qdrant (async)."""
     from qdrant_client.models import Filter, FieldCondition, MatchValue
@@ -107,78 +168,87 @@ async def index_single_episode(episode_id: str, batch_id: str = "default") -> bo
             EpisodeStatus
         )
         
-        episode = await get_episode_by_id(episode_id, load_transcript=True)
-        summary_record = await get_summary_by_episode_id(episode_id)
+        # Start heartbeat loop in background
+        heartbeat_stop = asyncio.Event()
+        heartbeat_task = asyncio.create_task(heartbeat_loop(episode_id, heartbeat_stop))
         
-        if not episode or not episode.transcript_text:
-            logger.error("episode_unsuitable_for_rag", episode_id=episode_id)
-            return False
-
-        # Report status
-        await update_episode_status(episode_id, EpisodeStatus.INDEXING)
-        manager = get_pipeline_status_manager()
-        manager.update_service_status('rag', episode_id, "indexing", progress=0.1, log_message=f"Indexing (RAG) for: {episode.title}", additional_data={
-            "episode_title": episode.title,
-            "podcast_name": episode.podcast_name
-        })
-
-        summary_content = summary_record.content if summary_record else {}
-        
-        # Prepare metadata
-        metadata = (episode.meta_data or {}).copy()
-        metadata.update({
-            "source_file": f"db://episodes/{episode_id}",
-            "episode_title": episode.title,
-            "podcast_name": episode.podcast_name,
-            "episode_id": episode_id,
-            "summary_hook": summary_content.get("hook", ""),
-            "key_takeaways": summary_content.get("key_takeaways", [])
-        })
-        
-        # Chunking
-        transcript_lines = get_transcript_body(episode.transcript_text)
-        chunks = chunk_by_speaker_turns(transcript_lines)
-        
-        # Embed
-        embedding_service = get_embedding_service()
-        chunk_texts = [chunk["text"] for chunk in chunks]
-        embeddings = await embedding_service.embed_batch(chunk_texts)
-        
-        # Qdrant
-        qdrant_service = get_qdrant_service()
-        num_inserted = await qdrant_service.insert_chunks(chunks, embeddings, metadata)
-        
-        # BM25
         try:
-            hybrid_service = get_hybrid_retriever_service(
-                embeddings_service=embedding_service,
-                qdrant_service=qdrant_service
-            )
-            new_documents = [
-                Document(page_content=c["text"], metadata={**metadata, "speaker": c.get("speaker", "UNKNOWN"), "timestamp": c.get("timestamp", "00:00:00"), "chunk_index": i})
-                for i, c in enumerate(chunks)
-            ]
-            hybrid_service.add_documents(new_documents)
-        except Exception as e:
-            logger.warning("bm25_update_failed", episode_id=episode_id, error=str(e))
-        
-        # Cleanup and finalize
-        await update_episode_status(episode_id, EpisodeStatus.INDEXED)
-        await update_episode_status(episode_id, EpisodeStatus.COMPLETED) # Final stage
-        # Cleanup status
-        manager.update_service_status('rag', episode_id, "completed", progress=1.0, log_message=f"Indexing complete: {episode.title}")
-        manager.clear_service_status('rag', episode_id)
-        manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}rag:completed") if manager.redis else None
-        
-        return True
+            episode = await get_episode_by_id(episode_id, load_transcript=True)
+            summary_record = await get_summary_by_episode_id(episode_id)
+            
+            if not episode or not episode.transcript_text:
+                logger.error("episode_unsuitable_for_rag", episode_id=episode_id)
+                return False
 
+            # Report status
+            await update_episode_status(episode_id, EpisodeStatus.INDEXING)
+            manager = get_pipeline_status_manager()
+            manager.update_service_status('rag', episode_id, "indexing", progress=0.1, log_message=f"Indexing (RAG) for: {episode.title}", additional_data={
+                "episode_title": episode.title,
+                "podcast_name": episode.podcast_name
+            })
+
+            summary_content = summary_record.content if summary_record else {}
+            
+            # Prepare metadata
+            metadata = (episode.meta_data or {}).copy()
+            metadata.update({
+                "source_file": f"db://episodes/{episode_id}",
+                "episode_title": episode.title,
+                "podcast_name": episode.podcast_name,
+                "episode_id": episode_id,
+                "summary_hook": summary_content.get("hook", ""),
+                "key_takeaways": summary_content.get("key_takeaways", [])
+            })
+            
+            # Chunking
+            transcript_lines = get_transcript_body(episode.transcript_text)
+            chunks = chunk_by_speaker_turns(transcript_lines)
+            
+            # Embed
+            embedding_service = get_embedding_service()
+            chunk_texts = [chunk["text"] for chunk in chunks]
+            embeddings = await embedding_service.embed_batch(chunk_texts)
+            
+            # Qdrant
+            qdrant_service = get_qdrant_service()
+            num_inserted = await qdrant_service.insert_chunks(chunks, embeddings, metadata)
+            
+            # BM25
+            try:
+                hybrid_service = get_hybrid_retriever_service(
+                    embeddings_service=embedding_service,
+                    qdrant_service=qdrant_service
+                )
+                new_documents = [
+                    Document(page_content=c["text"], metadata={**metadata, "speaker": c.get("speaker", "UNKNOWN"), "timestamp": c.get("timestamp", "00:00:00"), "chunk_index": i})
+                    for i, c in enumerate(chunks)
+                ]
+                hybrid_service.add_documents(new_documents)
+            except Exception as e:
+                logger.warning("bm25_update_failed", episode_id=episode_id, error=str(e))
+            
+            # Cleanup and finalize
+            await update_episode_status(episode_id, EpisodeStatus.INDEXED)
+            await update_episode_status(episode_id, EpisodeStatus.COMPLETED) # Final stage
+            # Cleanup status
+            manager.update_service_status('rag', episode_id, "completed", progress=1.0, log_message=f"Indexing complete: {episode.title}")
+            manager.clear_service_status('rag', episode_id)
+            manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}rag:completed") if manager.redis else None
+            
+            return True
+        
+    except asyncio.CancelledError:
+        logger.info("rag_indexing_cancelled", episode_id=episode_id)
+        raise
     except Exception as e:
         logger.error("single_episode_rag_indexing_failed", episode_id=episode_id, error=str(e))
         return False
+    finally:
+        # Ensure heartbeat stops
+        heartbeat_stop.set()
+        await heartbeat_task
         
-    except Exception as e:
-        logger.error("rag_event_processing_error", episode_id=event.episode_id, error=str(e), exc_info=True)
-        return False
 
 
 async def start_rag_event_subscriber():

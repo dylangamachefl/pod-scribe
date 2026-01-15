@@ -35,23 +35,34 @@ async def lifespan(app: FastAPI):
         print("✅ Database initialized")
         
         # Initialize other services
-        get_embedding_service()
-        get_qdrant_service()
+        embeddings = get_embedding_service()
+        qdrant = get_qdrant_service()
         get_ollama_chat_client()
+        
+        # Initialize hybrid retriever and build BM25 index from Qdrant
+        from services.hybrid_retriever import get_hybrid_retriever_service
+        hybrid = get_hybrid_retriever_service(
+            embeddings_service=embeddings, 
+            qdrant_service=qdrant
+        )
+        print("🔍 Building BM25 index from Qdrant payload...")
+        await hybrid.build_bm25_index()
+        
         print("✅ All services initialized")
     except Exception as e:
         print(f"❌ Service initialization failed: {e}")
         raise
     
-    # Start event subscriber in background
-    print("\n📡 Starting event subscriber as background task...")
-    from event_subscriber import start_rag_event_subscriber, recover_stuck_episodes
+    # Start event subscriber and reaper in background
+    print("\n📡 Starting background tasks (subscriber, reaper)...")
+    from event_subscriber import start_rag_event_subscriber, recover_stuck_episodes, heartbeat_reaper
     
     # Run recovery for stuck episodes (if any)
     await recover_stuck_episodes()
 
     subscriber_task = asyncio.create_task(start_rag_event_subscriber())
-    print("✅ Event subscriber started in background")
+    reaper_task = asyncio.create_task(heartbeat_reaper())
+    print("✅ Background tasks started")
     
     print("\n" + "="*60)
     print("✅ RAG Service is ready!")
@@ -63,10 +74,11 @@ async def lifespan(app: FastAPI):
     print("\n🛑 Shutting down RAG Service...")
     # Cancel subscriber task
     subscriber_task.cancel()
+    reaper_task.cancel()
     try:
-        await subscriber_task
+        await asyncio.gather(subscriber_task, reaper_task, return_exceptions=True)
     except asyncio.CancelledError:
-        print("✅ Event subscriber stopped")
+        print("✅ Background tasks stopped")
 
 
 
