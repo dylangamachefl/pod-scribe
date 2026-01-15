@@ -35,6 +35,25 @@ class EpisodeStatus(str, Enum):
     FAILED = "FAILED"
 
 
+class Feed(Base):
+    """
+    Feed model - stores RSS/Atom podcast feeds.
+    """
+    __tablename__ = "feeds"
+    
+    id = Column(String(255), primary_key=True, index=True)
+    url = Column(String(2048), unique=True, nullable=False, index=True)
+    title = Column(String(512), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    last_fetched_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationship to episodes
+    episodes = relationship("Episode", back_populates="feed", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<Feed(id={self.id}, title={self.title}, url={self.url})>"
+
+
 class Episode(Base):
     """
     Episode model - stores podcast episodes and transcripts.
@@ -54,6 +73,9 @@ class Episode(Base):
     
     # Batch association
     batch_id = Column(String(255), nullable=True, index=True)
+    
+    # Feed association
+    feed_id = Column(String(255), ForeignKey("feeds.id", ondelete="CASCADE"), nullable=True, index=True)
     
     # Processing status
     status = Column(
@@ -80,7 +102,11 @@ class Episode(Base):
     # Favorite status
     is_favorite = Column(Boolean, default=False, nullable=False, index=True)
     
-    # Relationship to summaries
+    # Selection status for queue
+    is_selected = Column(Boolean, default=False, nullable=False, index=True)
+    
+    # Relationships
+    feed = relationship("Feed", back_populates="episodes")
     summaries = relationship("Summary", back_populates="episode", cascade="all, delete-orphan")
     
     def __repr__(self):

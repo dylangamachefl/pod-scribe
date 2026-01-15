@@ -233,7 +233,7 @@ services:
       - ./shared/logs:/app/shared/logs  # Logs
       - ./shared:/app/shared  # Shared library for database
     environment:
-      - DATABASE_URL=${DATABASE_URL}  # PostgreSQL for episodes
+      - DATABASE_URL=postgresql+asyncpg://podcast_user:podcast_password@postgres:5432/podcast_transcriber
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     depends_on:
       postgres:

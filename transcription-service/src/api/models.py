@@ -13,14 +13,15 @@ class FeedCreate(BaseModel):
 
 
 class FeedUpdate(BaseModel):
-    active: bool
+    is_active: bool
 
 
 class Feed(BaseModel):
     id: str
     url: str
     title: str
-    active: bool
+    is_active: bool
+    last_fetched_at: Optional[datetime] = None
 
 
 # Episode Models
@@ -34,6 +35,7 @@ class Episode(BaseModel):
     selected: bool = False
     is_seen: bool = False
     is_favorite: bool = False
+    is_selected: bool = False
     status: str = "pending"  # pending, processing, completed, failed
 
 

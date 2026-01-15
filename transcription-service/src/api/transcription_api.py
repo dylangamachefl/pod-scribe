@@ -97,18 +97,7 @@ transcription_process = None
 # Helper Functions
 # ============================================================================
 
-def load_subscriptions() -> List[dict]:
-    """Load RSS feed subscriptions."""
-    if not SUBSCRIPTIONS_FILE.exists():
-        return []
-    with open(SUBSCRIPTIONS_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-
-def save_subscriptions(subscriptions: List[dict]):
-    """Save RSS feed subscriptions."""
-    with open(SUBSCRIPTIONS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(subscriptions, f, indent=2)
+# LEGACY JSON HANDLERS REMOVED - Using PostgreSQL
 
 
 def load_history() -> dict:
@@ -269,31 +258,37 @@ async def health_check():
 
 @app.get("/stats", response_model=StatsResponse)
 async def get_stats():
-    """Get overall statistics."""
-    subscriptions = load_subscriptions()
-    podcasts = await get_available_podcasts()
+    """Get overall statistics from PostgreSQL."""
+    from podcast_transcriber_shared.database import get_session_maker, Episode as EpisodeModel, Feed as FeedModel, Summary as SummaryModel
+    from sqlalchemy import select, func
     
-    # Get pending episodes
-    pending_episodes = await list_episodes(status=EpisodeStatus.PENDING)
-    
-    # Count processed episodes as the number of summaries created
-    # This ensures exact alignment with the library view
     session_maker = get_session_maker()
     async with session_maker() as session:
-        summary_query = select(func.count()).select_from(SummaryModel)
-        summary_result = await session.execute(summary_query)
-        processed_count = summary_result.scalar() or 0
-    
-    # Count selected episodes across all statuses
-    all_episodes = await list_episodes()
-    selected_count = sum(1 for ep in all_episodes if ep.meta_data and ep.meta_data.get('selected'))
+        # Feed counts
+        total_feeds_query = select(func.count()).select_from(FeedModel)
+        active_feeds_query = select(func.count()).select_from(FeedModel).where(FeedModel.is_active == True)
+        
+        # Episode counts
+        pending_episodes_query = select(func.count()).select_from(EpisodeModel).where(EpisodeModel.status == EpisodeStatus.PENDING)
+        selected_episodes_query = select(func.count()).select_from(EpisodeModel).where(EpisodeModel.is_selected == True)
+        processed_episodes_query = select(func.count()).select_from(SummaryModel)
+        
+        # Podcast count (distinct podcast_name from episodes)
+        total_podcasts_query = select(func.count(func.distinct(EpisodeModel.podcast_name)))
+        
+        total_feeds = (await session.execute(total_feeds_query)).scalar() or 0
+        active_feeds = (await session.execute(active_feeds_query)).scalar() or 0
+        pending_count = (await session.execute(pending_episodes_query)).scalar() or 0
+        selected_count = (await session.execute(selected_episodes_query)).scalar() or 0
+        processed_count = (await session.execute(processed_episodes_query)).scalar() or 0
+        podcasts_count = (await session.execute(total_podcasts_query)).scalar() or 0
     
     return StatsResponse(
-        active_feeds=sum(1 for s in subscriptions if s.get('active', True)),
-        total_feeds=len(subscriptions),
-        total_podcasts=len(podcasts),
+        active_feeds=active_feeds,
+        total_feeds=total_feeds,
+        total_podcasts=podcasts_count,
         total_episodes_processed=processed_count,
-        pending_episodes=len(pending_episodes),
+        pending_episodes=pending_count,
         selected_episodes=selected_count
     )
 
@@ -304,93 +299,103 @@ async def get_stats():
 
 @app.get("/feeds", response_model=List[Feed])
 async def list_feeds():
-    """List all RSS feed subscriptions."""
-    subscriptions = load_subscriptions()
+    """List all RSS feed subscriptions from PostgreSQL."""
+    from podcast_transcriber_shared.database import get_session_maker, Feed as FeedModel
     
-    # Add IDs if not present
-    for i, sub in enumerate(subscriptions):
-        if 'id' not in sub:
-            sub['id'] = str(uuid.uuid4())
-    
-    save_subscriptions(subscriptions)
-    
-    return [
-        Feed(
-            id=sub.get('id', str(i)),
-            url=sub['url'],
-            title=sub.get('title', 'Unknown Podcast'),
-            active=sub.get('active', True)
-        )
-        for i, sub in enumerate(subscriptions)
-    ]
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        result = await session.execute(select(FeedModel).order_by(FeedModel.title))
+        feeds = result.scalars().all()
+        
+        return [
+            Feed(
+                id=f.id,
+                url=f.url,
+                title=f.title,
+                is_active=f.is_active,
+                last_fetched_at=f.last_fetched_at
+            )
+            for f in feeds
+        ]
 
 
 @app.post("/feeds", response_model=Feed)
 async def add_feed(feed_create: FeedCreate):
-    """Add new RSS feed."""
-    subscriptions = load_subscriptions()
-    
-    # Check if already exists
-    if any(s['url'] == feed_create.url for s in subscriptions):
-        raise HTTPException(status_code=400, detail="Feed already exists")
+    """Add new RSS feed to PostgreSQL."""
+    from podcast_transcriber_shared.database import get_session_maker, Feed as FeedModel
     
     # Validate feed
     is_valid, result = validate_rss_feed(feed_create.url)
-    
     if not is_valid:
         raise HTTPException(status_code=400, detail=f"Invalid feed: {result}")
     
     feed_title = result
     feed_id = str(uuid.uuid4())
     
-    new_feed = {
-        "id": feed_id,
-        "url": feed_create.url,
-        "title": feed_title,
-        "active": True
-    }
-    
-    subscriptions.append(new_feed)
-    save_subscriptions(subscriptions)
-    
-    return Feed(**new_feed)
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        # Check if already exists
+        existing = await session.execute(select(FeedModel).where(FeedModel.url == feed_create.url))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Feed already exists")
+            
+        new_feed = FeedModel(
+            id=feed_id,
+            url=feed_create.url,
+            title=feed_title,
+            is_active=True
+        )
+        session.add(new_feed)
+        await session.commit()
+        await session.refresh(new_feed)
+        
+        return Feed(
+            id=new_feed.id,
+            url=new_feed.url,
+            title=new_feed.title,
+            is_active=new_feed.is_active,
+            last_fetched_at=new_feed.last_fetched_at
+        )
 
 
 @app.put("/feeds/{feed_id}", response_model=Feed)
 async def update_feed(feed_id: str, feed_update: FeedUpdate):
-    """Update feed (toggle active state)."""
-    subscriptions = load_subscriptions()
+    """Update feed in PostgreSQL (toggle active state)."""
+    from podcast_transcriber_shared.database import get_session_maker, Feed as FeedModel
     
-    # Find feed
-    feed_index = None
-    for i, sub in enumerate(subscriptions):
-        if sub.get('id') == feed_id:
-            feed_index = i
-            break
-    
-    if feed_index is None:
-        raise HTTPException(status_code=404, detail="Feed not found")
-    
-    subscriptions[feed_index]['active'] = feed_update.active
-    save_subscriptions(subscriptions)
-    
-    return Feed(**subscriptions[feed_index])
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        feed = await session.get(FeedModel, feed_id)
+        if not feed:
+            raise HTTPException(status_code=404, detail="Feed not found")
+            
+        feed.is_active = feed_update.is_active
+        await session.commit()
+        await session.refresh(feed)
+        
+        return Feed(
+            id=feed.id,
+            url=feed.url,
+            title=feed.title,
+            is_active=feed.is_active,
+            last_fetched_at=feed.last_fetched_at
+        )
 
 
 @app.delete("/feeds/{feed_id}")
 async def delete_feed(feed_id: str):
-    """Delete RSS feed."""
-    subscriptions = load_subscriptions()
+    """Delete RSS feed from PostgreSQL."""
+    from podcast_transcriber_shared.database import get_session_maker, Feed as FeedModel
     
-    # Find and remove feed
-    original_length = len(subscriptions)
-    subscriptions = [s for s in subscriptions if s.get('id') != feed_id]
-    
-    if len(subscriptions) == original_length:
-        raise HTTPException(status_code=404, detail="Feed not found")
-    
-    save_subscriptions(subscriptions)
-    
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        feed = await session.get(FeedModel, feed_id)
+        if not feed:
+            raise HTTPException(status_code=404, detail="Feed not found")
+            
+        await session.delete(feed)
+        await session.commit()
+        
     return {"status": "deleted", "feed_id": feed_id}
 
 
@@ -432,10 +437,11 @@ async def list_all_episodes(
             episode_title=ep.title,
             audio_url=ep.meta_data.get('audio_url', ep.url) if ep.meta_data else ep.url,
             published_date=ep.meta_data.get('published_date', '') if ep.meta_data else '',
-            selected=ep.meta_data.get('selected', False) if ep.meta_data else False,
+            selected=ep.is_selected,  # Use robust column
             fetched_date=ep.created_at.isoformat() if ep.created_at else '',
             is_seen=ep.is_seen,
             is_favorite=ep.is_favorite,
+            is_selected=ep.is_selected,
             status=ep.status.value
         )
         for ep in episodes
@@ -468,64 +474,81 @@ async def get_episode_queue():
 @app.post("/episodes/fetch")
 async def fetch_episodes(request: EpisodeFetchRequest = None):
     """
-    Fetch new episodes from active feeds and store in PostgreSQL.
+    Fetch new episodes from active feeds in PostgreSQL and store them.
     
     Args:
         request: Optional request body with 'days' parameter to specify
-                how many days back to fetch episodes (default: all episodes from feed)
+                how many days back to fetch episodes
     """
-    subscriptions = load_subscriptions()
-    active_subs = [sub for sub in subscriptions if sub.get('active', True)]
+    from podcast_transcriber_shared.database import get_session_maker, Feed as FeedModel, Episode as EpisodeModel
     
-    if not active_subs:
-        raise HTTPException(status_code=400, detail="No active feeds found")
-    
-    # Get days limit from request or use None to apply default from env
-    days_limit = request.days if request else None
-    
-    # Get existing episode IDs to avoid duplicates
-    existing_episodes = await list_episodes()
-    existing_ids = {ep.id for ep in existing_episodes}
-    
-    total_new = 0
-    for sub in active_subs:
-        # Fetch episodes from RSS feed
-        episodes, feed_title = fetch_episodes_from_rss(
-            sub.get('url'),
-            sub.get('title'),
-            days_limit=days_limit
-        )
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        # 1. Query active feeds from PostgreSQL
+        result = await session.execute(select(FeedModel).where(FeedModel.is_active == True))
+        active_feeds = result.scalars().all()
         
-        # Create episodes in PostgreSQL
-        for episode in episodes:
-            episode_id = episode.get('id')
+        if not active_feeds:
+            raise HTTPException(status_code=400, detail="No active feeds found in database")
+        
+        # Get days limit from request or use None (falls back to RSS util default)
+        days_limit = request.days if request else None
+        
+        total_new = 0
+        
+        # 2. Iterate through feeds and fetch episodes
+        for feed in active_feeds:
+            logger.info(f"🔄 Fetching episodes for: {feed.title} ({feed.url})")
             
-            try:
-                # create_episode now handles duplicates gracefully with ON CONFLICT DO NOTHING
-                new_ep = await create_episode(
-                    episode_id=episode_id,
-                    url=episode.get('audio_url', ''),
-                    title=episode.get('episode_title', 'Unknown'),
-                    podcast_name=episode.get('feed_title', 'Unknown'),
+            # Fetch episodes from RSS/Atom
+            episodes_data, feed_title = fetch_episodes_from_rss(
+                feed.url,
+                feed.title,
+                days_limit=days_limit
+            )
+            
+            # 3. Create episodes in PostgreSQL linked to this feed
+            # We do this in the same session to ensure atomicity
+            new_feed_episodes = 0
+            for ep_data in episodes_data:
+                episode_id = ep_data.get('id')
+                
+                # Check if episode already exists (by ID)
+                # We use session.execute with select to check existence before insert
+                # or rely on the create_episode logic if we update it to handle feed_id
+                
+                # For this refactor, we'll implement a clean UPSERT logic here
+                from sqlalchemy.dialects.postgresql import insert
+                
+                stmt = insert(EpisodeModel).values(
+                    id=episode_id,
+                    url=ep_data.get('audio_url', ''),
+                    title=ep_data.get('episode_title', 'Unknown'),
+                    podcast_name=feed.title,
+                    feed_id=feed.id,
                     status=EpisodeStatus.PENDING,
                     meta_data={
-                        'feed_url': episode.get('feed_url'),
-                        'audio_url': episode.get('audio_url'),
-                        'published_date': episode.get('published_date'),
-                        'selected': False
-                    }
-                )
+                        'feed_url': ep_data.get('feed_url'),
+                        'audio_url': ep_data.get('audio_url'),
+                        'published_date': ep_data.get('published_date'),
+                        'selected': False # Legacy field in meta_data
+                    },
+                    is_selected=False,
+                    is_seen=False,
+                    is_favorite=False
+                ).on_conflict_do_nothing(index_elements=['id'])
                 
-                if new_ep:
+                res = await session.execute(stmt)
+                if res.rowcount > 0:
+                    new_feed_episodes += 1
                     total_new += 1
-                    logger.info(f"Created new episode: {episode_id}")
-                else:
-                    # Episode already existed and was skipped by ON CONFLICT
-                    pass
-                    
-            except Exception as e:
-                logger.error(f"Failed to create episode {episode_id}: {e}")
-                continue
+            
+            # 4. Update last_fetched_at for the feed
+            feed.last_fetched_at = datetime.utcnow()
+            logger.info(f"✅ {feed.title}: {new_feed_episodes} new episodes found.")
+            
+        # 5. Commit all changes (episodes + feed timestamps) in one transaction
+        await session.commit()
     
     return {
         "status": "completed",
@@ -536,28 +559,25 @@ async def fetch_episodes(request: EpisodeFetchRequest = None):
 
 @app.put("/episodes/{episode_id}/select")
 async def select_episode(episode_id: str, selection: EpisodeSelect):
-    """Mark episode as selected/unselected in PostgreSQL metadata."""
-    # Get episode without loading transcript
-    episode = await get_episode_by_id(episode_id, load_transcript=False)
-    if not episode:
-        raise HTTPException(status_code=404, detail="Episode not found")
+    """Mark episode as selected/unselected in PostgreSQL."""
+    from podcast_transcriber_shared.database import get_session_maker, Episode as EpisodeModel
     
-    # Update metadata with selected status
-    updated_meta = episode.meta_data.copy() if episode.meta_data else {}
-    updated_meta['selected'] = selection.selected
-    
-    # Update episode directly using database session
-    from podcast_transcriber_shared.database import get_session_maker
     session_maker = get_session_maker()
     async with session_maker() as session:
-        from podcast_transcriber_shared.database import Episode as EpisodeModel
-        result = await session.execute(
-            select(EpisodeModel).where(EpisodeModel.id == episode_id)
-        )
-        db_episode = result.scalar_one_or_none()
-        if db_episode:
-            db_episode.meta_data = updated_meta
-            await session.commit()
+        episode = await session.get(EpisodeModel, episode_id)
+        if not episode:
+            raise HTTPException(status_code=404, detail="Episode not found")
+        
+        episode.is_selected = selection.selected
+        
+        # Keep legacy meta_data in sync for now if needed, though column is SSOT
+        if episode.meta_data is None:
+            episode.meta_data = {}
+        updated_meta = episode.meta_data.copy()
+        updated_meta['selected'] = selection.selected
+        episode.meta_data = updated_meta
+        
+        await session.commit()
     
     return {"status": "updated", "episode_id": episode_id, "selected": selection.selected}
 
@@ -593,28 +613,18 @@ async def bulk_select_episodes(request: BulkSelectRequest):
         
     session_maker = get_session_maker()
     async with session_maker() as session:
-        # We need to fetch and build the new metadata for each
-        # A more efficient way would be a JSONB update but simpler to loop for now
-        # given the scale and existing pattern
-        for episode_id in request.episode_ids:
-            episode = await get_episode_by_id(episode_id, load_transcript=False)
-            if episode:
-                updated_meta = (episode.meta_data or {}).copy()
-                updated_meta['selected'] = request.selected
-                
-                # Update specifically without changing status
-                stmt = (
-                    update(EpisodeModel)
-                    .where(EpisodeModel.id == episode_id)
-                    .values(meta_data=updated_meta)
-                )
-                await session.execute(stmt)
-        
+        # Update is_selected column directly
+        stmt = (
+            update(EpisodeModel)
+            .where(EpisodeModel.id.in_(request.episode_ids))
+            .values(is_selected=request.selected)
+        )
+        result = await session.execute(stmt)
         await session.commit()
-    
+        
     return {
         "status": "updated",
-        "count": len(request.episode_ids),
+        "count": result.rowcount,
         "selected": request.selected
     }
 
