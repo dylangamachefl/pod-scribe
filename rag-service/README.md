@@ -1,10 +1,10 @@
 # RAG Service
 
-Retrieval-Augmented Generation service for semantic search and Q&A over podcast transcripts.
+Retrieval-Augmented Generation service for hybrid semantic search and streaming Q&A over podcast transcripts using local Ollama.
 
 ## Architecture
 
-The RAG service provides a FastAPI backend that enables semantic search and question-answering capabilities over podcast transcripts using vector embeddings and the Gemini LLM.
+The RAG service provides a FastAPI backend with **hybrid search** (BM25 + Qdrant) and **streaming chat** capabilities using local Ollama models.
 
 ```
 rag-service/
@@ -12,16 +12,17 @@ rag-service/
 │   ├── main.py              # FastAPI application entry point
 │   ├── config.py            # Configuration management
 │   ├── models.py            # Pydantic request/response models
-│   ├── exceptions.py        # Custom exception hierarchy
+│   ├── event_subscriber.py  # Redis Streams consumer for ingestion
 │   ├── routers/             # API endpoints
-│   │   ├── chat.py          # Q&A endpoint
-│   │   ├── summaries.py     # Summary retrieval
-│   │   └── ingest.py        # Manual ingestion
+│   │   ├── chat.py          # Q&A endpoints (streaming + non-streaming)
+│   │   ├── downloads.py     # Audio download proxy
+│   │   └── ingest.py        # Manual ingestion trigger
 │   ├── services/            # Core business logic
-│   │   ├── embeddings.py    # Sentence transformers
-│   │   ├── qdrant_client.py # Vector database  
-│   │   ├── gemini_client.py # Gemini LLM integration
-│   │   └── file_watcher.py  # Auto-ingestion of new transcripts
+│   │   ├── embeddings.py    # Ollama nomic-embed-text wrapper
+│   │   ├── qdrant_service.py # Vector database (deterministic UUIDs)
+│   │   ├── ollama_client.py # Ollama chat client (qwen3:rag)
+│   │   ├── hybrid_retriever.py # RRF fusion of BM25 + Qdrant
+│   │   └── summaries_service.py # Summary retrieval
 │   └── utils/               # Utility functions
 │       └── chunking.py      # Text chunking strategies
 └── tests/                   # Unit and integration tests
@@ -30,22 +31,43 @@ rag-service/
 ## Features
 
 ### Core Capabilities
-- 🔍 **Semantic Search**: Vector-based similarity search across all transcripts
-- 💬 **Q&A**: Ask questions and get answers with source citations
-- 📊 **Summarization**: Auto-generate episode summaries with Gemini
-- 🔄 **Auto-Ingestion**: Watches for new transcripts and ingests automatically
-- 🗃️ **Vector Storage**: Qdrant for efficient similarity search
+- 🔍 **Hybrid Search**: Reciprocal Rank Fusion (RRF) combining BM25 keyword matching and Qdrant vector similarity.
+- 💬 **Streaming Q&A**: Real-time answer generation with `METADATA:` protocol for sources and timestamps.
+- 📊 **Episode & Global Search**: Filter by episode or search across entire library.
+- 🔄 **Event-Driven Ingestion**: Redis Streams consumer for reliable, idempotent indexing.
+- 🗃️ **Deterministic Vector IDs**: UUID v5 based on `episode_id` + `chunk_index` for safe re-indexing.
+- 🔗 **Search-to-Seek Integration**: Returns `audio_url` in citations for frontend navigation.
 
 ### API Endpoints
 
-#### `POST /chat`
-Ask questions about podcast content.
+#### `POST /chat/stream`
+Stream answers in real-time with metadata protocol.
 
 **Request:**
 ```json
 {
   "question": "What did they say about machine learning?",
+  "episode_title": "ML in Production",  // Optional: null for global search
   "conversation_history": []
+}
+```
+
+**Response (Streaming):**
+```
+METADATA:{"sources":[{"speaker":"SPEAKER_00","timestamp":"00:15:32","episode":"ML in Production","audio_url":"https://..."}]}
+Based on the transcripts, they discussed...
+```
+
+#### `POST /chat`
+Non-streaming Q&A endpoint.
+
+**Request:**
+```json
+{
+  "question": "What did they say about machine learning?",
+  "episode_title": "ML in Production",  // Optional
+  "bm25_weight": 0.5,  // Optional: default 0.5
+  "faiss_weight": 0.5  // Optional: default 0.5
 }
 ```
 
@@ -60,6 +82,7 @@ Ask questions about podcast content.
       "speaker": "SPEAKER_00",
       "timestamp": "00:15:32",
       "text_snippet": "Machine learning in production requires...",
+      "audio_url": "https://example.com/episode.mp3",
       "relevance_score": 0.89
     }
   ],
@@ -99,9 +122,12 @@ Health check endpoint.
 ```json
 {
   "status": "healthy",
-  "qdrant_connected": true,
-  "embedding_model_loaded": true,
-  "gemini_api_configured": true
+  "checks": {
+    "qdrant": true,
+    "ollama": true,
+    "redis": true,
+    "postgres": true
+  }
 }
 ```
 
@@ -134,16 +160,22 @@ conda activate rag_env
 Add to `.env` in project root:
 
 ```bash
-# Gemini API
-GEMINI_API_KEY=your_gemini_api_key_here
+# Ollama Configuration
+OLLAMA_API_URL=http://localhost:11434
+OLLAMA_CHAT_MODEL=qwen3:rag
+OLLAMA_EMBED_MODEL=nomic-embed-text
 
 # Qdrant (optional overrides)
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION_NAME=podcast_transcripts
 
 # Embedding model
-EMBEDDING_MODEL=all-MiniLM-L6-v2
-EMBEDDING_DIMENSION=384
+EMBEDDING_DIMENSION=768
+
+# Hybrid Search
+BM25_WEIGHT=0.5
+QDRANT_WEIGHT=0.5
+HYBRID_TOP_K=5
 
 # API server
 RAG_API_PORT=8000
@@ -193,34 +225,31 @@ curl -X POST http://localhost:8000/chat \
 
 ## How It Works
 
-### Ingestion Pipeline
+### Ingestion Pipeline (Event-Driven)
 
-1. **File Watcher** monitors `shared/output/` for new transcripts
-2. **Parser** extracts metadata (podcast, episode, speakers)
-3. **Chunker** splits transcript into semantic chunks (500 chars, 100 overlap)
-4. **Embedder** generates vector embeddings with Sentence Transformers
-5. **Vector DB** stores embeddings in Qdrant with metadata
-6. **Summarizer** (optional) generates Gemini summary
+1. **Event Subscriber** listens to `stream:episodes:batch_transcribed` on Redis Streams.
+2. **Idempotency Check**: Queries Qdrant for existing `episode_id` to avoid duplicate indexing.
+3. **Chunker** splits transcript into semantic chunks (2000 chars, 200 overlap).
+4. **Embedder** generates vector embeddings using Ollama `nomic-embed-text` (768-dim).
+5. **Vector DB** stores embeddings in Qdrant with deterministic UUIDs (`uuid.uuid5(namespace, f"{episode_id}_{chunk_index}")`).
+6. **BM25 Index** incrementally updated with new documents for hybrid search.
 
-### Query Pipeline
+### Query Pipeline (Hybrid Search)
 
-1. **Embed Question** using same embedding model
-2. **Vector Search** in Qdrant for similar chunks (top 5)
-3. **RAG Prompt** construct context with retrieved chunks
-4. **Gemini** generates answer with citations
-5. **Format Response** with sources and timestamps
+1. **Embed Question** using Ollama `nomic-embed-text`.
+2. **BM25 Search**: Keyword-based retrieval from local BM25 index (built from Qdrant).
+3. **Qdrant Search**: Semantic vector search with optional episode filtering.
+4. **RRF Fusion**: Merge results using Reciprocal Rank Fusion for balanced ranking.
+5. **Ollama Generation**: Generate answer using `qwen3:rag` with retrieved context.
+6. **Format Response**: Return answer with sources, timestamps, and `audio_url` for navigation.
 
 ## Configuration
 
 ### Embedding Model
 
-Default: `all-MiniLM-L6-v2` (384 dimensions, fast)
+Default: `nomic-embed-text` via Ollama (768 dimensions)
 
-Alternatives:
-- `all-mpnet-base-v2` (768 dimensions, higher quality)
-- `multi-qa-MiniLM-L6-cos-v1` (384 dimensions, optimized for Q&A)
-
-Set via `EMBEDDING_MODEL` in `.env`
+Set via `OLLAMA_EMBED_MODEL` in `.env`
 
 ### Chunking Strategy
 
@@ -237,10 +266,13 @@ Adjust via `CHUNK_SIZE` and `CHUNK_OVERLAP` in `.env`
 
 ### Retrieval Parameters
 
-**Top K**: Number of chunks to retrieve (default: 5)
-**Similarity Threshold**: Minimum score to include (default: 0.7)
+**Hybrid Search Weights**: Control the balance between BM25 and Qdrant
+- `BM25_WEIGHT`: 0.0 to 1.0 (default: 0.5)
+- `QDRANT_WEIGHT`: 0.0 to 1.0 (default: 0.5)
 
-Set via `TOP_K_RESULTS` and `SIMILARITY_THRESHOLD` in `.env`
+**Top K**: Number of chunks to retrieve (default: 5)
+
+Set via `BM25_WEIGHT`, `QDRANT_WEIGHT`, and `HYBRID_TOP_K` in `.env`
 
 ## Services
 
@@ -256,34 +288,33 @@ Set via `TOP_K_RESULTS` and `SIMILARITY_THRESHOLD` in `.env`
 
 ### Qdrant Service
 
-**File:** `services/qdrant_client.py`
-**Purpose:** Vector database operations
+**File:** `services/qdrant_service.py`
+**Purpose:** Vector database operations with deterministic UUIDs
 
 **Key Methods:**
-- `create_collection()` - Initialize collection
-- `insert_vectors()` - Store embeddings
-- `search_similar()` - Similarity search
+- `initialize()` - Ensure collection exists
+- `insert_chunks()` - Store embeddings with UUID v5 IDs
+- `search()` - Similarity search with optional filters
 - `get_collection_stats()` - Database status
 
-### Gemini Service
+### Ollama Service
 
-**File:** `services/gemini_client.py`
-**Purpose:** LLM for Q&A and summarization
+**File:** `services/ollama_client.py`
+**Purpose:** LLM for Q&A generation
 
 **Key Methods:**
-- `generate_answer(question, context)` - RAG Q&A
-- `generate_summary(transcript)` - Episode summarization
+- `answer_with_retrieved_chunks()` - Non-streaming RAG Q&A
+- `generate_answer_stream()` - Streaming RAG Q&A
 
-### File Watcher Service
+### Hybrid Retriever Service
 
-**File:** `services/file_watcher.py`
-**Purpose:** Auto-detect and ingest new transcripts
+**File:** `services/hybrid_retriever.py`
+**Purpose:** Combine BM25 and Qdrant using RRF
 
-**Behavior:**
-- Monitors `shared/output/` directory
-- Detects new `.txt` files
-- Automatically ingests and indexes
-- Runs in background thread
+**Key Methods:**
+- `build_bm25_index()` - Build/rebuild BM25 from Qdrant
+- `search()` - Hybrid search with configurable weights
+- `add_documents()` - Incrementally update BM25 index
 
 ## Error Handling
 
@@ -387,21 +418,23 @@ First run downloads model (~100MB). This is normal and cached locally.
 
 ## Integration
 
-### With Transcription Service
+### With Transcription Service (Event-Driven)
 
-Transcripts saved to `shared/output/` are automatically:
-1. Detected by file watcher
-2. Parsed and chunked
-3. Embedded and indexed
-4. Available for search/Q&A
+The RAG service consumes transcription events via Redis Streams:
 
-### With Frontend (Planned)
+1. **Event Subscription**: Listens to `stream:episodes:batch_transcribed` with consumer group `rag_service_group`.
+2. **Batch Processing**: Receives `BatchTranscribed` events containing `episode_ids` array.
+3. **Idempotent Ingestion**: Checks Qdrant for existing `episode_id` before indexing to prevent duplicates.
+4. **Automatic Indexing**: Fetches transcript from PostgreSQL, chunks, embeds, and stores in Qdrant.
+5. **BM25 Update**: Incrementally adds new documents to BM25 index for hybrid search.
 
-React frontend will:
-- Send questions via `/chat` endpoint
-- Display answers with source citations
-- Browse summaries via `/summaries`
-- Show real-time ingestion status
+### With Frontend
+
+React frontend integrates via:
+- `POST /chat/stream` - Streaming answers with real-time token generation
+- `POST /chat` - Non-streaming answers for simpler use cases
+- `METADATA:` protocol - Frontend parses sources/timestamps for "Search-to-Seek" navigation
+- `audio_url` in citations - Enables direct audio playback at specific timestamps
 
 ## License
 

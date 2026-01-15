@@ -5,11 +5,17 @@ This document lists the API endpoints that the frontend consumes. The new design
 ## 1. RAG Service (Chat & Search)
 **Base URL**: `http://localhost:8000` (Default)
 
-### Chat
+### Chat (Streaming)
+- **POST `/chat/stream`**
+    - **Payload**: `{ question: string, episode_title?: string, conversation_history?: Array }`
+    - **Response**: Server-Sent Events stream with `METADATA:` prefix for sources, followed by answer tokens
+    - **Purpose**: Real-time streaming chat with protocol-defined metadata for "Search-to-Seek" navigation.
+
+### Chat (Non-Streaming)
 - **POST `/chat`**
-    - **Payload**: `{ question: string, conversation_history?: Array }`
-    - **Response**: `{ answer: string, sources: Array, processing_time_ms: number }`
-    - **Purpose**: Main chat interface. Sends a user question and gets an AI response with citations.
+    - **Payload**: `{ question: string, episode_title?: string, bm25_weight?: number, faiss_weight?: number, conversation_history?: Array }`
+    - **Response**: `{ answer: string, sources: Array<SourceCitation>, processing_time_ms: number }`
+    - **Purpose**: Standard chat interface with hybrid search (BM25 + Qdrant). Returns answer with citations including `audio_url` for navigation.
 
 ### Summaries (Search View)
 - **GET `/summaries`**

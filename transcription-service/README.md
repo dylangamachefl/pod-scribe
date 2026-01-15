@@ -1,30 +1,37 @@
 # Transcription Service
 
-Automated podcast transcription service using WhisperX and Pyannote for speaker diarization.
+Event-driven podcast transcription service using WhisperX and Pyannote for speaker diarization.
 
 ## Architecture
 
-This service follows a modular architecture with clear separation of concerns:
+This service is built around a **long-running worker daemon** that consumes jobs from Redis Streams and manages GPU resources efficiently:
 
 ```
 transcription-service/
 ├── src/
-│   ├── cli.py              # CLI entry point
+│   ├── worker_daemon.py    # Main worker entry point (long-running)
 │   ├── config.py           # Configuration management
-│   ├── main.py             # Backward compatibility wrapper
 │   ├── core/               # Core processing logic
-│   │   ├── audio.py        # Audio download & transcription
+│   │   ├── audio.py        # Audio download & transcription (GPU-managed)
 │   │   ├── diarization.py  # Speaker identification
 │   │   ├── formatting.py   # Text formatting utilities
 │   │   └── processor.py    # High-level orchestration
 │   ├── managers/           # State management
-│   │   ├── episode_manager.py  # Episode queue
+│   │   ├── episode_manager.py  # Episode queue (SQL SSOT)
 │   │   └── status_monitor.py   # Processing status
-│   └── ui/                 # User interfaces
-│       └── dashboard.py    # Streamlit dashboard
+│   ├── api/                # FastAPI management endpoints
+│   └── scripts/            # Utility scripts (recovery, etc.)
 ├── temp/                   # Temporary audio files
 └── tests/                  # Unit and integration tests
 ```
+
+## Key Features
+
+- **Event-Driven Architecture**: Consumes `TranscriptionJob` events from Redis Streams with consumer groups for reliability.
+- **Heartbeat Reaper**: Background task that automatically resets stuck jobs (episodes in `TRANSCRIBING` state for >5 minutes).
+- **Distributed GPU Lock**: Coordinates GPU access across services using Redis-based locking.
+- **Immediate Release Strategy**: Releases GPU resources immediately after batch completion using `total_batch_count`.
+- **SQL Source of Truth**: Queries PostgreSQL directly for batch completion status instead of in-memory tracking.
 
 ## Modules
 
@@ -97,31 +104,43 @@ Streamlit-based web dashboard for management and monitoring.
 
 ## Usage
 
-### CLI Entry Point
+### Worker Daemon (Primary)
+
+The worker daemon is the main entry point for production use:
 
 ```bash
-# Default: Process selected episodes from queue
-python src/cli.py
+# Start the worker daemon (runs continuously)
+python src/worker_daemon.py
 
-# Auto mode: Process all new episodes from feeds
-python src/cli.py --auto
-
-# Schedule mode: Fetch and process latest N episodes
-python src/cli.py --schedule --limit-episodes 2
+# Or via Docker (recommended)
+docker-compose up transcription-worker
 ```
 
-### Programmatic Usage
+**Worker Features:**
+- Continuously polls Redis Streams for `TranscriptionJob` events
+- Manages GPU lifecycle with automatic cleanup
+- Implements heartbeat mechanism during processing
+- Publishes `BatchTranscribed` events upon completion
+- Graceful shutdown on SIGINT/SIGTERM
 
-```python
-from config import get_config
-from core.processor import process_selected_episodes
+### API Management
 
-# Load configuration
-config = get_config()
+The transcription API provides endpoints for managing the queue:
 
-# Process selected episodes
-process_selected_episodes(config)
+```bash
+# Start the API server
+cd transcription-service
+python -m src.api.main
+
+# Or via Docker
+docker-compose up transcription-api
 ```
+
+**API Endpoints:**
+- `POST /episodes/queue` - Add episodes to transcription queue
+- `GET /episodes` - List all episodes with status
+- `GET /status` - Get worker status and pipeline health
+- `POST /status/stop` - Signal worker to stop gracefully
 
 ## Configuration
 
@@ -186,17 +205,28 @@ if __name__ == "__main__":
 
 ## Integration
 
-### With RAG Service
+### Event-Driven Pipeline
 
-Transcripts are saved to `../../shared/output/` where the RAG service watches for new files to ingest.
+The transcription worker integrates with other services via Redis Streams:
 
-### With Dashboard
+1. **Receives Jobs**: Subscribes to `stream:transcription:jobs` with consumer group `transcription_workers`.
+2. **Processes Episodes**: Downloads audio, transcribes with WhisperX, applies diarization.
+3. **Publishes Events**: On batch completion, publishes `BatchTranscribed` event to `stream:episodes:batch_transcribed`.
+4. **Downstream Consumers**: Summarization and RAG services consume these events for further processing.
 
-The dashboard (`ui/dashboard.py`) provides a web interface for:
-- Managing RSS feed subscriptions
-- Selecting episodes for transcription
-- Monitoring transcription progress
-- Viewing transcripts
+### With PostgreSQL
+
+All episode state is managed in PostgreSQL:
+- Episode status transitions: `PENDING` → `TRANSCRIBING` → `TRANSCRIBED` → `FAILED`
+- Heartbeat column updated every 30s during processing
+- Batch completion determined by SQL query (no in-memory state)
+
+### With Shared Storage
+
+Transcripts are saved to `shared/output/` where downstream services can access them:
+- Filename format: `{podcast_name}_{episode_title}_transcript.txt`
+- Includes speaker labels and timestamps
+- Metadata stored in PostgreSQL, content in filesystem
 
 ## Performance
 

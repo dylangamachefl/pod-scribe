@@ -1,29 +1,39 @@
 # Podcast Summarization Service
 
-AI-powered summarization service for podcast transcripts using local Ollama models.
+Two-stage Map-Reduce summarization service for podcast transcripts using local Ollama models with Rolling State Refinery.
 
 ## Overview
 
-This service automatically monitors new podcast transcripts and generates comprehensive summaries including:
+This service automatically processes new podcast transcripts using an advanced **Map-Reduce Synthesis Engine** that maintains narrative context across long documents:
+
+### Two-Stage Pipeline
+1. **Stage 1 (Thinker)**: Map-Reduce synthesis with rolling state for high-fidelity unstructured summaries.
+2. **Stage 2 (Structurer)**: Instructor-powered extraction for guaranteed JSON schema validation.
+
+### Key Outputs
 - Concise episode summaries
 - Key topics discussed
 - Main insights and takeaways
 - Notable quotes
+- Processing metrics (stage timings, chunk counts)
 
 ## Features
 
-- **Automatic Processing**: File watcher monitors transcript directory and auto-generates summaries
-- **Local Processing**: Uses local Ollama `qwen3:summarizer` model (no external API)
-- **RESTful API**: FastAPI endpoints for manual summarization and summary retrieval
-- **Structured Output**: JSON summaries with topics, insights, and quotes
+- **Map-Reduce Synthesis**: Processes long transcripts in chunks with contextual carry-forward via rolling state.
+- **Rolling State Refinery**: Maintains narrative thread across chunk boundaries to prevent context loss.
+- **VRAM Guard**: Active memory management (`torch.cuda.empty_cache()`) between chunks to prevent OOM errors.
+- **Event-Driven Processing**: Redis Streams consumer for reliable, automatic processing.
+- **Heartbeat Reaper**: Background task that resets stuck `SUMMARIZING` jobs (>5 minutes).
+- **Structured Output**: Instructor-powered extraction with Pydantic validation for guaranteed schema compliance.
+- **Local Processing**: Uses local Ollama `qwen3:summarizer` model (no external API dependencies).
 
 ## Architecture
 
-The summarization service is decoupled from the RAG service to allow independent scaling and configuration:
-- **Input**: Reads transcripts from `shared/output/`
-- **Processing**: Uses local Ollama API for summarization
-- **Output**: Saves summaries to `shared/summaries/`
-- **API**: Provides REST endpoints for frontend consumption
+The summarization service is event-driven and decoupled from the RAG service:
+- **Input**: Consumes `BatchTranscribed` events from Redis Streams (`stream:episodes:batch_transcribed`).
+- **Processing**: Two-stage Map-Reduce pipeline using local Ollama API with GPU lock coordination.
+- **Output**: Saves structured summaries to PostgreSQL with rich metadata.
+- **API**: Provides REST endpoints for manual summarization and summary retrieval.
 
 ## Configuration
 
@@ -119,18 +129,10 @@ GET /summaries/{episode_title}
 
 Returns summary for a specific episode.
 
-## File Watcher
-
-The service automatically watches the `shared/output/` directory for new `.txt` files. When a new transcript is detected:
-
-1. File is debounced (2-second delay)
-2. Metadata is extracted from transcript
-3. Summary is generated via local Ollama API
-4. Result is saved to `shared/summaries/`
 
 ## Output Format
 
-Summaries are saved as JSON files:
+Summaries are saved to PostgreSQL with the following schema:
 
 ```json
 {
@@ -141,55 +143,36 @@ Summaries are saved as JSON files:
   "key_topics": ["Topic 1", "Topic 2"],
   "insights": ["Insight 1", "Insight 2"],
   "quotes": ["Quote 1", "Quote 2"],
-  "source_file": "/path/to/transcript.txt",
-  "processing_time_ms": 1234.5
+  "stage1_processing_time_ms": 45000.0,
+  "stage2_processing_time_ms": 8000.0,
+  "total_processing_time_ms": 53000.0
 }
 ```
 
-## Docker Support
+## Event-Driven Processing
 
-Build and run with Docker:
+### Ingestion Flow
 
-```bash
-docker build -t summarization-service .
-docker run -p 8002:8002 --env-file ../.env summarization-service
-```
+1. **Event Subscription**: Listens to `stream:episodes:batch_transcribed` with consumer group `summarization_service_group`.
+2. **Batch Processing**: Receives `BatchTranscribed` events containing `episode_ids` array.
+3. **Idempotency Check**: Queries PostgreSQL for existing summary to prevent duplicate processing.
+4. **GPU Lock Acquisition**: Coordinates with other services via Redis-based distributed lock.
+5. **Map-Reduce Synthesis**: Processes transcript in chunks with rolling state maintenance.
+6. **Heartbeat Updates**: Updates PostgreSQL `heartbeat` column every 30s during processing.
+7. **Structured Extraction**: Uses Instructor for guaranteed JSON schema compliance.
+8. **Event Publication**: Publishes `EpisodeSummarized` event to `stream:episodes:summarized` for downstream consumers (e.g., RAG service).
 
-Or use docker-compose from project root:
+### Heartbeat Reaper
 
-```bash
-docker-compose up summarization-service
-```
+Background task that runs continuously:
+- Queries for episodes in `SUMMARIZING` state with stale heartbeats (>5 minutes).
+- Resets stuck episodes to `TRANSCRIBED` status for retry.
+- Ensures system resilience against worker crashes or network issues.
 
-## Development
-
-### Testing
-
-```bash
-pytest tests/
-```
-
-### API Documentation
-
-Start the service and visit:
-- Swagger UI: http://localhost:8002/docs
-- ReDoc: http://localhost:8002/redoc
-
-## Troubleshooting
-
-### Ollama Model Not Found
-Ensure the `qwen3:summarizer` model exists. Create it with:
-```bash
-ollama create qwen3:summarizer -f Modelfile_sum
-```
-
-### Ollama Connection Failed
-Verify Ollama is running and accessible at the configured `OLLAMA_API_URL`.
-
-## Architecture
+## Architecture Details
 
 This service is part of the podcast transcriber monorepo:
-- **Transcription Service**: Generates transcripts from audio
-- **Summarization Service** (this): Generates summaries from transcripts
-- **RAG Service**: Handles Q&A using Ollama
-- **Frontend**: React UI for user interaction
+- **Transcription Service**: Generates transcripts from audio, publishes `BatchTranscribed` events.
+- **Summarization Service** (this): Consumes transcripts, generates summaries, publishes `EpisodeSummarized` events.
+- **RAG Service**: Consumes summaries for enhanced Q&A context.
+- **Frontend**: React UI for user interaction and summary viewing.

@@ -6,88 +6,84 @@ A modular, production-ready system for automated podcast transcription with spea
 
 This monorepo contains five integrated services:
 
-1. **Transcription API**: Fast API for managing RSS feeds and transcription queue
-2. **Transcription Worker**: Background worker that processes audio using WhisperX + Pyannote
-3. **RAG Service**: Provides semantic search and Q&A over transcripts using Ollama (qwen3:rag)
-4. **Summarization Service**: Generates structured summaries using local Ollama (qwen3:summarizer) or Gemini
-5. **Frontend**: React-based web UI for managing podcasts and viewing results
+1. **Transcription API**: FastAPI for managing RSS feeds and transcription queue.
+2. **Transcription Worker**: Background worker that processes audio using WhisperX + Pyannote, coordinated via Redis Streams.
+3. **RAG Service**: Provides hybrid semantic search (BM25 + Qdrant) and streaming Q&A using local Ollama (`qwen3:rag`).
+4. **Summarization Service**: Generates structured summaries using a two-stage Map-Reduce Synthesis pipeline with local Ollama (`qwen3:summarizer`).
+5. **Frontend**: React-based "Unified Intelligence & Navigation Interface" (UII) for managing podcasts and interactive "Search-to-Seek" results.
 
 ## ✨ Features
 
-### Transcription API
-- 🎙️ **Automatic RSS Feed Processing**: Subscribe to podcast feeds
-- 📋 **Queue Management**: API endpoints for managing the transcription queue
-- 🐳 **FastAPI Backend**: Dockerized REST API for the frontend
+### Transcription Pipeline
+- 🎙️ **Automatic RSS Feed Processing**: Subscribe to podcast feeds and sync episodes.
+- 📋 **Queue Management**: API endpoints for managing the transcription queue with SQL Source of Truth.
+- 🐳 **Worker Daemon**: Long-running background worker using Redis Streams for reliable job handling.
+- ⚡ **GPU Optimized**: NVIDIA GPU acceleration with Distributed GPU Lock and "Immediate Release" strategy.
+- 👥 **Speaker Diarization**: Pyannote Audio for high-accuracy speaker identification.
 
-### Transcription Worker
-- 🤖 **AI-Powered Transcription**: WhisperX with int8 quantization
-- 👥 **Speaker Diarization**: Pyannote Audio for speaker identification
-- ⚡ **GPU Optimized**: NVIDIA GPU acceleration (RTX 3070 tested)
-- 🐳 **Background Daemon**: Dockerized worker polling for new jobs
-
-### RAG Service  
-- 🔍 **Semantic Search**: Vector-based transcript search with hybrid retrieval
-- 💬 **AI Q&A**: Ask questions using local Ollama (qwen3:rag)
-- 🔄 **Redis Streams Ingestion**: Reliable event-driven ingestion via consumer groups
-- 🗃️ **Qdrant Vector DB**: Efficient similarity search with 768-dim embeddings
-- 🧬 **BM25 + Vector Hybrid**: Best of both keyword and semantic search
+### RAG Service (Search & Chat)
+- 🔍 **Hybrid Search**: Reciprocal Rank Fusion (RRF) combining BM25 keyword search and Qdrant vector similarity.
+- 💬 **Streaming Q&A**: Real-time answer generation via Ollama with protocol-defined metadata (sources/timestamps).
+- 🔄 **Redis Streams Ingestion**: Reliable event-driven ingestion with deterministic UUIDs for idempotency.
+- 🗃️ **Qdrant Vector DB**: Efficient similarity search with 768-dim embeddings (`nomic-embed-text`).
+- 🔗 **Search-to-Seek**: Interactive citations that navigate the UI to specific audio timestamps.
 
 ### Summarization Service
-- 📊 **Structured Summaries**: Local Ollama-powered episode summaries (qwen3:summarizer)
-- 🎯 **Key Takeaways**: Hooks, actionable advice, quotes, and concepts
-- 🔄 **Event-Driven**: Automatically processes new transcripts
-- 💾 **JSON Storage**: Machine-readable structured output
-- 🧪 **Gemini Support**: Optional high-quality alternative via API
+- 🗺️ **Map-Reduce Synthesis**: Two-stage pipeline (Thinker/Structurer) for high-fidelity summaries of long transcripts.
+- 🧬 **Rolling State Refinery**: Maintains narrative context across chunk boundaries during synthesis.
+- 🛡️ **VRAM Guard**: Active memory management and garbage collection during deep inference.
+- 💾 **Structured Extraction**: Instructor-powered extraction for guaranteed JSON schema validation.
+- 📊 **Rich Metadata**: Captures key topics, takeaways, notable quotes, and processing metrics.
 
-### Frontend
-- 🎨 **Modern React UI**: Fast, responsive interface
-- 📚 **Library Management**: Browse episodes and summaries
-- 💬 **RAG Chat**: Ask questions about any episode
-- 📊 **Dashboard**: Queue management and transcription status
-- 🔍 **Search & Filter**: Find episodes quickly
+### Frontend (UII)
+- 🎨 **Unified Interface**: Single, high-performance streaming hook for all chat and search experiences.
+- 📱 **Responsive Design**: Modern React UI with real-time status monitoring.
+- 📊 **Pipeline Dashboard**: Visibility into worker status, heartbeats, and queue health.
+- 🔍 **Global vs Episode Search**: Visual indicators for search scope and context.
 
 ## 🏗️ Architecture
 
 ```
 podcast-transcriber/
-├── transcription-service/      # Unified source for API and Worker
+├── transcription-service/      # API and Worker Daemon
 │   ├── src/
-│   │   ├── worker_daemon.py   # Background worker entry point
-│   │   └── api/               # FastAPI implementation
+│   │   ├── worker_daemon.py   # Long-running worker entry point
+│   │   └── api/               # FastAPI management endpoints
 │   ├── Dockerfile.api         # For transcription-api container
 │   ├── Dockerfile.transcription-worker # For worker container
 │   └── README.md
 │
-├── rag-service/                # RAG backend (Ollama-powered)
+├── rag-service/                # RAG backend (Hybrid Search + Streaming)
 │   ├── src/
 │   │   ├── main.py            # FastAPI server
-│   │   ├── services/          # RAG logic
-│   │   └── event_subscriber   # Event-driven indexing
+│   │   ├── event_subscriber.py # Redis Stream consumer
+│   │   └── services/          # Hybrid retriever logic
 │   └── README.md
 │
-├── summarization-service/      # Summarization backend (Ollama/Gemini)
+├── summarization-service/      # Summarization backend (Map-Reduce)
 │   ├── src/
 │   │   ├── main.py            # FastAPI server
-│   │   └── services/          # Two-stage summarization
+│   │   ├── event_subscriber.py # Redis Stream consumer
+│   │   └── services/          # Two-stage summarization logic
 │   └── README.md
 │
-├── frontend/                   # React UI
+├── frontend/                   # React UII (Unified Intelligence Interface)
 │
 ├── models/                     # Ollama Modelfiles
 │   ├── Modelfile_rag
 │   └── Modelfile_sum
 │
 ├── shared/                     # Shared resources
-│   ├── podcast_transcriber_shared/ # Shared python library
-│   ├── config/                # Configuration files
-│   ├── output/                # Transcripts
-│   └── logs/                  # Application logs
+│   ├── podcast_transcriber_shared/ # Core shared logic (DB, Events, GPU Lock)
+│   ├── config/                # Prompt templates and yaml config
+│   ├── output/                # Shared transcript storage
+│   └── logs/                  # Unified logging
 │
 ├── docs/                       # Project documentation
-│   ├── archive/               # Historical documents
-│   └── ...
+│   ├── architecture/          # Design docs (Event Bus, API Contracts)
+│   └── archive/               # Historical context
 │
-├── docker-compose.yml          # Main orchestration
+├── docker-compose.yml          # Main orchestration (Multi-service)
 └── README.md                   # This file
 ```
 
@@ -100,8 +96,7 @@ podcast-transcriber/
 - **Ollama**: For RAG/chat features
 - **GPU** (Optional): NVIDIA GPU with 8GB+ VRAM for GPU-accelerated transcription
 - **API Keys**: 
-  - HuggingFace Token (for speaker diarization)
-  - Google Gemini API Key (for summarization)
+  - HuggingFace Token (required for speaker diarization)
 
 ### 1. Clone Repository
 
@@ -128,28 +123,16 @@ cp .env.example .env
 
 # Pull base models
 ollama pull qwen3:8b
-ollama pull nomic-embed-text
+ollama pull nomic-embed-text:latest
 
-# Create custom RAG model (optimized for 8GB VRAM)
-# Create a file named 'Modelfile' with:
-# FROM qwen3:8b
-# PARAMETER num_ctx 6144
-# PARAMETER temperature 0.6
-# PARAMETER top_k 20
-# PARAMETER top_p 0.95
-
-ollama create qwen3:rag -f Modelfile
+# Create custom models from project Modelfiles
+ollama create qwen3:rag -f models/Modelfile_rag
+ollama create qwen3:summarizer -f models/Modelfile_sum
 ```
 
-### 4. Create Docker Secrets
+### 4. Configure Environment
 
-```bash
-# Create secrets directory
-mkdir secrets
-
-# Add your Gemini API key to a file
-echo "your_api_key_here" > secrets/gemini_api_key.txt
-```
+Edit `.env` and add your HuggingFace token (required for speaker diarization).
 
 ### 5. Start the Application
 
@@ -216,9 +199,9 @@ BATCH_SIZE=4
 WHISPER_MODEL=large-v2
 
 # RAG Service  
-GEMINI_API_KEY=your_gemini_api_key
 QDRANT_URL=http://localhost:6333
-EMBEDDING_MODEL=all-MiniLM-L6-v2
+EMBEDDING_MODEL=nomic-embed-text
+EMBEDDING_DIMENSION=768
 ```
 
 ### HuggingFace Setup (Required for Diarization)
@@ -247,12 +230,12 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 ### RAG Service
 
 **Tech Stack:**
-- FastAPI (API server)
+- FastAPI (API server with streaming support)
 - Qdrant (vector database)
 - PostgreSQL (metadata storage)
-- Redis Streams (event subscriber)
-- Ollama (LLM and embeddings)
-- Hybrid Search (BM25 + Vector)
+- Redis Streams (event-driven ingestion)
+- Ollama (LLM: `qwen3:rag`, Embeddings: `nomic-embed-text`)
+- Hybrid Search (BM25 + Vector RRF)
 
 **See:** [rag-service/README.md](rag-service/README.md)
 
@@ -262,7 +245,8 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 - FastAPI (API server)
 - PostgreSQL (summary storage)
 - Redis Streams (reliable event handling)
-- Local Ollama (qwen3:summarizer) or Google Gemini
+- Local Ollama (`qwen3:summarizer`)
+- Map-Reduce Synthesis (Two-stage Thinking/Structuring)
 - Instructor (for structured data extraction)
 
 **See:** [summarization-service/README.md](summarization-service/README.md)

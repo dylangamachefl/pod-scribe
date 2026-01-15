@@ -33,10 +33,17 @@ Services check for existing work before processing to prevent duplicates:
 
 ```mermaid
 graph TD
-    A[Transcription Worker] -- stream:episodes:transcribed --> B(Summarization Service)
-    B -- stream:episodes:summarized --> C(RAG Service)
-    C -- stream:episodes:ingested --> D[System Log]
+    A[Transcription API] -- stream:transcription:jobs --> B(Transcription Worker)
+    B -- stream:episodes:batch_transcribed --> C(Summarization Service)
+    B -- stream:episodes:batch_transcribed --> D(RAG Service)
+    C -- stream:episodes:summarized --> D
+    D -- Indexed --> E[Qdrant Vector DB]
 ```
+
+**Key Streams:**
+- `stream:transcription:jobs` - Individual transcription job events
+- `stream:episodes:batch_transcribed` - Batch completion events (triggers immediate GPU release)
+- `stream:episodes:summarized` - Summary completion events for RAG context enhancement
 
 ## Implementation Details
 
