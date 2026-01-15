@@ -196,7 +196,7 @@ def transcribe_episode_task(
         diarized_result = diarize_transcript(
             temp_audio,
             transcript_result,
-            config.huggingface_token,
+            worker.diarize_model,
             config.device
         )
         if not diarized_result:
@@ -229,16 +229,6 @@ def transcribe_episode_task(
                 pass
         return None, False, duration_seconds, None
 
-    except Exception as e:
-        print(f"❌ Processing task failed: {e}")
-        # Clean up temp file on error
-        if temp_audio.exists():
-            try:
-                temp_audio.unlink()
-            except:
-                pass
-        return None, False
-
 
 async def process_episode_async(
     episode_data: Dict,
@@ -248,15 +238,6 @@ async def process_episode_async(
 ) -> Tuple[bool, str]:
     """
     Process a single podcast episode asynchronously.
-    
-    Args:
-        episode_data: Episode data
-        config: Transcription configuration
-        worker: Initialized TranscriptionWorker instance
-        from_queue: True if processing from pending queue
-    
-    Returns:
-        (success: bool, episode_id: str)
     """
     # Extract episode info based on source
     if from_queue:
@@ -306,14 +287,38 @@ async def process_episode_async(
         print(f"❌ Exception during download: {e}")
         return False, guid
     
-    # 3. Offload the heavy lifting to a thread pool
+    # 3. Offload the heavy lifting to a thread pool with a heartbeat task
     loop = asyncio.get_running_loop()
     
-    # Execute the blocking transcription task
-    transcript_text, diarization_failed, duration_seconds, speaker_count = await loop.run_in_executor(
-        None,
-        lambda: transcribe_episode_task(guid, episode_title, temp_audio, config, worker)
-    )
+    # Define Heartbeat task
+    from podcast_transcriber_shared.database import update_episode_heartbeat
+    
+    async def heartbeat_loop(episode_id: str):
+        try:
+            while True:
+                await update_episode_heartbeat(episode_id)
+                await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            print(f"⚠️  Heartbeat task failed: {e}")
+
+    # Start heartbeat
+    heartbeat_task = asyncio.create_task(heartbeat_loop(guid))
+    
+    try:
+        # Execute the blocking transcription task
+        transcript_text, diarization_failed, duration_seconds, speaker_count = await loop.run_in_executor(
+            None,
+            lambda: transcribe_episode_task(guid, episode_title, temp_audio, config, worker)
+        )
+    finally:
+        # Stop heartbeat
+        heartbeat_task.cancel()
+        try:
+            await heartbeat_task
+        except asyncio.CancelledError:
+            pass
     
     if not transcript_text:
         # Transcription failed

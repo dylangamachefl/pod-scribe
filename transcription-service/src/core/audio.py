@@ -104,41 +104,58 @@ def download_youtube_audio(url: str, output_path: Path) -> bool:
         return False
 
 
+class SSRFTransport(httpx.AsyncBaseTransport):
+    """
+    Custom httpx transport that validates the target IP before connection.
+    Hardens against SSRF and DNS Rebinding while preserving SNI for HTTPS.
+    """
+    def __init__(self, **kwargs):
+        self.transport = httpx.AsyncHTTPTransport(**kwargs)
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        url = request.url
+        hostname = url.host
+
+        # 1. Resolve hostname to IP
+        try:
+            # We use a simple socket check since httpx will do its own connection later,
+            # but we want to pre-verify the destination.
+            ip_str = socket.gethostbyname(hostname)
+            ip = ipaddress.ip_address(ip_str)
+        except socket.gaierror:
+            raise httpx.ConnectError(f"DNS resolution failed for {hostname}")
+
+        # 2. Check for private/loopback/link-local addresses
+        if (ip.is_private or
+            ip.is_loopback or
+            ip.is_link_local or
+            ip.is_reserved or
+            str(ip).startswith("169.254")):
+            print(f"🛑 Security Alert: SSRF attempt blocked to {ip} ({hostname})")
+            raise httpx.ConnectError(f"Restricted IP address: {ip}")
+
+        # 3. Allow the request to proceed through the real transport
+        return await self.transport.handle_async_request(request)
+
+    async def aclose(self):
+        await self.transport.aclose()
+
+
 async def download_audio(url: str, output_path: Path) -> bool:
     """
-    Download audio file from URL using httpx.
-    Hardened against SSRF and DNS Rebinding.
+    Download audio file from URL using httpx with SSRF protection.
     """
-    ip_str = await validate_url(url)
-    if not ip_str:
-        return False
-
     if "youtube.com" in url or "youtu.be" in url:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, download_youtube_audio, url, output_path)
 
     try:
-        parsed = urlparse(url)
-        hostname = parsed.hostname
-        
-        # Prevent DNS Rebinding: Use the IP directly in the URL 
-        # but keep the original Host header for the server.
-        # For HTTPS, this is trickier (SNI), so we use a custom transport if needed.
-        # For now, we use a simpler but effective IP-replacement for HTTP.
-        # For HTTPS, we still use the IP but disable cert verification ONLY IF needed,
-        # but here we prefer security.
-        
-        target_url = url
-        if parsed.scheme == "http":
-            target_url = url.replace(hostname, ip_str, 1)
-        
-        print(f"⬇️  Downloading: {url} (resolved to {ip_str})")
+        print(f"⬇️  Downloading: {url}")
         update_progress("downloading", 0.0)
 
-        headers = {"Host": hostname} if parsed.scheme == "http" else {}
-        
-        async with httpx.AsyncClient(timeout=300) as client:
-            async with client.stream("GET", target_url, headers=headers, follow_redirects=True) as response:
+        # Use custom transport for SSRF protection
+        async with httpx.AsyncClient(transport=SSRFTransport(verify=True), timeout=300) as client:
+            async with client.stream("GET", url, follow_redirects=True) as response:
                 response.raise_for_status()
                 with open(output_path, 'wb') as f:
                     async for chunk in response.aiter_bytes():
@@ -151,7 +168,14 @@ async def download_audio(url: str, output_path: Path) -> bool:
     
     except Exception as e:
         print(f"❌ Download failed: {e}")
+        if output_path.exists():
+            output_path.unlink()
         return False
+
+
+class ModelLoadingError(Exception):
+    """Raised when models fail to load after retries."""
+    pass
 
 
 class TranscriptionWorker:
@@ -164,47 +188,89 @@ class TranscriptionWorker:
         whisper_model: str, 
         device: str,
         compute_type: str,
-        batch_size: int
+        batch_size: int,
+        huggingface_token: str
     ) -> None:
         self.whisper_model = whisper_model
         self.device = device
         self.compute_type = compute_type
         self.batch_size = batch_size
+        self.huggingface_token = huggingface_token
+        
+        # Lazy loading holders
         self.model = None
         self.align_model = None
         self.align_metadata = None
+        self.diarize_model = None
+        self.models_loaded = False
+
+    def _ensure_models_loaded(self):
+        """Lazy load models if not already loaded. Resilience for HF API failures."""
+        if self.models_loaded:
+            return
+
+        max_retries = 3
+        last_exception = None
+
+        for attempt in range(max_retries):
+            try:
+                if self.model is None:
+                    print(f"🎤 Loading Whisper model ({self.whisper_model}) - attempt {attempt+1}/{max_retries}...")
+                    self.model = whisperx.load_model(
+                        self.whisper_model,
+                        self.device,
+                        compute_type=self.compute_type,
+                        language="en"
+                    )
+                
+                if self.align_model is None:
+                    print(f"⏱️  Pre-loading alignment model (en)...")
+                    self.align_model, self.align_metadata = whisperx.load_align_model(
+                        language_code="en",
+                        device=self.device
+                    )
+
+                if self.diarize_model is None:
+                    print(f"👥 Pre-loading diarization model (Pyannote 3.1)...")
+                    from pyannote.audio import Pipeline
+                    self.diarize_model = Pipeline.from_pretrained(
+                        "pyannote/speaker-diarization-3.1",
+                        use_auth_token=self.huggingface_token
+                    )
+                    if self.diarize_model is not None:
+                        self.diarize_model.to(torch.device(self.device))
+                    else:
+                        raise RuntimeError("Failed to load Pyannote diarization model (Pipeline returned None)")
+                
+                self.models_loaded = True
+                print(f"✅ Models loaded successfully and ready for reuse")
+                return # Success!
+                
+            except torch.cuda.OutOfMemoryError as e:
+                # OOM is usually not recoverable via retries
+                raise torch.cuda.OutOfMemoryError(
+                    f"Insufficient GPU memory to load models. "
+                    "Try using a smaller model or increase GPU memory."
+                ) from e
+            except Exception as e:
+                print(f"⚠️  Model loading attempt {attempt+1} failed: {e}")
+                last_exception = e
+                # Clean up partial loads if any
+                if attempt < max_retries - 1:
+                    time.sleep(2) # Short wait before retry
+                else:
+                    break
         
-        try:
-            print(f"🎤 Loading Whisper model ({whisper_model}) - one-time initialization...")
-            self.model = whisperx.load_model(
-                whisper_model,
-                device,
-                compute_type=compute_type,
-                language="en"
-            )
-            
-            print(f"⏱️  Pre-loading alignment model (en)...")
-            self.align_model, self.align_metadata = whisperx.load_align_model(
-                language_code="en",
-                device=device
-            )
-            
-            print(f"✅ Models loaded successfully and ready for reuse")
-            
-        except torch.cuda.OutOfMemoryError as e:
-            raise torch.cuda.OutOfMemoryError(
-                f"Insufficient GPU memory to load models. "
-                "Try using a smaller model or increase GPU memory."
-            ) from e
-        except Exception as e:
-            raise RuntimeError(
-                f"Failed to load WhisperX models: {e}"
-            ) from e
+        # If we reach here, all retries failed
+        raise ModelLoadingError(f"Failed to load Whisper/Pyannote models after {max_retries} attempts: {last_exception}")
     
     def process(self, audio_path: Path) -> Optional[Dict]:
         """Transcribe and align audio using pre-loaded models."""
         if not audio_path.exists():
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
+        
+        # Ensure models are loaded before processing
+        self._ensure_models_loaded()
         
         if self.model is None or self.align_model is None:
             raise RuntimeError("Models not fully initialized.")
@@ -256,6 +322,8 @@ class TranscriptionWorker:
             del self.model
         if self.align_model is not None:
             del self.align_model
+        if self.diarize_model is not None:
+            del self.diarize_model
         gc.collect()
         torch.cuda.empty_cache()
         print("🧹 TranscriptionWorker cleaned up")

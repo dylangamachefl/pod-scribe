@@ -33,7 +33,7 @@ def apply_pytorch_patch():
 
 
 def diarize_transcript(audio_path: Path, transcript_result: Dict, 
-                       huggingface_token: str, device: str) -> Optional[Dict]:
+                       pipeline, device: str) -> Optional[Dict]:
     """Perform speaker diarization using Pyannote.
     
     Sanitizes audio to WAV first to prevent MP3 duration mismatches.
@@ -41,7 +41,7 @@ def diarize_transcript(audio_path: Path, transcript_result: Dict,
     Args:
         audio_path: Path to audio file
         transcript_result: Transcript result from whisperx
-        huggingface_token: Hugging Face authentication token
+        pipeline: Pre-loaded Pyannote pipeline
         device: Device to use ("cuda" or "cpu")
         
     Returns:
@@ -49,16 +49,8 @@ def diarize_transcript(audio_path: Path, transcript_result: Dict,
     """
     clean_wav_path = None
     try:
-        print("👥 Loading diarization model...")
+        print("👥 Using pre-loaded diarization model...")
         update_progress("diarizing", 0.1)
-        
-        # Load pipeline (V3.1)
-        from pyannote.audio import Pipeline
-        diarize_model = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization-3.1",
-            use_auth_token=huggingface_token
-        )
-        diarize_model.to(torch.device(device))
         
         print("🔄 Sanitizing audio (Converting to WAV)...")
         # 1. Load the messy MP3 into raw numbers
@@ -73,7 +65,7 @@ def diarize_transcript(audio_path: Path, transcript_result: Dict,
         update_progress("diarizing", 0.4)
         
         # 3. Feed the CLEAN WAV to Pyannote
-        diarize_segments = diarize_model(str(clean_wav_path))
+        diarize_segments = pipeline(str(clean_wav_path))
         
         # Convert Pyannote Annotation to Pandas DataFrame
         # WhisperX expects a DataFrame with start, end, and speaker columns
@@ -88,8 +80,7 @@ def diarize_transcript(audio_path: Path, transcript_result: Dict,
         update_progress("diarizing", 0.8)
         result = whisperx.assign_word_speakers(diarize_df, transcript_result)
         
-        # Cleanup memory
-        del diarize_model
+        # Cleanup audio memory (but keep the persistent pipeline!)
         gc.collect()
         torch.cuda.empty_cache()
         

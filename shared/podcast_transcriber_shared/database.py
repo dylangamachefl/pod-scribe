@@ -69,6 +69,7 @@ class Episode(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     processed_at = Column(DateTime(timezone=True), nullable=True)
+    heartbeat = Column(DateTime(timezone=True), nullable=True, index=True)
     
     #灵活元数据（扬声器、持续时间、audio_url等）
     meta_data = Column(JSONB, nullable=True, default={})
@@ -351,6 +352,28 @@ async def update_episode_status(
         await session.commit()
         await session.refresh(episode)
         return episode
+
+
+async def update_episode_heartbeat(episode_id: str) -> bool:
+    """
+    Update the heartbeat timestamp for an episode.
+    Used by workers to signal they are still alive and processing.
+    
+    Args:
+        episode_id: Episode identifier
+        
+    Returns:
+        True if updated, False if episode not found
+    """
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        episode = await session.get(Episode, episode_id)
+        if not episode:
+            return False
+        
+        episode.heartbeat = datetime.utcnow()
+        await session.commit()
+        return True
 
 
 async def save_transcript(

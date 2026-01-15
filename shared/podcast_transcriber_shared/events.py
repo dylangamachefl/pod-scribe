@@ -59,6 +59,7 @@ class TranscriptionJob(BaseEvent):
     episode_id: str
     audio_url: Optional[str] = None
     batch_id: Optional[str] = None  # Optional batch association
+    total_batch_count: int = 1      # Total episodes in this batch
 
 
 class BatchTranscribed(BaseEvent):
