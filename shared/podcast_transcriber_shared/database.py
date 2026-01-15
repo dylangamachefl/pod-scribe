@@ -196,6 +196,7 @@ async def get_episode_by_id(episode_id: str, load_transcript: bool = True) -> Op
 async def list_episodes(
     podcast_name: Optional[str] = None,
     status: Optional[EpisodeStatus] = None,
+    batch_id: Optional[str] = None,
     is_seen: Optional[bool] = None,
     is_favorite: Optional[bool] = None,
     limit: Optional[int] = None
@@ -206,6 +207,7 @@ async def list_episodes(
     Args:
         podcast_name: Filter by podcast name (optional)
         status: Filter by status (optional)
+        batch_id: Filter by batch ID (optional)
         is_seen: Filter by seen status (optional)
         is_favorite: Filter by favorite status (optional)
         limit: Maximum number of episodes to return (None for all)
@@ -222,6 +224,9 @@ async def list_episodes(
         
         if status:
             query = query.where(Episode.status == status)
+            
+        if batch_id:
+            query = query.where(Episode.batch_id == batch_id)
             
         if is_seen is not None:
             query = query.where(Episode.is_seen == is_seen)
@@ -448,6 +453,42 @@ async def bulk_update_episodes_batch(
         result = await session.execute(query)
         await session.commit()
         return result.rowcount
+
+
+async def is_batch_complete(batch_id: str) -> bool:
+    """
+    Check if all episodes in a batch are transcribed or failed.
+    Essentially checks if any episodes are still in PENDING, QUEUED, or TRANSCRIBING.
+    
+    Args:
+        batch_id: Batch identifier
+        
+    Returns:
+        True if all episodes are finished, False if any are still pending/in-progress
+    """
+    if not batch_id or batch_id == 'default':
+        return False
+        
+    session_maker = get_session_maker()
+    async with session_maker() as session:
+        # We query for any episode in the batch that is NOT in a finished state
+        finished_statuses = [
+            EpisodeStatus.TRANSCRIBED, 
+            EpisodeStatus.SUMMARIZING, 
+            EpisodeStatus.SUMMARIZED, 
+            EpisodeStatus.COMPLETED, 
+            EpisodeStatus.FAILED
+        ]
+        
+        query = select(Episode.id).where(
+            Episode.batch_id == batch_id,
+            Episode.status.notin_(finished_statuses)
+        ).limit(1)
+        
+        result = await session.execute(query)
+        # If we find at least one episode NOT finished, the batch is not complete
+        unfinished_episode = result.scalar_one_or_none()
+        return unfinished_episode is None
 
 
 # ============================================================================

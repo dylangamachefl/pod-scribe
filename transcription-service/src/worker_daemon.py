@@ -32,7 +32,10 @@ from config import TranscriptionConfig
 from core.diarization import apply_pytorch_patch
 from core.processor import process_episode_async
 from core.audio import TranscriptionWorker
-from podcast_transcriber_shared.database import create_episode, update_episode_status, EpisodeStatus, get_episode_by_id
+from podcast_transcriber_shared.database import (
+    create_episode, update_episode_status, EpisodeStatus, 
+    get_episode_by_id, is_batch_complete, list_episodes
+)
 from podcast_transcriber_shared.events import get_event_bus, EventBus
 from podcast_transcriber_shared.gpu_lock import get_gpu_lock
 from podcast_transcriber_shared.logging_config import configure_logging, get_logger, bind_correlation_id
@@ -57,8 +60,8 @@ class TranscriptionDaemon:
         self.active_worker = None
         self.active_lock_ctx = None
         self.last_job_time = 0
-        self.batch_episodes = {} # batch_id -> list[episode_id]
-        self.job_in_progress = False
+        # In-memory batch state removed in favor of SQL SSOT
+        # job_in_progress removed as we use current_episode_id instead
         self.current_episode_id = None
         self.idle_timeout = 300 # 5 minutes
         self.manager = get_pipeline_status_manager()
@@ -73,7 +76,9 @@ class TranscriptionDaemon:
         import gc
         import torch
         gc.collect()
-        torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
         
         if self.active_lock_ctx:
             try:
@@ -85,9 +90,49 @@ class TranscriptionDaemon:
         # Update status to idle/offline
         self.manager.update_service_status('transcription', 'current', stage='idle', additional_data={'is_running': False})
 
+    async def heartbeat_reaper(self):
+        """Background task to reset stuck episodes with stale heartbeats."""
+        logger.info("heartbeat_reaper_started")
+        while not shutdown_event.is_set():
+            try:
+                from datetime import datetime, timedelta
+                from sqlalchemy import select, update
+                from podcast_transcriber_shared.database import get_session_maker, Episode
+                
+                # Check for episodes stuck in TRANSCRIBING for > 5 minutes
+                five_mins_ago = datetime.utcnow() - timedelta(minutes=5)
+                
+                session_maker = get_session_maker()
+                async with session_maker() as session:
+                    # Query for stuck episodes
+                    query = select(Episode).where(
+                        (Episode.status == EpisodeStatus.TRANSCRIBING) & 
+                        ((Episode.heartbeat < five_mins_ago) | (Episode.heartbeat == None))
+                    )
+                    result = await session.execute(query)
+                    stuck_episodes = result.scalars().all()
+                    
+                    if stuck_episodes:
+                        stuck_ids = [ep.id for ep in stuck_episodes]
+                        logger.warning("heartbeat_reaper_found_stuck_jobs", count=len(stuck_ids), ids=stuck_ids)
+                        
+                        # Reset to PENDING
+                        stmt = (
+                            update(Episode)
+                            .where(Episode.id.in_(stuck_ids))
+                            .values(status=EpisodeStatus.PENDING, heartbeat=None)
+                        )
+                        await session.execute(stmt)
+                        await session.commit()
+                        logger.info("heartbeat_reaper_reset_jobs_to_pending", count=len(stuck_ids))
+                
+            except Exception as e:
+                logger.error("heartbeat_reaper_error", error=str(e))
+                
+            await asyncio.sleep(60) # Run every minute
+
     async def process_job(self, job_data: dict) -> bool:
         """Process a single transcription job."""
-        self.job_in_progress = True
         episode_id = job_data.get('episode_id')
         self.current_episode_id = episode_id
         
@@ -177,31 +222,26 @@ class TranscriptionDaemon:
                 if success:
                     logger.info("episode_completed_successfully", episode_id=episode_id)
                     
-                    # Check if this batch is now complete for immediate release
+                    # Check if this batch is now complete for immediate release (SQL SSOT)
                     if batch_id != 'default':
-                        # Scoped processed count check
-                        if episode_id not in self.batch_episodes[batch_id]:
-                            self.batch_episodes[batch_id].append(episode_id)
-                        
-                        processed_count = len(self.batch_episodes[batch_id])
-                        total_count = int(job_data.get('total_batch_count', 1))
-                        
-                        if processed_count >= total_count:
-                            logger.info("batch_complete_triggering_immediate_release", 
-                                       batch_id=batch_id, processed=processed_count, total=total_count)
+                        if await is_batch_complete(batch_id):
+                            logger.info("batch_complete_triggering_immediate_release", batch_id=batch_id)
                             
-                            # 1. Publish BatchTranscribed immediately
+                            # 1. Fetch all episode IDs in this batch for the event
+                            batch_episodes = await list_episodes(batch_id=batch_id)
+                            batch_episode_ids = [ep.id for ep in batch_episodes]
+                            
+                            # 2. Publish BatchTranscribed immediately
                             from podcast_transcriber_shared.events import BatchTranscribed
                             eb = get_event_bus()
                             await eb.publish(eb.STREAM_BATCH_TRANSCRIBED, BatchTranscribed(
                                 event_id=f"batch_{uuid.uuid4().hex[:8]}",
                                 service="transcription-daemon",
                                 batch_id=batch_id,
-                                episode_ids=self.batch_episodes[batch_id]
+                                episode_ids=batch_episode_ids
                             ))
                             
-                            # 2. Clear batch state and release GPU
-                            del self.batch_episodes[batch_id]
+                            # 3. Release GPU
                             await self.force_release()
                             
                     return True
@@ -216,7 +256,6 @@ class TranscriptionDaemon:
             finally:
                 clear_status(episode_id=episode_id)
         finally:
-            self.job_in_progress = False
             self.current_episode_id = None
 
     async def run(self):
@@ -248,7 +287,7 @@ class TranscriptionDaemon:
             while not shutdown_event.is_set():
                 await asyncio.sleep(2)
                 if self.manager.is_stopped():
-                    if self.job_in_progress:
+                    if self.current_episode_id:
                         logger.critical("aborting_job_due_to_stop_signal", episode_id=self.current_episode_id)
                         if self.current_episode_id:
                             await update_episode_status(self.current_episode_id, EpisodeStatus.FAILED)
@@ -258,6 +297,7 @@ class TranscriptionDaemon:
                         # However, for GPU stability, some might still prefer process restart.
                         # For now, we follow the "Explicit Handover" refinement.
 
+        asyncio.create_task(self.heartbeat_reaper())
         monitor_task = asyncio.create_task(stop_monitor())
 
         try:
@@ -265,6 +305,8 @@ class TranscriptionDaemon:
                 # We no longer need background idle timeout polling because we release GPU 
                 # deterministically at the end of each batch using total_batch_count.
                 await asyncio.sleep(1)
+        except Exception as e:
+            logger.error("daemon_loop_error", error=str(e))
         finally:
             logger.info("daemon_shutting_down")
             await self.force_release()

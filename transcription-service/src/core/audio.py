@@ -25,7 +25,7 @@ from managers.status_monitor import update_progress
 
 async def validate_url(url: str) -> Optional[str]:
     """
-    Validate URL to prevent SSRF (Server-Side Request Forgery).
+    Validate URL to prevent SSRF (Server-Side Request Forgery) and DNS Rebinding.
     Returns the resolved safe IP string if valid, None otherwise.
     """
     try:
@@ -35,12 +35,26 @@ async def validate_url(url: str) -> Optional[str]:
         if not hostname:
             return None
 
-        # Resolve hostname to IP
+        # Resolve hostname to IP once to prevent DNS Rebinding
         try:
-            ip_str = socket.gethostbyname(hostname)
+            # getaddrinfo is more robust than gethostbyname
+            addr_info = socket.getaddrinfo(hostname, None)
+            if not addr_info:
+                return None
+            
+            # Use the first IPv4 address found
+            ip_str = None
+            for family, _, _, _, sockaddr in addr_info:
+                if family == socket.AF_INET:
+                    ip_str = sockaddr[0]
+                    break
+            
+            if not ip_str:
+                return None
+                
             ip = ipaddress.ip_address(ip_str)
-        except socket.gaierror:
-            print(f"❌ DNS resolution failed for {hostname}")
+        except (socket.gaierror, ValueError) as e:
+            print(f"❌ DNS resolution failed for {hostname}: {e}")
             return None
 
         # Check for private/loopback/link-local addresses
@@ -116,26 +130,27 @@ class SSRFTransport(httpx.AsyncBaseTransport):
         url = request.url
         hostname = url.host
 
-        # 1. Resolve hostname to IP
-        try:
-            # We use a simple socket check since httpx will do its own connection later,
-            # but we want to pre-verify the destination.
-            ip_str = socket.gethostbyname(hostname)
-            ip = ipaddress.ip_address(ip_str)
-        except socket.gaierror:
-            raise httpx.ConnectError(f"DNS resolution failed for {hostname}")
+        # 1. Resolve hostname to IP once and validate (Prevention against DNS Rebinding)
+        safe_ip = await validate_url(str(url))
+        if not safe_ip:
+            raise httpx.ConnectError(f"Restricted or invalid destination: {hostname}")
 
-        # 2. Check for private/loopback/link-local addresses
-        if (ip.is_private or
-            ip.is_loopback or
-            ip.is_link_local or
-            ip.is_reserved or
-            str(ip).startswith("169.254")):
-            print(f"🛑 Security Alert: SSRF attempt blocked to {ip} ({hostname})")
-            raise httpx.ConnectError(f"Restricted IP address: {ip}")
+        # 2. Re-write the request to use the IP directly, but keep the original Host header
+        # bitwise: we change the host to the IP, which forces httpx to connect to that IP,
+        # but the SNI/Host header will still be the original hostname.
+        original_url = request.url
+        request.url = request.url.copy_with(host=safe_ip)
+        
+        # Ensure Host header is preserved for SNI and HTTP routing
+        if "Host" not in request.headers:
+            request.headers["Host"] = hostname
 
         # 3. Allow the request to proceed through the real transport
-        return await self.transport.handle_async_request(request)
+        try:
+            return await self.transport.handle_async_request(request)
+        finally:
+            # Restore original URL just in case
+            request.url = original_url
 
     async def aclose(self):
         await self.transport.aclose()
@@ -146,6 +161,11 @@ async def download_audio(url: str, output_path: Path) -> bool:
     Download audio file from URL using httpx with SSRF protection.
     """
     if "youtube.com" in url or "youtu.be" in url:
+        # Pre-validate YouTube URL to prevent SSRF before handing to yt_dlp
+        if not await validate_url(url):
+            print(f"🛑 SSRF Alert: YouTube URL failed validation: {url}")
+            return False
+            
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, download_youtube_audio, url, output_path)
 
@@ -272,6 +292,14 @@ class TranscriptionWorker:
         # Ensure models are loaded before processing
         self._ensure_models_loaded()
         
+        # Memory Guard: Check for high reserved memory before starting
+        if torch.cuda.is_available():
+            reserved = torch.cuda.memory_reserved() / (1024 ** 3) # GB
+            if reserved > 0.8 * torch.cuda.get_device_properties(0).total_memory / (1024 ** 3):
+                print(f"⚠️ Dirty GPU State detected: {reserved:.1f}GB reserved. Forcing GC...")
+                gc.collect()
+                torch.cuda.empty_cache()
+
         if self.model is None or self.align_model is None:
             raise RuntimeError("Models not fully initialized.")
         
