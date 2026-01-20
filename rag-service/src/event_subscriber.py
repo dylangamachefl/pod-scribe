@@ -172,72 +172,71 @@ async def index_single_episode(episode_id: str, batch_id: str = "default") -> bo
         heartbeat_stop = asyncio.Event()
         heartbeat_task = asyncio.create_task(heartbeat_loop(episode_id, heartbeat_stop))
         
+        episode = await get_episode_by_id(episode_id, load_transcript=True)
+        summary_record = await get_summary_by_episode_id(episode_id)
+        
+        if not episode or not episode.transcript_text:
+            logger.error("episode_unsuitable_for_rag", episode_id=episode_id)
+            return False
+
+        # Report status
+        await update_episode_status(episode_id, EpisodeStatus.INDEXING)
+        manager = get_pipeline_status_manager()
+        manager.update_service_status('rag', episode_id, "indexing", progress=0.1, log_message=f"Indexing (RAG) for: {episode.title}", additional_data={
+            "episode_title": episode.title,
+            "podcast_name": episode.podcast_name
+        })
+
+        summary_content = summary_record.content if summary_record else {}
+        
+        # Prepare metadata
+        metadata = (episode.meta_data or {}).copy()
+        metadata.update({
+            "source_file": f"db://episodes/{episode_id}",
+            "episode_title": episode.title,
+            "podcast_name": episode.podcast_name,
+            "episode_id": episode_id,
+            "audio_url": episode.url,
+            "summary_hook": summary_content.get("hook", ""),
+            "key_takeaways": summary_content.get("key_takeaways", [])
+        })
+        
+        # Chunking
+        transcript_lines = get_transcript_body(episode.transcript_text)
+        chunks = chunk_by_speaker_turns(transcript_lines)
+        
+        # Embed
+        embedding_service = get_embedding_service()
+        chunk_texts = [chunk["text"] for chunk in chunks]
+        embeddings = await embedding_service.embed_batch(chunk_texts)
+        
+        # Qdrant
+        qdrant_service = get_qdrant_service()
+        num_inserted = await qdrant_service.insert_chunks(chunks, embeddings, metadata)
+        
+        # BM25
         try:
-            episode = await get_episode_by_id(episode_id, load_transcript=True)
-            summary_record = await get_summary_by_episode_id(episode_id)
-            
-            if not episode or not episode.transcript_text:
-                logger.error("episode_unsuitable_for_rag", episode_id=episode_id)
-                return False
-
-            # Report status
-            await update_episode_status(episode_id, EpisodeStatus.INDEXING)
-            manager = get_pipeline_status_manager()
-            manager.update_service_status('rag', episode_id, "indexing", progress=0.1, log_message=f"Indexing (RAG) for: {episode.title}", additional_data={
-                "episode_title": episode.title,
-                "podcast_name": episode.podcast_name
-            })
-
-            summary_content = summary_record.content if summary_record else {}
-            
-            # Prepare metadata
-            metadata = (episode.meta_data or {}).copy()
-            metadata.update({
-                "source_file": f"db://episodes/{episode_id}",
-                "episode_title": episode.title,
-                "podcast_name": episode.podcast_name,
-                "episode_id": episode_id,
-                "audio_url": episode.url,
-                "summary_hook": summary_content.get("hook", ""),
-                "key_takeaways": summary_content.get("key_takeaways", [])
-            })
-            
-            # Chunking
-            transcript_lines = get_transcript_body(episode.transcript_text)
-            chunks = chunk_by_speaker_turns(transcript_lines)
-            
-            # Embed
-            embedding_service = get_embedding_service()
-            chunk_texts = [chunk["text"] for chunk in chunks]
-            embeddings = await embedding_service.embed_batch(chunk_texts)
-            
-            # Qdrant
-            qdrant_service = get_qdrant_service()
-            num_inserted = await qdrant_service.insert_chunks(chunks, embeddings, metadata)
-            
-            # BM25
-            try:
-                hybrid_service = get_hybrid_retriever_service(
-                    embeddings_service=embedding_service,
-                    qdrant_service=qdrant_service
-                )
-                new_documents = [
-                    Document(page_content=c["text"], metadata={**metadata, "speaker": c.get("speaker", "UNKNOWN"), "timestamp": c.get("timestamp", "00:00:00"), "chunk_index": i})
-                    for i, c in enumerate(chunks)
-                ]
-                hybrid_service.add_documents(new_documents)
-            except Exception as e:
-                logger.warning("bm25_update_failed", episode_id=episode_id, error=str(e))
-            
-            # Cleanup and finalize
-            await update_episode_status(episode_id, EpisodeStatus.INDEXED)
-            await update_episode_status(episode_id, EpisodeStatus.COMPLETED) # Final stage
-            # Cleanup status
-            manager.update_service_status('rag', episode_id, "completed", progress=1.0, log_message=f"Indexing complete: {episode.title}")
-            manager.clear_service_status('rag', episode_id)
-            manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}rag:completed") if manager.redis else None
-            
-            return True
+            hybrid_service = get_hybrid_retriever_service(
+                embeddings_service=embedding_service,
+                qdrant_service=qdrant_service
+            )
+            new_documents = [
+                Document(page_content=c["text"], metadata={**metadata, "speaker": c.get("speaker", "UNKNOWN"), "timestamp": c.get("timestamp", "00:00:00"), "chunk_index": i})
+                for i, c in enumerate(chunks)
+            ]
+            hybrid_service.add_documents(new_documents)
+        except Exception as e:
+            logger.warning("bm25_update_failed", episode_id=episode_id, error=str(e))
+        
+        # Cleanup and finalize
+        await update_episode_status(episode_id, EpisodeStatus.INDEXED)
+        await update_episode_status(episode_id, EpisodeStatus.COMPLETED) # Final stage
+        # Cleanup status
+        manager.update_service_status('rag', episode_id, "completed", progress=1.0, log_message=f"Indexing complete: {episode.title}")
+        manager.clear_service_status('rag', episode_id)
+        manager.redis.incr(f"{manager.SERVICE_STATS_PREFIX}rag:completed") if manager.redis else None
+        
+        return True
         
     except asyncio.CancelledError:
         logger.info("rag_indexing_cancelled", episode_id=episode_id)
