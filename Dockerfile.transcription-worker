@@ -40,6 +40,7 @@ RUN pip install --no-cache-dir redis
 # Copy application code
 COPY transcription-service/src/ ./src/
 COPY shared/ /app/shared/
+COPY scripts/ /app/scripts/
 
 # Set PYTHONPATH to include shared for events module
 ENV PYTHONPATH=/app/src:/app:/app/shared

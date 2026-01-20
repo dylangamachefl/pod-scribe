@@ -160,11 +160,6 @@ class TranscriptionDaemon:
                     return True
 
                 batch_id = job_data.get('batch_id', 'default')
-                if batch_id not in self.batch_episodes:
-                    self.batch_episodes[batch_id] = []
-                
-                if episode_id not in self.batch_episodes[batch_id]:
-                    self.batch_episodes[batch_id].append(episode_id)
 
                 logger.info("episode_metadata_retrieved", episode_id=episode_id, title=episode.title)
                 write_status(
