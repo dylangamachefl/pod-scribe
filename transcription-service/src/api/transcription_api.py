@@ -461,7 +461,7 @@ async def get_episode_queue():
             episode_title=ep.title,
             audio_url=ep.meta_data.get('audio_url', ep.url) if ep.meta_data else ep.url,
             published_date=ep.meta_data.get('published_date', '') if ep.meta_data else '',
-            selected=ep.meta_data.get('selected', False) if ep.meta_data else False,
+            selected=ep.is_selected,
             fetched_date=ep.created_at.isoformat() if ep.created_at else '',
             is_seen=ep.is_seen,
             is_favorite=ep.is_favorite,
@@ -613,18 +613,26 @@ async def bulk_select_episodes(request: BulkSelectRequest):
         
     session_maker = get_session_maker()
     async with session_maker() as session:
-        # Update is_selected column directly
-        stmt = (
-            update(EpisodeModel)
-            .where(EpisodeModel.id.in_(request.episode_ids))
-            .values(is_selected=request.selected)
-        )
-        result = await session.execute(stmt)
+        # Fetch existing metadata to keep in sync
+        query = select(EpisodeModel).where(EpisodeModel.id.in_(request.episode_ids))
+        result = await session.execute(query)
+        episodes = result.scalars().all()
+        
+        for ep in episodes:
+            ep.is_selected = request.selected
+            # Keep legacy metadata in sync
+            if ep.meta_data is None:
+                ep.meta_data = {}
+            updated_meta = ep.meta_data.copy()
+            updated_meta['selected'] = request.selected
+            ep.meta_data = updated_meta
+            
         await session.commit()
+        count = len(episodes)
         
     return {
         "status": "updated",
-        "count": result.rowcount,
+        "count": count,
         "selected": request.selected
     }
 
@@ -859,7 +867,7 @@ async def start_transcription(
         target_episodes = [
             {'id': ep.id, 'audio_url': ep.meta_data.get('audio_url', ep.url),
              'episode_title': ep.title, 'feed_title': ep.podcast_name}
-            for ep in all_episodes if ep.meta_data and ep.meta_data.get('selected')
+            for ep in all_episodes if ep.is_selected
         ]
     
     if not target_episodes:
@@ -903,7 +911,10 @@ async def start_transcription(
                         stmt = (
                             update(EpisodeModel)
                             .where(EpisodeModel.id == episode_id)
-                            .values(meta_data=updated_meta)
+                            .values(
+                                is_selected=False,
+                                meta_data=updated_meta
+                            )
                         )
                         await session.execute(stmt)
                         await session.commit()

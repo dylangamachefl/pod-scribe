@@ -14,6 +14,7 @@ function DashboardPage() {
     const [error, setError] = useState<string | null>(null);
     const [isClearing, setIsClearing] = useState(false);
     const [isStopping, setIsStopping] = useState(false);
+    const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
     const loadData = async () => {
         try {
@@ -45,12 +46,36 @@ function DashboardPage() {
         return () => clearInterval(interval);
     }, [status?.is_running]);
 
+    const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 4000);
+    };
+
     const handleStartTranscription = async () => {
         try {
-            await transcriptionApi.startTranscription();
+            // Get selected episodes first so we can mark them as seen
+            const allEpisodes = await transcriptionApi.getAllEpisodes();
+            const selectedIds = allEpisodes.filter(ep => ep.selected).map(ep => ep.id);
+
+            if (selectedIds.length === 0) {
+                showNotification('No episodes selected', 'error');
+                return;
+            }
+
+            const response = await transcriptionApi.startTranscription({ episode_ids: selectedIds });
+
+            // Mark as seen when starting (matches Inbox behavior)
+            try {
+                await transcriptionApi.bulkSeenEpisodes(selectedIds, true);
+            } catch (err) {
+                console.warn('Failed to mark episodes as seen:', err);
+            }
+
+            showNotification(response.message || 'Transcription started successfully', 'success');
             loadData(); // Refresh after starting
         } catch (err: any) {
-            alert(err.response?.data?.detail || 'Failed to start transcription');
+            console.error('Transcription start failed:', err);
+            showNotification(err.response?.data?.detail || 'Failed to start transcription', 'error');
         }
     };
 
@@ -113,6 +138,31 @@ function DashboardPage() {
 
     return (
         <div className="dashboard-page">
+            {notification && (
+                <div className={`notification-banner ${notification.type}`} style={{
+                    position: 'fixed',
+                    top: '24px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 1000,
+                    padding: '12px 24px',
+                    borderRadius: '12px',
+                    backgroundColor: notification.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                    border: `1px solid ${notification.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                    color: notification.type === 'success' ? '#10b981' : '#ef4444',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    backdropFilter: 'blur(8px)',
+                    animation: 'slideDown 0.3s ease-out'
+                }}>
+                    <span style={{ marginRight: '8px' }}>{notification.type === 'success' ? '✅' : '❌'}</span>
+                    {notification.message}
+                </div>
+            )}
             <header className="dashboard-header">
                 <div className="header-main">
                     <h1>Dashboard</h1>

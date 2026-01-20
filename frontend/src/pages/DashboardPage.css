@@ -480,7 +480,17 @@
 .queue-item-progress {
     display: flex;
     justify-content: space-between;
-    font-size: 0.8rem;
-    font-weight: 700;
     color: var(--color-text-tertiary);
+}
+
+@keyframes slideDown {
+    from {
+        transform: translate(-50%, -100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
 }
