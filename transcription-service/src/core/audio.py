@@ -136,10 +136,11 @@ class SSRFTransport(httpx.AsyncBaseTransport):
             raise httpx.ConnectError(f"Restricted or invalid destination: {hostname}")
 
         # 2. Re-write the request to use the IP directly, but keep the original Host header
-        # bitwise: we change the host to the IP, which forces httpx to connect to that IP,
-        # but the SNI/Host header will still be the original hostname.
+        # AND set the sni_hostname extension for proper TLS handshake (SNI)
+        # many servers (e.g. Cloudflare) require the hostname in the SNI extension
         original_url = request.url
         request.url = request.url.copy_with(host=safe_ip)
+        request.extensions["sni_hostname"] = hostname.encode("ascii")
         
         # Ensure Host header is preserved for SNI and HTTP routing
         if "Host" not in request.headers:
