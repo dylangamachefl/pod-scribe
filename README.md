@@ -1,5 +1,10 @@
 # Automated Podcast Transcription & RAG System
 
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Docker](https://img.shields.io/badge/docker-required-blue)
+![GPU](https://img.shields.io/badge/GPU-NVIDIA%20CUDA-green)
+
 A modular, production-ready system for automated podcast transcription with speaker diarization and semantic search powered by RAG (Retrieval-Augmented Generation).
 
 ## 🎯 Overview
@@ -11,6 +16,47 @@ This monorepo contains five integrated services:
 3. **RAG Service**: Provides hybrid semantic search (BM25 + Qdrant) and streaming Q&A using local Ollama (`qwen3:rag`).
 4. **Summarization Service**: Generates structured summaries using a two-stage Map-Reduce Synthesis pipeline with local Ollama (`qwen3:summarizer`).
 5. **Frontend**: React-based "Unified Intelligence & Navigation Interface" (UII) for managing podcasts and interactive "Search-to-Seek" results.
+
+## 🔬 Technical Highlights
+
+This project demonstrates advanced software engineering and AI/ML techniques:
+
+### Distributed Systems Design
+- **Event-Driven Architecture:** Asynchronous service communication via Redis Streams with consumer groups
+- **Idempotent Operations:** Deterministic UUID generation for safe event replay and deduplication
+- **Distributed GPU Lock:** Redis-based coordination with "Immediate Release" strategy to maximize GPU utilization
+- **Microservices Pattern:** Loosely coupled services with clear API contracts and separation of concerns
+
+### GPU Optimization Strategies
+- **VRAM Management:** Active garbage collection and model quantization (INT8) for memory efficiency
+- **Sequential Model Loading:** Distributed lock prevents OOM errors during concurrent model initialization
+- **Batch Processing:** Dynamic batch sizing based on available VRAM for optimal throughput
+
+### Advanced AI/ML Techniques
+- **Hybrid Search (RRF):** Combines BM25 keyword search with vector similarity using Reciprocal Rank Fusion
+- **Map-Reduce Synthesis:** Two-stage summarization pipeline with rolling context maintenance
+- **Structured Extraction:** Instructor library ensures LLM outputs conform to Pydantic schemas
+- **Streaming Responses:** Server-Sent Events (SSE) for real-time user feedback during inference
+
+### Production-Ready Patterns
+- **Type Safety:** Comprehensive type hints and Pydantic models throughout
+- **Health Checks:** Liveness and readiness probes for all services
+- **Observability:** Structured logging, pipeline status monitoring, and worker heartbeats
+- **Containerization:** Multi-stage Docker builds with GPU support via NVIDIA Container Toolkit
+- **Configuration Management:** Environment-based config with Docker secrets support
+
+## 💻 Technology Stack
+
+| Layer | Technologies |
+|-------|-------------|
+| **Frontend** | React, Vite, Axios |
+| **Backend APIs** | FastAPI, Uvicorn, Pydantic |
+| **AI/ML** | WhisperX, Pyannote Audio, Ollama (Qwen3), Instructor |
+| **Databases** | PostgreSQL 15, Qdrant (Vector DB), Redis 7 (Streams) |
+| **Infrastructure** | Docker, Docker Compose, NVIDIA Container Toolkit |
+| **Languages** | Python 3.11+, JavaScript/React, SQL |
+
+**See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical deep-dive.**
 
 ## ✨ Features
 
@@ -101,8 +147,8 @@ podcast-transcriber/
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/podcast-transcriber.git
-cd podcast-transcriber
+git clone https://github.com/dylangamachefl/pod-scribe.git
+cd pod-scribe
 ```
 
 ### 2. Configure Environment
@@ -113,7 +159,6 @@ cp .env.example .env
 
 # Edit .env and add your API keys:
 # - HUGGINGFACE_TOKEN (required for speaker diarization)
-# - GEMINI_API_KEY (required for summarization)
 ```
 
 ### 3. Setup Ollama
@@ -130,11 +175,7 @@ ollama create qwen3:rag -f models/Modelfile_rag
 ollama create qwen3:summarizer -f models/Modelfile_sum
 ```
 
-### 4. Configure Environment
-
-Edit `.env` and add your HuggingFace token (required for speaker diarization).
-
-### 5. Start the Application
+### 4. Start the Application
 
 ```bash
 # Windows: Double-click start_app.bat or run:
@@ -146,7 +187,7 @@ start_app.bat
 # - Open your browser to http://localhost:3000
 ```
 
-### 6. Access the Application
+### 5. Access the Application
 
 - **Web UI**: http://localhost:3000
 - **RAG API**: http://localhost:8000/docs
@@ -304,13 +345,15 @@ pytest tests/
 
 ## 📚 Documentation
 
-- [Quick Start Guide](QUICKSTART.md)
+- **[Architecture Deep-Dive](ARCHITECTURE.md)** - System design, patterns, and technical decisions
+- **[Contributing Guide](CONTRIBUTING.md)** - Development setup and guidelines
+- **[Quick Start Guide](QUICKSTART.md)** - Get up and running quickly
+- **[GPU Setup Guide](GPU_SETUP.md)** - NVIDIA GPU configuration for Docker
 - [Transcription Service README](transcription-service/README.md)
 - [RAG Service README](rag-service/README.md)
 - [Summarization Service README](summarization-service/README.md)
 - [Event Bus Architecture](docs/architecture/event_bus.md)
-- [GPU Setup Guide](GPU_SETUP.md)
-- [Historical Documentation](docs/archive/history/README.md)
+- [API Endpoints](docs/api_endpoints.md)
 
 ## 🛠️ Development
 

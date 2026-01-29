@@ -38,6 +38,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.pyc
 
 # Distribution / packaging
 .Python
@@ -93,6 +94,12 @@ env/
 
 # pyenv
 .python-version
+
+# Modern Python tooling
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
 # =================================================================
 # NODE.JS / FRONTEND
