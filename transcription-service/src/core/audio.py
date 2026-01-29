@@ -8,6 +8,7 @@ import gc
 import os
 import socket
 import ipaddress
+import time
 from urllib.parse import urlparse
 from pathlib import Path
 from typing import Optional, Dict
@@ -92,7 +93,25 @@ def download_youtube_audio(url: str, output_path: Path) -> bool:
                 'preferredquality': '192',
             }],
             'quiet': True,
-            'no_warnings': True
+            'no_warnings': True,
+            # Headers to bypass bot detection
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+                'Sec-Fetch-Mode': 'navigate',
+            },
+            # Additional options to help with YouTube
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android', 'web'],
+                    'player_skip': ['webpage', 'configs'],
+                }
+            },
+            # Retry configuration
+            'retries': 10,
+            'fragment_retries': 10,
+            'skip_unavailable_fragments': True,
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

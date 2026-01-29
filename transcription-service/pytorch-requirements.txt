@@ -13,10 +13,11 @@ torchaudio  # Already installed with PyTorch but explicitly listed
 feedparser  # For RSS feed parsing
 requests  # For HTTP requests
 httpx>=0.25.0  # For async HTTP requests
-yt-dlp>=2023.0.0  # For audio downloads
+yt-dlp>=2024.12.0  # For audio downloads (updated for YouTube compatibility)
 pydub>=0.25.0  # For audio processing
 pydantic  # For data models
 python-dotenv  # For environment config
+matplotlib  # Required by pyannote.audio/whisperx for visualization
 
 # Database dependencies for PostgreSQL access
 asyncpg

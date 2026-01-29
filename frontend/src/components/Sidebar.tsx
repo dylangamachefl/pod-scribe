@@ -43,7 +43,7 @@ export function Sidebar() {
             <div className="sidebar-header">
                 <div className="logo-container">
                     <span className="logo-icon">🎙️</span>
-                    <span className="logo-text">Knowledge OS</span>
+                    <span className="logo-text">PodScribe</span>
                 </div>
             </div>
 
