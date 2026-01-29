@@ -5,7 +5,7 @@
 ![Docker](https://img.shields.io/badge/docker-required-blue)
 ![GPU](https://img.shields.io/badge/GPU-NVIDIA%20CUDA-green)
 
-A modular, production-ready system for automated podcast transcription with speaker diarization and semantic search powered by RAG (Retrieval-Augmented Generation).
+Automated podcast and YouTube video transcription, summarization, and intelligent search platform. Process audio with GPU-accelerated speech recognition, identify speakers, generate AI summaries, and chat with transcripts using local AI models.
 
 ## 🎯 Overview
 
